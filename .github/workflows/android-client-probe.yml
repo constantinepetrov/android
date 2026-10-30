@@ -36,7 +36,14 @@ jobs:
           mkdir -p "$RUNNER_TEMP/krom-test"
           fpc -dANDROID -Mdelphi -Fi. -Fusrc/utils -FU"$RUNNER_TEMP/krom-test" -FE"$RUNNER_TEMP/krom-test" android-port/tests/kromutils_smoke.pas
           "$RUNNER_TEMP/krom-test/kromutils_smoke"
+      - name: Cache FPC cross compiler
+        id: fpc-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/fpc-android
+          key: fpc-3.2.2-aarch64-android-ubuntu-24.04-v1
       - name: Build experimental FPC Android cross compiler and RTL
+        if: steps.fpc-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -o pipefail
