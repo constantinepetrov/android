@@ -1,0 +1,101 @@
+name: Android native host
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/android-native-port]
+    paths:
+      - 'android-port/host/**'
+      - '.github/workflows/android-native-host.yml'
+      - 'src/utils/algorithms/KM_Sort.pas'
+      - 'KaM_Remake.inc'
+  pull_request:
+    paths:
+      - 'android-port/host/**'
+      - '.github/workflows/android-native-host.yml'
+      - 'src/utils/algorithms/KM_Sort.pas'
+      - 'KaM_Remake.inc'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/FPCSource
+          ref: release_3_2_2
+          path: fpc-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 binutils-aarch64-linux-gnu
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - name: Cache FPC cross compiler
+        id: fpc-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/fpc-android
+          key: fpc-3.2.2-aarch64-android-ubuntu-24.04-v1
+      - name: Build FPC cross compiler and Android RTL
+        if: steps.fpc-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/fpc-android"
+          make -C fpc-source crossall crossinstall CPU_TARGET=aarch64 OS_TARGET=android \
+            BINUTILSPREFIX=aarch64-linux-gnu- INSTALL_PREFIX="$RUNNER_TEMP/fpc-android" \
+            2>&1 | tee "$RUNNER_TEMP/host-fpc-build.log"
+      - name: Build Pascal Android library
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          test -n "$compiler" && test -n "$units"
+          ndk="$ANDROID_HOME/ndk/27.2.12479018"
+          sysroot="$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$out" "$RUNNER_TEMP/host-units"
+          "$compiler" -Tandroid -Paarch64 -Mdelphi -Cg -XPaarch64-linux-gnu- \
+            "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
+            "-Fl$sysroot/usr/lib/aarch64-linux-android" "-Fl$sysroot/usr/lib/aarch64-linux-android/24" \
+            "-k--sysroot=$sysroot" "-FU$RUNNER_TEMP/host-units" \
+            "-o$out/libkamprobe.so" "$GITHUB_WORKSPACE/android-port/host/pascal/kamprobe.lpr" \
+            2>&1 | tee "$RUNNER_TEMP/host-pascal.log"
+          aarch64-linux-gnu-readelf -h "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-elf.log"
+          aarch64-linux-gnu-readelf -Ws "$out/libkamprobe.so" | grep Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe
+      - name: Build debug APK
+        shell: bash
+        working-directory: android-port/host
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug 2>&1 | tee "$RUNNER_TEMP/host-gradle.log"
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libkamprobe.so'
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: android-port/host/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-native-host-build-logs
+          path: |
+            ${{ runner.temp }}/host-fpc-build.log
+            ${{ runner.temp }}/host-pascal.log
+            ${{ runner.temp }}/host-elf.log
+            ${{ runner.temp }}/host-gradle.log
+          if-no-files-found: warn

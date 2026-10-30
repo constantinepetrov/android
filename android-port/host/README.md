@@ -1,0 +1,5 @@
+# Android native integration probe
+
+This is not KaM Remake and has no game simulation, map or original game assets. It tests a Java `GLSurfaceView` using EGL/OpenGL ES 2, touch-drag and pinch, and a JNI call to a Free Pascal ARM64 shared library. The library calls the existing game's `KM_Sort.SortCustom` on `[4,1,3]` and returns `134`, shown on screen. No network or external assets are required.
+
+The GitHub Actions `Android native host` workflow builds the FPC cross compiler and Android RTL, links the Pascal library against Android NDK, builds an `arm64-v8a` debug APK, inspects the APK, and publishes it as an artifact only if those steps succeed. Building or inspecting does not prove installation or GPU behavior; verify on a physical ARM64 Android device. Expected UI: dark surface with a gold triangle that follows single-finger drags and scales with pinch; text reads `Native Pascal KM_Sort: 134`. Pause/resume should restore rendering. Debug APK is for experiments, not production or distribution of the game.

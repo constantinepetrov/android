@@ -4,8 +4,8 @@ interface
 uses
   Classes
   {$IFDEF MSWindows}, Windows, MMSystem {$ENDIF}
-  {$IFDEF Unix}, LCLType {$ENDIF}
-  {$IFDEF FPC}, LCLIntf, UTF8Process, LazHelpHTML {$ENDIF}
+  {$IF Defined(Unix) and not Defined(ANDROID)}, LCLType {$IFEND}
+  {$IF Defined(FPC) and not Defined(ANDROID)}, LCLIntf, UTF8Process, LazHelpHTML {$IFEND}
   ;
 
 type
