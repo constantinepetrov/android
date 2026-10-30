@@ -1,0 +1,55 @@
+name: Android client compilation probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/android-native-port]
+  pull_request:
+    paths:
+      - 'android-port/**'
+      - '.github/workflows/android-client-probe.yml'
+permissions:
+  contents: read
+jobs:
+  client-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/FPCSource
+          ref: release_3_2_2
+          path: fpc-source
+      - name: Install bootstrap compiler and cross assembler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 binutils-aarch64-linux-gnu
+      - name: Build experimental FPC Android cross compiler and RTL
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/fpc-android"
+          make -C fpc-source crossall crossinstall CPU_TARGET=aarch64 OS_TARGET=android \
+            BINUTILSPREFIX=aarch64-linux-gnu- INSTALL_PREFIX="$RUNNER_TEMP/fpc-android" \
+            2>&1 | tee "$RUNNER_TEMP/cross-build.log"
+      - name: Compile actual KM_Game client unit
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          test -n "$compiler" && test -n "$units"
+          FPC_ANDROID="$compiler" FPC_ANDROID_UNITS="$units" PORT_BUILD_DIR="$RUNNER_TEMP/client-units" \
+            bash android-port/experiments/compile-game-android.sh 2>&1 | tee "$RUNNER_TEMP/client-build.log"
+      - name: Preserve diagnostic logs and generated units
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-client-probe
+          path: |
+            ${{ runner.temp }}/cross-build.log
+            ${{ runner.temp }}/client-build.log
+            ${{ runner.temp }}/client-units/
+          if-no-files-found: warn
