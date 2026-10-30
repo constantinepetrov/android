@@ -31,6 +31,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 binutils-aarch64-linux-gnu
+      - name: Check Android-conditional KromUtils behavior on Linux
+        run: |
+          mkdir -p "$RUNNER_TEMP/krom-test"
+          fpc -dANDROID -Mdelphi -Fi. -Fusrc/utils -FU"$RUNNER_TEMP/krom-test" -FE"$RUNNER_TEMP/krom-test" android-port/tests/kromutils_smoke.pas
+          "$RUNNER_TEMP/krom-test/kromutils_smoke"
       - name: Build experimental FPC Android cross compiler and RTL
         shell: bash
         run: |

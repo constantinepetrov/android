@@ -261,7 +261,7 @@ end;
 
 function CharInSet(C: WideChar; S: TSetOfAnsiChar): Boolean;
 begin
-  Result := (Ord(C) <= MAXBYTE) and (AnsiChar(C) in S);
+  Result := (Ord(C) <= High(Byte)) and (AnsiChar(C) in S);
 end;
 
 
