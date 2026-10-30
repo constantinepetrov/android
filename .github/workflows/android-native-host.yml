@@ -31,7 +31,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
@@ -39,7 +38,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 binutils-aarch64-linux-gnu
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+          sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          test -n "$sdkmanager"
+          "$sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
       - name: Cache FPC cross compiler
         id: fpc-cache
         uses: actions/cache@v4
