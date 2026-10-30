@@ -46,7 +46,7 @@ jobs:
           compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
           units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
           test -n "$compiler" && test -n "$units"
-          FPC_ANDROID="$compiler" FPC_ANDROID_UNITS="$units" LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_BUILD_DIR="$RUNNER_TEMP/client-units" \
+          FPC_ANDROID="$compiler" FPC_ANDROID_UNITS="$units" LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" LCL_SOURCE="$GITHUB_WORKSPACE/lazarus-source/lcl" PORT_BUILD_DIR="$RUNNER_TEMP/client-units" \
             bash android-port/experiments/compile-game-android.sh 2>&1 | tee "$RUNNER_TEMP/client-build.log"
       - name: Preserve diagnostic logs and generated units
         if: always()
