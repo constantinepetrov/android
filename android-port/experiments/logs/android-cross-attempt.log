@@ -1,0 +1,2 @@
+Command: fpc -n -Paarch64 -Tandroid KaM_Remake.lpr
+Error: ppca64 can’t be executed, error message: Failed to execute "ppca64", error code: 127
