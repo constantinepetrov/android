@@ -8,6 +8,7 @@ out=${PORT_BUILD_DIR:-"$root/.android-port-build"}
 mkdir -p "$out"
 paths=()
 while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find "$root/src" -type d -print0)
-"$FPC_ANDROID" -Paarch64 -Tandroid -Mdelphi -B -Cn -Fi"$root" \
-  "-Fu$FPC_ANDROID_UNITS/*" "${paths[@]}" -FU"$out" \
-  "$root/src/game/KM_Game.pas"
+for unit in src/common/KM_Defaults.pas src/game/KM_Game.pas; do
+  "$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -B -Cn -Fi"$root" \
+    "-Fu$FPC_ANDROID_UNITS/*" "${paths[@]}" -FU"$out" "$root/$unit"
+done
