@@ -71,6 +71,10 @@ const
   callibname='libopenal.so';
   calutlibname='libalut.so';
 {$ENDIF}
+{$IFDEF ANDROID}
+  callibname='libopenal.so';
+  calutlibname='libalut.so';
+{$ENDIF}
 
 
 type
