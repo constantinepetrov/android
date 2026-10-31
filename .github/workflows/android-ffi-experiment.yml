@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - uses: actions/checkout@v4
         with:
           repository: fpc/FPCSource
@@ -30,11 +32,6 @@ jobs:
           repository: fpc/Lazarus
           ref: lazarus_4_0
           path: lazarus-source
-      - uses: actions/checkout@v4
-        with:
-          repository: libffi/libffi
-          ref: 3d0ce1e6fcf19f853894862abcbac0ae78a7be60
-          path: libffi-source
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -64,8 +61,10 @@ jobs:
         run: |
           set -o pipefail
           ndk="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64"
-          cd libffi-source
-          ./autogen.sh 2>&1 | tee "$RUNNER_TEMP/ffi-autogen.log"
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/libffi-3.4.6.tar.gz" https://github.com/libffi/libffi/releases/download/v3.4.6/libffi-3.4.6.tar.gz
+          echo 'b0dea9df23c863a7a50e825440f3ebffabd65df1497108e5d437747843895a4e  '"$RUNNER_TEMP/libffi-3.4.6.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/libffi-3.4.6.tar.gz" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/libffi-3.4.6"
           mkdir -p build-android
           cd build-android
           CC="$ndk/bin/aarch64-linux-android24-clang" AR="$ndk/bin/llvm-ar" RANLIB="$ndk/bin/llvm-ranlib" \
@@ -94,6 +93,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/ffi-units" "$RUNNER_TEMP/host-units" "$RUNNER_TEMP/ffi-source"
           cp "$(find fpc-source -name ffi.pp -print -quit)" "$RUNNER_TEMP/ffi-source/ffi.pp"
           cp "$(find fpc-source -name ffi.manager.pp -print -quit)" "$RUNNER_TEMP/ffi-source/ffi.manager.pp"
+          python3 android-port/experiments/prepare-pascalscript-fpc.py src/ext/pascalscript_submodule/Source "$RUNNER_TEMP/ps-ffi-overlay"
           # No Linux x86_64 enum patch: Android AArch64 FFI_SYSV is 1.
           for unit in ffi.pp ffi.manager.pp; do
             "$compiler" -Tandroid -Paarch64 -Mobjfpc -Cg -Cn -XPaarch64-linux-gnu- "-Fu$units/*" "-Fu$RUNNER_TEMP/ffi-source" "-Fu$RUNNER_TEMP/ffi-units" "-FU$RUNNER_TEMP/ffi-units" "$RUNNER_TEMP/ffi-source/$unit"
@@ -102,7 +102,7 @@ jobs:
           while IFS= read -r -d '' dir; do [[ "$dir" == *' '* ]] || paths+=("-Fu$dir" "-Fi$dir"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
           common=(-Tandroid -Paarch64 -Mdelphi -Sc -Cg -XPaarch64-linux-gnu- "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384)
           "$compiler" "${common[@]}" "-FU$RUNNER_TEMP/host-units" "-o$out/libkamprobe.so" "$GITHUB_WORKSPACE/android-port/host/pascal/kamprobe.lpr"
-          "$compiler" "${common[@]}" "-Fu$RUNNER_TEMP/ffi-units" "-Fl$out" "-FU$RUNNER_TEMP/ffi-units" "-o$out/libkamffi_probe.so" "$GITHUB_WORKSPACE/android-port/ffi/kamffi_probe.lpr"
+          "$compiler" "-Fu$RUNNER_TEMP/ps-ffi-overlay" "-Fi$RUNNER_TEMP/ps-ffi-overlay" "-Fu$RUNNER_TEMP/ffi-units" "${common[@]}" "-Fl$out" "-FU$RUNNER_TEMP/ffi-units" "-o$out/libkamffi_probe.so" "$GITHUB_WORKSPACE/android-port/ffi/kamffi_probe.lpr"
           aarch64-linux-gnu-readelf -h -d -lW "$out/libkamffi_probe.so" | tee "$RUNNER_TEMP/ffi-probe-elf.log"
           grep -q 'Shared library: \[libffi.so\]' "$RUNNER_TEMP/ffi-probe-elf.log"
       - name: Build diagnostic APK
