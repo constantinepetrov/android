@@ -830,6 +830,7 @@ var
   formation: TKMFormation;
   GT: TKMGroupType;
   dir: TKMDirection;
+  unitType: TKMUnitType;
   U: TKMUnit;
 begin
   P := gCursor.Cell;
@@ -847,7 +848,7 @@ begin
   else
   if gTerrain.CanPlaceUnit(P, TKMUnitType(gCursor.Tag1)) then
   begin
-    var unitType := TKMUnitType(gCursor.Tag1);
+    unitType := TKMUnitType(gCursor.Tag1);
     formation.NumUnits := 1;
     formation.UnitsPerRow := 1;
 
@@ -918,6 +919,7 @@ var
   dir: TKMDirection;
   G: TKMUnitGroup;
   formation : TKMFormation;
+  unitType: TKMUnitType;
 begin
   dir := gCursor.MapEdDirection;
   groupType := gCursor.MapEdDefPosGroupType;
@@ -939,7 +941,7 @@ begin
     if (G = nil)
     and (gTerrain.UnitsHitTest(aLoc.X, aLoc.Y) = nil) then
     begin
-      var unitType := UNIT_TYPES_BY_GT_LVL[groupType, gCursor.MapEdDefPosGroupLevel];
+      unitType := UNIT_TYPES_BY_GT_LVL[groupType, gCursor.MapEdDefPosGroupLevel];
       gMySpectator.Hand.AddUnitGroup(unitType, aLoc, dir, formation.UnitsPerRow, formation.NumUnits);
       fHistory.MakeCheckpoint(caUnits, Format(gResTexts[TX_MAPED_HISTORY_CHPOINT_ADD_SMTH], [gRes.Units[unitType].GUIName, aLoc.ToString]));
     end;
