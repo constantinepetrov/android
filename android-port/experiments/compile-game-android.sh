@@ -13,6 +13,9 @@ while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find 
 overlay=()
 if [ -n "${PS_OVERLAY:-}" ]; then overlay=("-Fu$PS_OVERLAY" "-Fi$PS_OVERLAY"); fi
 failed=0
+echo "KM_SCRIPTING_SOURCE_BYTES_BEGIN"
+head -c 96 "$root/src/scripting/KM_Scripting.pas" | od -An -tx1c
+echo "KM_SCRIPTING_SOURCE_BYTES_END"
 for unit in src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_Game.pas; do
   echo "ANDROID_UNIT_START $unit"
   # The upstream secure-auth unit is absent from this repository. This diagnostic compile
