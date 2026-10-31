@@ -76,7 +76,12 @@ jobs:
           out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
           mkdir -p "$out" "$RUNNER_TEMP/host-units"
           paths=()
-          while IFS= read -r -d '' dir; do paths+=("-Fu$dir" "-Fi$dir"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
+          while IFS= read -r -d '' dir; do
+            # FPC 3.2.2 writes single-quoted search paths into the GNU ld
+            # Android response script; paths containing spaces break ld.bfd.
+            [[ "$dir" == *" "* ]] && continue
+            paths+=("-Fu$dir" "-Fi$dir")
+          done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
           "$compiler" -Tandroid -Paarch64 -Mdelphi -Sc -Cg -XPaarch64-linux-gnu- \
             "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
             "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" \
