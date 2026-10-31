@@ -67,7 +67,8 @@ end;
 procedure LoadFromPngAndroid(const aFile: UnicodeString; var aWidth, aHeight: Word; var aPixelData: TKMCardinalArray);
 const Signature: array[0..7] of Byte = (137,80,78,71,13,10,26,10);
 var
-  F, Compressed, Raw: TMemoryStream;
+  F: TFileStream;
+  Compressed, Raw: TMemoryStream;
   Z: TDecompressionStream;
   InflateBuffer: array[0..32767] of Byte;
   InflateCount: Integer;
@@ -211,7 +212,8 @@ end;
 procedure SaveToPngAndroid(aWidth, aHeight: Word; const aPixelData: TKMCardinalArray; const aFilename: UnicodeString);
 const Signature: array[0..7] of Byte = (137,80,78,71,13,10,26,10);
 var
-  F, Data, Compressed: TMemoryStream;
+  F: TFileStream;
+  Data, Compressed: TMemoryStream;
   Z: TCompressionStream;
   Header: array[0..12] of Byte;
   Row: TByteArray;
