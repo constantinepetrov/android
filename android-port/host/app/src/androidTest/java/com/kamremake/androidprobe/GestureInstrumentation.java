@@ -172,11 +172,12 @@ public final class GestureInstrumentation extends Instrumentation {
             check(different(restored,textured)>100,"RXX texture did not alter rendered map");
             android.util.Log.i("KaMProbe", "RXX_SYNTHETIC_RENDER_OK");
             checkpoint("background-resume");
+            int resumes=activity.testResumeGeneration();
             getUiAutomation().executeShellCommand("input keyevent KEYCODE_HOME").close();
             Thread.sleep(1200);
             Intent resume=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-            MainActivity resumed=(MainActivity)startActivitySync(resume); activity=resumed;
-            await(() -> activity.testMapWidth()==64,"map missing after background/resume");
+            getTargetContext().startActivity(resume);
+            await(() -> activity.testResumeGeneration()>resumes && activity.hasWindowFocus() && activity.testMapWidth()==64,"map missing after background/resume");
             Bitmap resumedImage=capture("resumed");
             check(different(textured,resumedImage)<100,"map changed after background/resume");
             android.util.Log.i("KaMProbe", "QA_PASSED pan="+pan[1]+" zoom="+zoom[0]+" context="+activity.testSurfaceGeneration());

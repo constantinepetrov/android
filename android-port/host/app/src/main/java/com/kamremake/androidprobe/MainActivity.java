@@ -37,6 +37,7 @@ public final class MainActivity extends Activity {
     private TextView label;
     private boolean nativeFinished;
     private volatile boolean mapPending;
+    private volatile int resumeGeneration;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final BroadcastReceiver diagnostics = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
@@ -171,12 +172,13 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); unregisterReceiver(diagnostics); super.onDestroy(); }
     @Override protected void onPause() { view.onPause(); super.onPause(); }
-    @Override protected void onResume() { super.onResume(); view.onResume(); }
+    @Override protected void onResume() { super.onResume(); view.onResume(); resumeGeneration++; }
 
     // Read-only snapshots for the instrumentation APK; no test control endpoint.
     float[] testTransform() { return new float[]{view.renderer.zoom, view.renderer.offsetX, view.renderer.offsetY}; }
     int testMapWidth() { return view.renderer.mapWidth; }
     int testSurfaceGeneration() { return view.renderer.surfaceGeneration; }
+    int testResumeGeneration() { return resumeGeneration; }
     TextView testLabel() { return label; }
     void testRecreateGlContext() { view.onPause(); view.onResume(); }
 
