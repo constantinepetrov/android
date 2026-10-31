@@ -69,12 +69,17 @@ jobs:
           mkdir -p "$out" "$RUNNER_TEMP/host-units"
           "$compiler" -Tandroid -Paarch64 -Mdelphi -Cg -XPaarch64-linux-gnu- \
             "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
-            "-Fl$sysroot/usr/lib/aarch64-linux-android" "-Fl$sysroot/usr/lib/aarch64-linux-android/24" \
+            "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" \
             "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384 \
             "-FU$RUNNER_TEMP/host-units" \
             "-o$out/libkamprobe.so" "$GITHUB_WORKSPACE/android-port/host/pascal/kamprobe.lpr" \
             2>&1 | tee "$RUNNER_TEMP/host-pascal.log"
           aarch64-linux-gnu-readelf -h "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-elf.log"
+          aarch64-linux-gnu-readelf -dW "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-dynamic.log"
+          grep -q 'Shared library: \[libc.so\]' "$RUNNER_TEMP/host-dynamic.log"
+          if aarch64-linux-gnu-readelf -Ws "$out/libkamprobe.so" | grep -E 'GLOBAL +DEFAULT +UND +__aarch64_'; then
+            echo 'Unresolved AArch64 atomic helpers' >&2; exit 1
+          fi
           aarch64-linux-gnu-readelf -Ws "$out/libkamprobe.so" | grep Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe
           # On 16 KiB Android devices every ELF PT_LOAD segment must be 16 KiB aligned.
           aarch64-linux-gnu-readelf -lW "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-segments.log"
@@ -113,6 +118,7 @@ jobs:
             ${{ runner.temp }}/host-fpc-build.log
             ${{ runner.temp }}/host-pascal.log
             ${{ runner.temp }}/host-elf.log
+            ${{ runner.temp }}/host-dynamic.log
             ${{ runner.temp }}/host-segments.log
             ${{ runner.temp }}/host-gradle.log
           if-no-files-found: warn

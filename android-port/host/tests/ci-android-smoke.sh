@@ -60,6 +60,11 @@ if [ -z "$pid" ]; then
   exit 1
 fi
 
-# The visible native result requires successful loadLibrary + JNI + Activity creation.
-# UIAutomator inspection is attempted in the cleanup handler, preserving artifacts.
-echo "PROCESS_ALIVE_AFTER_LAUNCH_AND_DRAG" | tee -a "$results/runtime.txt"
+# Assert the on-screen native result, not just a surviving Java process.
+adb shell uiautomator dump /sdcard/smoke-window.xml > "$results/ui-check.txt" 2>&1
+adb shell cat /sdcard/smoke-window.xml > "$results/smoke-window.xml"
+if ! grep -q 'Native Pascal KM_Sort: 134' "$results/smoke-window.xml"; then
+  echo "JNI_RESULT_MISSING: inspect window and logcat" | tee "$results/failure.txt"
+  exit 1
+fi
+echo "PROCESS_ALIVE_AND_JNI_RESULT_134" | tee -a "$results/runtime.txt"
