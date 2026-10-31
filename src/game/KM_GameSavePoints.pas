@@ -203,13 +203,15 @@ end;
 
 
 procedure TKMSavePointCollection.NewSavePointAndFree(var aStream: TKMemoryStream; aTick: Cardinal; aCursor: Integer; aWorkerThread: TKMWorkerThread);
+var
+  localStream: TKMemoryStream;
 begin
   if Self = nil then Exit;
 
   // Check if we don't have same tick save here too, since we work in multithread environment
   if ContainsTick(aTick) then Exit;
 
-  var localStream := aStream;
+  localStream := aStream;
   aStream := nil; // So caller doesn't use it by mistake
 
   {$IFDEF WDC}
