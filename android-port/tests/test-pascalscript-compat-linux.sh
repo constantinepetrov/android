@@ -32,7 +32,7 @@ record_status=$?
 set -e
 cat "$out/record-result.txt"
 if [ "$record_status" -eq 0 ] && grep -q PASCAL_SCRIPT_POINT_AND_OUT_OK "$out/record-result.txt"; then
-  echo 'PASCAL_SCRIPT_FPC_OUT_PARAMETER_OK (Linux x86_64 libffi compatibility test)'
+  echo 'PASCAL_SCRIPT_FPC_RECORD_RESULT_OK (Linux x86_64 libffi compatibility test)'
 elif [ "$record_status" -eq 3 ] && grep -q 'run failed' "$out/record-result.txt"; then
   echo 'PASCAL_SCRIPT_HOST_RECORD_RESULT_UNAVAILABLE (FPC 3.2.2 Linux x86_64 diagnostic only)'
 else
@@ -41,4 +41,4 @@ else
 fi
 "$out/bin/out_probe" | tee "$out/out-result.txt"
 grep -q PASCAL_SCRIPT_FFI_OUT_OK "$out/out-result.txt"
-echo 'PASCAL_SCRIPT_FPC_RECORD_RESULT_OK (Linux x86_64 libffi compatibility test)'
+echo 'PASCAL_SCRIPT_FPC_OUT_PARAMETER_OK (Linux x86_64 libffi compatibility test)'
