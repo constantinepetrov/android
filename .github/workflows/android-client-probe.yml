@@ -30,12 +30,18 @@ jobs:
       - name: Install bootstrap compiler and cross assembler
         run: |
           sudo apt-get update
-          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 binutils-aarch64-linux-gnu
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 fp-units-fcl-3.2.2 binutils-aarch64-linux-gnu
       - name: Check Android-conditional KromUtils behavior on Linux
         run: |
           mkdir -p "$RUNNER_TEMP/krom-test"
           fpc -dANDROID -Mdelphi -Fi. -Fusrc/utils -FU"$RUNNER_TEMP/krom-test" -FE"$RUNNER_TEMP/krom-test" android-port/tests/kromutils_smoke.pas
           "$RUNNER_TEMP/krom-test/kromutils_smoke"
+      - name: Test game options save/load on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/game-options-test" \
+            bash android-port/tests/test-game-options-linux.sh 2>&1 | tee "$RUNNER_TEMP/game-options-test.log"
       - name: Measure FPC RTTI invocation support on Linux
         shell: bash
         run: |
@@ -80,5 +86,6 @@ jobs:
             ${{ runner.temp }}/cross-build.log
             ${{ runner.temp }}/client-build.log
             ${{ runner.temp }}/rtti-probe.log
+            ${{ runner.temp }}/game-options-test.log
             ${{ runner.temp }}/client-units/
           if-no-files-found: warn
