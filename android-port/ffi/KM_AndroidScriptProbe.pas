@@ -3,8 +3,9 @@ unit KM_AndroidScriptProbe;
 interface
 function RunScriptProbe: Integer;
 function RunRealUtilsScriptProbe: Integer;
+function RunFogStateScriptProbe: Integer;
 implementation
-uses SysUtils, TypInfo, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
+uses SysUtils, TypInfo, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils, KM_FogOfWar;
 function __android_log_write(priority: LongInt; tag, text: PChar): LongInt; cdecl; external 'log' name '__android_log_write';
 procedure AndroidLog(const aText: AnsiString);
 begin
@@ -105,5 +106,73 @@ begin
       Result := 42;
     except on E: Exception do Result := -6 end;
   finally Exec.Free; Importer.Free; Instance.Free; Compiler.Free end;
+end;
+function RegisterFogState(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
+var C: TPSCompileTimeClass;
+begin
+  Result := Name = 'SYSTEM';
+  if not Result then Exit;
+  C := Sender.AddClassN(nil, 'TKMFogOfWar');
+  if not C.RegisterMethod('procedure RevealEverything') then Exit(False);
+  if not C.RegisterMethod('procedure UpdateState(aDynamicFOW: Boolean)') then Exit(False);
+  if not C.RegisterMethod('function CheckTileRevelation(X, Y: Word): Byte') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Fog', 'TKMFogOfWar');
+end;
+
+function RunFogStateScriptProbe: Integer;
+const
+  Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
+    + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
+    + 'if Fog.CheckTileRevelation(1,1) <> 243 then i := 1 div (i-i); end.';
+var
+  Compiler: TPSPascalCompiler;
+  Exec: TPSExec;
+  Importer: TPSRuntimeClassImporter;
+  Instance: TKMFogOfWar;
+  Data: AnsiString;
+  X, Y: Integer;
+begin
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  try
+    try
+      Compiler := TPSPascalCompiler.Create;
+      Compiler.OnUses := @RegisterFogState;
+      if not Compiler.Compile(Source) then begin Result := -2; Exit end;
+      Compiler.GetOutput(Data);
+      FreeAndNil(Compiler);
+
+      Importer := TPSRuntimeClassImporter.Create;
+      with Importer.Add(TKMFogOfWar) do
+      begin
+        RegisterMethod(@TKMFogOfWar.RevealEverything, 'RevealEverything');
+        RegisterMethod(@TKMFogOfWar.UpdateState, 'UpdateState');
+        RegisterMethod(@TKMFogOfWar.CheckTileRevelation, 'CheckTileRevelation');
+      end;
+      Exec := TPSExec.Create;
+      RegisterClassLibraryRuntime(Exec, Importer);
+      if not Exec.LoadData(Data) then begin Result := -4; Exit end;
+      Instance := TKMFogOfWar.Create(3, 2, False);
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('FOG')), Instance);
+      if not Exec.RunScript then
+      begin
+        AndroidLog(AnsiString('FOG_STATE_SCRIPT_RUNTIME_ERROR code='
+          + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
+        Result := -5;
+        Exit
+      end;
+      for Y := 0 to 1 do
+        for X := 0 to 2 do
+          if Instance.Revelation[Y, X] <> 243 then
+          begin
+            Result := -7;
+            Exit
+          end;
+      Result := 42;
+    except
+      on E: Exception do Result := -6;
+    end;
+  finally
+    Exec.Free; Importer.Free; Instance.Free; Compiler.Free;
+  end;
 end;
 end.
