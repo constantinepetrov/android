@@ -1000,7 +1000,7 @@ begin
     // Make campaign sprite GFX in the main thread only
     {$IFDEF FPC}
     fFirstSpriteIndex := firstSpriteIndex;
-    TThread.Synchronize(TThread.CurrentThread, @Self.MakeSpritesGFX);
+    TThread.Synchronize(TThread.CurrentThread, Self.MakeSpritesGFX);
     {$ELSE}
     TThread.Synchronize(TThread.CurrentThread, procedure
       begin
@@ -1208,7 +1208,7 @@ begin
 
           {$IFDEF FPC}
           fCampaignToAdd := camp;
-          TThread.Synchronize(nil, @Self.SynchronizeOnAdd);
+          TThread.Synchronize(nil, Self.SynchronizeOnAdd);
           {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAdd(camp); end);
           {$ENDIF}
@@ -1219,7 +1219,7 @@ begin
           camp.SavedData.LoadProgress;
 
           {$IFDEF FPC}
-          TThread.Synchronize(nil, @Self.SynchronizeOnAddDone);
+          TThread.Synchronize(nil, Self.SynchronizeOnAddDone);
           {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAddDone(Self); end);
           {$ENDIF}
@@ -1240,7 +1240,7 @@ begin
     if not Terminated and Assigned(fOnComplete) then
     begin
       {$IFDEF FPC}
-      TThread.Synchronize(nil, @Self.SynchronizeOnComplete);
+      TThread.Synchronize(nil, Self.SynchronizeOnComplete);
       {$ELSE}
       TThread.Synchronize(nil, procedure begin fOnComplete(Self); end);
       {$ENDIF}
