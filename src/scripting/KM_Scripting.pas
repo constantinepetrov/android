@@ -133,7 +133,7 @@ uses
   {$IFDEF WDC} System.Hash, {$ENDIF}
   KromUtils, KM_GameParams, KM_Resource, KM_ResUnits, KM_Log, KM_CommonUtils,
   KM_ScriptingConsoleCommands, KM_ScriptPreProcessorGame,
-  KM_ResTypes, KM_CampaignTypes;
+  KM_ResTypes, KM_CampaignTypes, KM_Points;
 
 var
   gScripting: TKMScripting;
@@ -1524,6 +1524,9 @@ begin
       RegisterMethod(@TKMScriptUtils.InRangeS, 'InRangeS');
       RegisterMethod(@TKMScriptUtils.InsertString, 'InsertString');
       RegisterMethod(@TKMScriptUtils.KMPoint, 'KMPoint');
+      {$IFDEF FPC}
+      PSRegisterRecordReturnType(@TKMScriptUtils.KMPoint, TypeInfo(TKMPoint));
+      {$ENDIF}
       RegisterMethod(@TKMScriptUtils.Ln, 'Ln');
       RegisterMethod(@TKMScriptUtils.Log10, 'Log10');
       RegisterMethod(@TKMScriptUtils.Log2, 'Log2');
