@@ -73,7 +73,7 @@ jobs:
           make -j2 2>&1 | tee "$RUNNER_TEMP/ffi-build.log"
           printf '#include <ffi.h>\n_Static_assert(FFI_SYSV == 1 && FFI_DEFAULT_ABI == 1, "Unexpected AArch64 ABI");\n' > "$RUNNER_TEMP/ffi-abi.c"
           "$ndk/bin/aarch64-linux-android24-clang" -Iinclude -c "$RUNNER_TEMP/ffi-abi.c" -o "$RUNNER_TEMP/ffi-abi.o"
-          file=$(find . -type f -path '*/.libs/libffi.so.*' -print -quit)
+          file=$(find . -type f -path '*/.libs/libffi.so*' -print -quit)
           test -n "$file"
           out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
           mkdir -p "$out" "$GITHUB_WORKSPACE/android-port/host/app/src/main/assets/licenses"
