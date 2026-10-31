@@ -4,6 +4,7 @@ android {
     compileSdk 35
     defaultConfig {
         applicationId 'com.kamremake.androidprobe'
+        testInstrumentationRunner 'com.kamremake.androidprobe.GestureInstrumentation'
         minSdk 24
         targetSdk 35
         versionCode 1

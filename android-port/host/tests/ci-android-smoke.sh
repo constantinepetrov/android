@@ -99,3 +99,15 @@ adb shell cat /sdcard/map-window.xml > "$results/map-window.xml"
 grep -q 'height sum: 46' "$results/map-window.xml"
 adb exec-out screencap -p > "$results/map-screen.png"
 echo "SYNTHETIC_MAP_PARSE_TRUNCATION_AND_GL_UPLOAD_OK" | tee -a "$results/runtime.txt"
+
+# Separate test APK injects real single- and multi-pointer MotionEvents and
+# compares captured pixels, then forces EGL context recreation.
+adb shell am force-stop "$package"
+adb install -r "$2" | tee "$results/instrumentation-install.txt"
+adb shell am instrument -w -r com.kamremake.androidprobe.test/com.kamremake.androidprobe.GestureInstrumentation | tee "$results/instrumentation.txt"
+grep -q QA_PASSED "$results/instrumentation.txt"
+for phase in before pan pinch context-restored; do
+  adb exec-out run-as "$package" cat "files/qa-$phase.png" > "$results/qa-$phase.png"
+  test -s "$results/qa-$phase.png"
+done
+echo "PICKER_RESULT_IMPORT_PAN_PINCH_PIXELS_AND_CONTEXT_OK" | tee -a "$results/runtime.txt"

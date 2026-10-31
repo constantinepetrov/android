@@ -145,6 +145,13 @@ public final class MainActivity extends Activity {
     @Override protected void onPause() { view.onPause(); super.onPause(); }
     @Override protected void onResume() { super.onResume(); view.onResume(); }
 
+    // Read-only snapshots for the instrumentation APK; no test control endpoint.
+    float[] testTransform() { return new float[]{view.renderer.zoom, view.renderer.offsetX, view.renderer.offsetY}; }
+    int testMapWidth() { return view.renderer.mapWidth; }
+    int testSurfaceGeneration() { return view.renderer.surfaceGeneration; }
+    TextView testLabel() { return label; }
+    void testRecreateGlContext() { view.onPause(); view.onResume(); }
+
     private static final class ProbeView extends GLSurfaceView {
         final ProbeRenderer renderer;
         final ScaleGestureDetector scale;
@@ -191,7 +198,7 @@ public final class MainActivity extends Activity {
         final FloatBuffer vertices = ByteBuffer.allocateDirect(6 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
         int program, textureProgram, texture;
         volatile int[] pendingMap, currentMap;
-        int mapWidth, mapHeight;
+        volatile int mapWidth, mapHeight, surfaceGeneration;
         boolean reported, mapDrawReported;
         void setMap(int[] map) { currentMap = map; pendingMap = map; }
         final MainActivity activity;
@@ -204,7 +211,7 @@ public final class MainActivity extends Activity {
             return shader;
         }
         @Override public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-          pendingMap = currentMap; mapWidth = 0; mapHeight = 0;
+          pendingMap = currentMap; mapWidth = 0; mapHeight = 0; surfaceGeneration++;
           try {
             int vertex = shader(GLES20.GL_VERTEX_SHADER, "attribute vec2 p; uniform float z; uniform vec2 o; void main(){gl_Position=vec4(p*z+o,0.0,1.0);}");
             int fragment = shader(GLES20.GL_FRAGMENT_SHADER, "precision mediump float; void main(){gl_FragColor=vec4(0.9,0.65,0.18,1.0);}");
