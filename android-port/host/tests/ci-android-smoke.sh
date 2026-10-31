@@ -106,7 +106,7 @@ adb shell am force-stop "$package"
 adb install -r "$2" | tee "$results/instrumentation-install.txt"
 adb shell am instrument -w -r com.kamremake.androidprobe.test/com.kamremake.androidprobe.GestureInstrumentation | tee "$results/instrumentation.txt"
 grep -q QA_PASSED "$results/instrumentation.txt"
-for phase in before pan pinch context-restored; do
+for phase in before pan pinch context-restored tileset; do
   adb exec-out run-as "$package" cat "files/qa-$phase.png" > "$results/qa-$phase.png"
   test -s "$results/qa-$phase.png"
 done

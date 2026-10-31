@@ -84,6 +84,13 @@ public final class MainActivity extends Activity {
         Button open = new Button(this); open.setText("Open .map");
         FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
         frame.addView(open, buttonParams);
+        Button tiles = new Button(this); tiles.setText("Open Tileset.rxx");
+        FrameLayout.LayoutParams tileParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.START);
+        frame.addView(tiles, tileParams);
+        tiles.setOnClickListener(v -> {
+            Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
+            startActivityForResult(pick, 18);
+        });
         open.setOnClickListener(v -> {
             Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
             startActivityForResult(pick, 17);
@@ -108,6 +115,8 @@ public final class MainActivity extends Activity {
             label.setLayoutParams(safe);
             FrameLayout.LayoutParams buttonSafe = (FrameLayout.LayoutParams) open.getLayoutParams();
             buttonSafe.setMargins(left, top, right, bottom); open.setLayoutParams(buttonSafe);
+            FrameLayout.LayoutParams tileSafe = (FrameLayout.LayoutParams) tiles.getLayoutParams();
+            tileSafe.setMargins(left, top, right, bottom); tiles.setLayoutParams(tileSafe);
             final int safeTop = top;
             label.post(() -> {
                 int[] location = new int[2];
@@ -122,8 +131,27 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
-        if (request != 17 || result != RESULT_OK || data == null || data.getData() == null) return;
-        Uri uri = data.getData(); label.setText("Importing map…");
+        if ((request != 17 && request != 18) || result != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        if (request == 18) {
+            label.setText("Importing terrain sprites…");
+            new Thread(() -> {
+                try (InputStream in = getContentResolver().openInputStream(uri)) {
+                    if (in == null) throw new java.io.IOException("Cannot open tileset");
+                    java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                    byte[] b = new byte[16384]; int n, total = 0;
+                    while ((n=in.read(b)) != -1) {total += n; if(total>16*1024*1024) throw new java.io.IOException("Tileset exceeds 16 MiB");bytes.write(b,0,n);}
+                    TilesetRxx tileset = TilesetRxx.read(bytes.toByteArray());
+                    int[] map = view.renderer.currentMap;
+                    if (map != null) for(int i=3;i<map.length;i++) if(!tileset.present[map[i]&255])
+                        throw new java.io.IOException("Tileset lacks terrain sprite " + (map[i]&255));
+                    view.renderer.setTiles(tileset);
+                    runOnUiThread(() -> label.setText("Imported Tileset.rxx: terrain sprites (flat preview; no objects or simulation)"));
+                } catch (Exception failure) { runOnUiThread(() -> label.setText("Tileset error: " + failure.getMessage())); }
+            }, "tileset-import").start();
+            return;
+        }
+        label.setText("Importing map…");
         new Thread(() -> {
             try (InputStream in = getContentResolver().openInputStream(uri)) {
                 if (in == null) throw new java.io.IOException("Cannot open selected file");
@@ -196,11 +224,18 @@ public final class MainActivity extends Activity {
     private static final class ProbeRenderer implements GLSurfaceView.Renderer {
         volatile float zoom = 1f, offsetX, offsetY;
         final FloatBuffer vertices = ByteBuffer.allocateDirect(6 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-        int program, textureProgram, texture;
+        int program, textureProgram, tilesProgram, texture, atlasTexture;
+        volatile TilesetRxx pendingTiles, currentTiles;
         volatile int[] pendingMap, currentMap;
         volatile int mapWidth, mapHeight, surfaceGeneration;
         boolean reported, mapDrawReported;
-        void setMap(int[] map) { currentMap = map; pendingMap = map; }
+        void setMap(int[] map) {
+            if(currentTiles != null) for(int i=3;i<map.length;i++) if(!currentTiles.present[map[i]&255]) {
+                currentTiles=null; pendingTiles=null; break;
+            }
+            currentMap = map; pendingMap = map;
+        }
+        void setTiles(TilesetRxx tiles) { currentTiles=tiles; pendingTiles=tiles; pendingMap=currentMap; }
         final MainActivity activity;
         ProbeRenderer(MainActivity activity) { this.activity = activity; vertices.put(new float[]{-.5f,-.4f, .5f,-.4f, 0f,.5f}).position(0); }
         private int shader(int kind, String src) {
@@ -211,7 +246,7 @@ public final class MainActivity extends Activity {
             return shader;
         }
         @Override public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-          pendingMap = currentMap; mapWidth = 0; mapHeight = 0; surfaceGeneration++;
+          pendingMap = currentMap; pendingTiles = currentTiles; mapWidth = 0; mapHeight = 0; surfaceGeneration++;
           try {
             int vertex = shader(GLES20.GL_VERTEX_SHADER, "attribute vec2 p; uniform float z; uniform vec2 o; void main(){gl_Position=vec4(p*z+o,0.0,1.0);}");
             int fragment = shader(GLES20.GL_FRAGMENT_SHADER, "precision mediump float; void main(){gl_FragColor=vec4(0.9,0.65,0.18,1.0);}");
@@ -225,7 +260,12 @@ public final class MainActivity extends Activity {
             GLES20.glGetProgramiv(textureProgram,GLES20.GL_LINK_STATUS,ok,0);
             if (ok[0] == 0) throw new IllegalStateException(GLES20.glGetProgramInfoLog(textureProgram));
             GLES20.glDeleteShader(vertex); GLES20.glDeleteShader(fragment);
-            int[] ids = new int[1]; GLES20.glGenTextures(1, ids, 0); texture = ids[0];
+            vertex = shader(GLES20.GL_VERTEX_SHADER, "attribute vec2 p; varying vec2 uv; uniform float z; uniform vec2 o; void main(){uv=(p+1.0)*0.5;gl_Position=vec4(p*z+o,0.0,1.0);}");
+            fragment = shader(GLES20.GL_FRAGMENT_SHADER, "precision highp float; varying vec2 uv; uniform sampler2D tex; uniform sampler2D atlas; uniform vec2 mapSize; void main(){vec2 pos=vec2(uv.x,1.0-uv.y)*mapSize; vec2 cell=floor(pos); vec2 local=fract(pos); vec4 d=texture2D(tex,(cell+0.5)/mapSize); float id=floor(d.r*255.0+0.5); float rot=floor(d.g*255.0+0.5); if(rot>2.5)local=vec2(1.0-local.y,local.x); else if(rot>1.5)local=1.0-local; else if(rot>0.5)local=vec2(local.y,1.0-local.x); vec2 a=(vec2(mod(id,16.0),floor(id/16.0))+local)/16.0; gl_FragColor=texture2D(atlas,a);}");
+            tilesProgram=GLES20.glCreateProgram(); GLES20.glAttachShader(tilesProgram,vertex); GLES20.glAttachShader(tilesProgram,fragment); GLES20.glLinkProgram(tilesProgram);
+            GLES20.glGetProgramiv(tilesProgram,GLES20.GL_LINK_STATUS,ok,0); if(ok[0]==0)throw new IllegalStateException(GLES20.glGetProgramInfoLog(tilesProgram));
+            GLES20.glDeleteShader(vertex); GLES20.glDeleteShader(fragment);
+            int[] ids = new int[2]; GLES20.glGenTextures(2, ids, 0); texture = ids[0]; atlasTexture=ids[1];
           } catch (RuntimeException failure) {
             program = 0;
             android.util.Log.e("KaMProbe", "Graphics initialization failed", failure);
@@ -236,15 +276,27 @@ public final class MainActivity extends Activity {
         @Override public void onDrawFrame(GL10 gl) {
             if (program == 0) return;
             GLES20.glClearColor(.08f,.13f,.12f,1f); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT); GLES20.glUseProgram(program);
+            TilesetRxx tiles=pendingTiles;
+            if(tiles!=null) {
+                pendingTiles=null; GLES20.glActiveTexture(GLES20.GL_TEXTURE1); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,atlasTexture);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MIN_FILTER,GLES20.GL_NEAREST);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_MAG_FILTER,GLES20.GL_NEAREST);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_WRAP_S,GLES20.GL_CLAMP_TO_EDGE);
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D,GLES20.GL_TEXTURE_WRAP_T,GLES20.GL_CLAMP_TO_EDGE);
+                ByteBuffer atlas=ByteBuffer.allocateDirect(tiles.atlas.length); atlas.put(tiles.atlas).position(0);
+                GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D,0,GLES20.GL_RGBA,TilesetRxx.SIDE,TilesetRxx.SIDE,0,GLES20.GL_RGBA,GLES20.GL_UNSIGNED_BYTE,atlas);
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+            }
             int[] map = pendingMap;
             if (map != null) {
                 pendingMap = null; mapDrawReported = false; mapWidth = map[0]; mapHeight = map[1];
                 ByteBuffer pixels = ByteBuffer.allocateDirect(mapWidth * mapHeight * 4);
                 for (int i = 3; i < map.length; i++) {
                     int terrain = map[i] & 255, height = (map[i] >>> 8) & 255;
-                    pixels.put((byte)Math.min(255, height * 3 + (terrain * 17 % 70)));
-                    pixels.put((byte)Math.min(255, height * 3 + 35));
-                    pixels.put((byte)(30 + terrain * 29 % 120)); pixels.put((byte)255);
+                    if(currentTiles!=null) { pixels.put((byte)terrain); pixels.put((byte)((map[i]>>>16)&3)); pixels.put((byte)0); }
+                    else { pixels.put((byte)Math.min(255, height * 3 + (terrain * 17 % 70)));
+                      pixels.put((byte)Math.min(255, height * 3 + 35)); pixels.put((byte)(30 + terrain * 29 % 120)); }
+                    pixels.put((byte)255);
                 }
                 pixels.position(0); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
@@ -257,13 +309,20 @@ public final class MainActivity extends Activity {
                 else android.util.Log.i("KaMProbe", "MAP_TEXTURE_UPLOADED " + mapWidth + "x" + mapHeight);
             }
             if (mapWidth > 0) {
-                GLES20.glUseProgram(textureProgram); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
+                int activeProgram=currentTiles==null?textureProgram:tilesProgram;
+                GLES20.glUseProgram(activeProgram); GLES20.glActiveTexture(GLES20.GL_TEXTURE0); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture);
+                if(currentTiles!=null) {
+                    GLES20.glActiveTexture(GLES20.GL_TEXTURE1); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,atlasTexture);
+                    GLES20.glUniform1i(GLES20.glGetUniformLocation(activeProgram,"atlas"),1);
+                    GLES20.glUniform2f(GLES20.glGetUniformLocation(activeProgram,"mapSize"),mapWidth,mapHeight);
+                    GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
+                }
                 FloatBuffer quad = ByteBuffer.allocateDirect(8*4).order(ByteOrder.nativeOrder()).asFloatBuffer();
                 quad.put(new float[]{-1,-1, 1,-1, -1,1, 1,1}).position(0);
-                int a = GLES20.glGetAttribLocation(textureProgram,"p"); GLES20.glEnableVertexAttribArray(a);
+                int a = GLES20.glGetAttribLocation(activeProgram,"p"); GLES20.glEnableVertexAttribArray(a);
                 GLES20.glVertexAttribPointer(a,2,GLES20.GL_FLOAT,false,0,quad);
-                GLES20.glUniform1f(GLES20.glGetUniformLocation(textureProgram,"z"),zoom);
-                GLES20.glUniform2f(GLES20.glGetUniformLocation(textureProgram,"o"),offsetX,offsetY);
+                GLES20.glUniform1f(GLES20.glGetUniformLocation(activeProgram,"z"),zoom);
+                GLES20.glUniform2f(GLES20.glGetUniformLocation(activeProgram,"o"),offsetX,offsetY);
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4); GLES20.glDisableVertexAttribArray(a);
                 if (!mapDrawReported && GLES20.glGetError() == GLES20.GL_NO_ERROR) {
                     mapDrawReported = true; android.util.Log.i("KaMProbe", "MAP_DRAWN");

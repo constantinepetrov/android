@@ -71,17 +71,48 @@ public final class GestureInstrumentation extends Instrumentation {
             try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){check(out!=null,"fixture stream");out.write(data.array());}
             Intent result=new Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             ActivityMonitor monitor=addMonitor(new IntentFilter(Intent.ACTION_OPEN_DOCUMENT),new ActivityResult(Activity.RESULT_OK,result),true);
-            Button button=findButton((View)activity.getWindow().getDecorView()); check(button!=null,"open button missing");
+            Button button=findButton((View)activity.getWindow().getDecorView(), "Open .map"); check(button!=null,"open button missing");
             int[] xy=new int[2]; button.getLocationOnScreen(xy); tap(xy[0]+button.getWidth()/2f,xy[1]+button.getHeight()/2f);
             await(() -> activity.testMapWidth()==64 && activity.testLabel().getText().toString().contains("height sum: 129024"),"SAF import did not complete");
             check(monitor.getHits()>0,"picker was not opened"); removeMonitor(monitor);
         } finally {activity.getContentResolver().delete(uri,null,null);}
     }
-    private Button findButton(View view) {
-        if(view instanceof Button) return (Button)view;
+    private Button findButton(View view, String text) {
+        if(view instanceof Button && ((Button)view).getText().toString().equalsIgnoreCase(text)) return (Button)view;
         if(view instanceof android.view.ViewGroup){ android.view.ViewGroup g=(android.view.ViewGroup)view;
-            for(int i=0;i<g.getChildCount();i++){Button b=findButton(g.getChildAt(i));if(b!=null)return b;}}
+            for(int i=0;i<g.getChildCount();i++){Button b=findButton(g.getChildAt(i), text);if(b!=null)return b;}}
         return null;
+    }
+    private byte[] syntheticTileset() throws Exception {
+        java.io.ByteArrayOutputStream raw=new java.io.ByteArrayOutputStream();
+        java.io.ByteArrayOutputStream compressed=new java.io.ByteArrayOutputStream();
+        try(java.util.zip.DeflaterOutputStream z=new java.util.zip.DeflaterOutputStream(compressed)) {
+            ByteBuffer header=ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(64); z.write(header.array());
+            byte[] flags=new byte[64]; java.util.Arrays.fill(flags,(byte)1); z.write(flags);
+            for(int tile=0;tile<64;tile++) {
+                ByteBuffer meta=ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+                meta.putShort((short)32).putShort((short)32).putShort((short)0).putShort((short)0); z.write(meta.array());
+                for(int i=0;i<32*32;i++) z.write(new byte[]{(byte)(tile*4),(byte)(255-tile*3),(byte)90,(byte)255});
+                z.write(0);
+            }
+        }
+        raw.write(new byte[]{'R','X','X','2',0,0}); raw.write(compressed.toByteArray()); return raw.toByteArray();
+    }
+    private void importTileset() throws Exception {
+        byte[] bytes=syntheticTileset(); TilesetRxx decoded=TilesetRxx.read(bytes);
+        check(decoded.present[63] && !decoded.present[64],"RXX flags decoded incorrectly");
+        try {TilesetRxx.read(java.util.Arrays.copyOf(bytes,12));throw new AssertionError("truncated RXX accepted");} catch(java.io.IOException expected) {}
+        ContentValues values=new ContentValues(); values.put(MediaStore.Downloads.DISPLAY_NAME,"kam-ci-tiles.rxx"); values.put(MediaStore.Downloads.MIME_TYPE,"application/octet-stream");
+        Uri uri=activity.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI,values);check(uri!=null,"tileset MediaStore");
+        try {
+            try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){check(out!=null,"tileset stream");out.write(bytes);}
+            Intent result=new Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            ActivityMonitor monitor=addMonitor(new IntentFilter(Intent.ACTION_OPEN_DOCUMENT),new ActivityResult(Activity.RESULT_OK,result),true);
+            Button button=findButton(activity.getWindow().getDecorView(),"Open Tileset.rxx");check(button!=null,"tileset button missing");
+            int[] xy=new int[2];button.getLocationOnScreen(xy);tap(xy[0]+button.getWidth()/2f,xy[1]+button.getHeight()/2f);
+            await(() -> activity.testLabel().getText().toString().contains("Imported Tileset.rxx"),"tileset import did not complete");
+            check(monitor.getHits()>0,"tileset picker not opened");removeMonitor(monitor);
+        } finally {activity.getContentResolver().delete(uri,null,null);}
     }
     @Override public void onStart() {
         Bundle result=new Bundle();
@@ -122,6 +153,9 @@ public final class GestureInstrumentation extends Instrumentation {
             await(() -> activity.testSurfaceGeneration()>generation && activity.testMapWidth()==64,"GL context/map not restored");
             Bitmap restored=capture("context-restored");
             check(different(pinched,restored)<100,"GL context restored with changed map image");
+            importTileset(); Bitmap textured=capture("tileset");
+            check(different(restored,textured)>100,"RXX texture did not alter rendered map");
+            android.util.Log.i("KaMProbe", "RXX_SYNTHETIC_RENDER_OK");
             android.util.Log.i("KaMProbe", "QA_PASSED pan="+pan[1]+" zoom="+zoom[0]+" context="+activity.testSurfaceGeneration());
             result.putString("result","QA_PASSED"); finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {
