@@ -13,7 +13,7 @@ while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find 
 overlay=()
 if [ -n "${PS_OVERLAY:-}" ]; then overlay=("-Fu$PS_OVERLAY" "-Fi$PS_OVERLAY"); fi
 failed=0
-for unit in src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/game/KM_Game.pas; do
+for unit in src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_Game.pas; do
   echo "ANDROID_UNIT_START $unit"
   if "$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -B -Cn -Fi"$root" \
     "-Fu$FPC_ANDROID_UNITS/*" "${overlay[@]}" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" "-Fu$LCL_SOURCE" "-Fi$LCL_SOURCE/include" "${paths[@]}" -FU"$out" "$root/$unit"; then
