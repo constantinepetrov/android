@@ -26,7 +26,7 @@ s = s.replace('Invoke(Address, Args, SysCalConv, nil);', 'InvokeCompat(Address, 
 s = s.replace('Invoke(Address,', 'InvokeCompat(Address,')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended')
-s = s.replace('    ResValue : TValue;\n', '    ResValue : TValue;\n    RttiMethod : TRttiMethod;\n')
+s = s.replace('    ResValue : TValue;\n', '    ResValue : TValue;\n    RttiMethod : TRttiMethod;\n    RecordMethod : TRttiMethod;\n    MultipleRecordMethods : Boolean;\n')
 record_anchor = "      else\n//          writeln(stderr, 'Result type not implemented!');"
 record_case = """      {$IFDEF FPC}
       btRecord:
@@ -36,21 +36,35 @@ record_case = """      {$IFDEF FPC}
           Exit(False);
         ctx := TRttiContext.Create;
         try
+          RecordMethod := nil;
+          MultipleRecordMethods := False;
           for RttiMethod in ctx.GetType(TObject(_Self).ClassType).GetMethods do
-            if (RttiMethod.CodeAddress = Address)
-              and Assigned(RttiMethod.ReturnType)
+            if Assigned(RttiMethod.ReturnType)
               and (RttiMethod.ReturnType.TypeKind = tkRecord) then
             begin
-              ResValue := InvokeCompat(Address, Args, SysCalConv,
-                RttiMethod.ReturnType.Handle, IsStatic);
-              Result := CopyArrayContents(res.dta,
-                ResValue.GetReferenceToRawData, 1, res.aType);
-              Exit;
+              if RttiMethod.CodeAddress = Address then
+              begin
+                RecordMethod := RttiMethod;
+                MultipleRecordMethods := False;
+                Break;
+              end;
+              if RecordMethod = nil then
+                RecordMethod := RttiMethod
+              else
+                MultipleRecordMethods := True;
             end;
+          if MultipleRecordMethods then
+            RecordMethod := nil;
+          if not Assigned(RecordMethod) then
+            Exit(False);
+          ResValue := InvokeCompat(Address, Args, SysCalConv,
+            RecordMethod.ReturnType.Handle, IsStatic);
+          Result := CopyArrayContents(res.dta,
+            ResValue.GetReferenceToRawData, 1, res.aType);
+          Exit;
         finally
           ctx.Free;
         end;
-        Exit(False);
       end;
       {$ENDIF}
       else
