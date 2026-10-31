@@ -2345,7 +2345,7 @@ begin
   begin
     gGame.IsPaused := True;
     UpdateReplayButtons; //Update buttons
-    UpdateState(gGameApp.GlobalTickCount);
+    UpdateState(KMHostGetGlobalTickCount);
   end;
 
   UpdateReplayMarks;
