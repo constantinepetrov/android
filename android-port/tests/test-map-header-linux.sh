@@ -9,4 +9,7 @@ paths=()
 while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find "$root/src" -type d -print0)
 "${FPC_HOST:-fpc}" -Sc -dANDROID "-Fi$root" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" \
   "${paths[@]}" "-FU$out" "-FE$out" "$root/android-port/tests/map_header_probe.pas"
+"${FPC_HOST:-fpc}" -Sc -dANDROID "-Fi$root" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" \
+  "${paths[@]}" "-FU$out" "-FE$out" "$root/android-port/tests/map_header_semantics.pas"
+"$out/map_header_semantics"
 if (($# > 0)); then "$out/map_header_probe" "$@"; fi
