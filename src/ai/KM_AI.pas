@@ -75,12 +75,23 @@ type
 implementation
 uses
   SysUtils, TypInfo, Math,
-  KM_GameApp, KM_Game, KM_Hand, KM_HandsCollection, KM_HandStats, KM_UnitGroup,
+  {$IFDEF ANDROID} KM_GameRuntime, {$ELSE} KM_GameApp, {$ENDIF}
+  KM_Game, KM_Hand, KM_HandsCollection, KM_HandStats, KM_UnitGroup,
   KM_ResSound, KM_ScriptingEvents, KM_Alerts,
   KM_AIFields, KM_Terrain, KM_ResMapElements, KM_DevPerfLog, KM_DevPerfLogTypes,
   KM_HandTypes,
   KM_MapTypes,
   KM_ResTypes;
+
+
+function GameGlobalTickCount: Cardinal;
+begin
+  {$IFDEF ANDROID}
+  Result := KMHostGetGlobalTickCount;
+  {$ELSE}
+  Result := gGameApp.GlobalTickCount;
+  {$ENDIF}
+end;
 
 
 { TKMHandAI }
@@ -350,7 +361,7 @@ begin
           and (fOwner = gMySpectator.HandID)
           and (aAttacker <> nil) then //Don't show alerts for annonymous attacks (e.g. script)
           gGame.GamePlayInterface.Alerts.AddFight(KMPointF(aHouse.Position), fOwner, anTown,
-                                                  gGameApp.GlobalTickCount + ALERT_DURATION[atFight]);
+                                                  GameGlobalTickCount + ALERT_DURATION[atFight]);
       end;
     hndComputer:
       begin
@@ -418,7 +429,7 @@ begin
         if not gGame.Params.IsReplayOrSpectate
           and (fOwner = gMySpectator.HandID) then
           gGame.GamePlayInterface.Alerts.AddFight(aUnit.PositionF, fOwner, NOTIFY_KIND[aUnit is TKMUnitWarrior],
-                                                  gGameApp.GlobalTickCount + ALERT_DURATION[atFight]);
+                                                  GameGlobalTickCount + ALERT_DURATION[atFight]);
       end;
     hndComputer:
       begin
