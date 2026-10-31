@@ -4,7 +4,7 @@ interface
 function RunScriptProbe: Integer;
 function RunRealUtilsScriptProbe: Integer;
 implementation
-uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_ScriptingUtils;
+uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
 type
   TScriptFacade = class
     Bias: Integer;
@@ -60,13 +60,15 @@ var C: TPSCompileTimeClass;
 begin
   Result := Name = 'SYSTEM';
   if not Result then Exit;
+  Sender.AddTypeS('TKMPoint', 'record X, Y: Integer; end');
   C := Sender.AddClassN(nil, 'TKMScriptUtils');
   if not C.RegisterMethod('function AbsI(aValue: Integer): Integer') then Exit(False);
+  if not C.RegisterMethod('function KMPoint(X, Y: Integer): TKMPoint') then Exit(False);
   Result := AddImportedClassVariable(Sender, 'Utils', 'TKMScriptUtils');
 end;
 
 function RunRealUtilsScriptProbe: Integer;
-const Source = 'var n: Integer; begin n := Utils.AbsI(-42); if n <> 42 then n := 1 div (n-n); end.';
+const Source = 'var n: Integer; p: TKMPoint; begin n := Utils.AbsI(-42); p := Utils.KMPoint(13,17); if (n <> 42) or (p.X <> 13) or (p.Y <> 17) then n := 1 div (n-n); end.';
 var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
     Instance: TKMScriptUtils; Data: AnsiString;
 begin
@@ -79,7 +81,10 @@ begin
       if Compiler.Compile('begin this_identifier_does_not_exist := 1; end.') then begin Result := -3; Exit end;
       FreeAndNil(Compiler);
       Importer := TPSRuntimeClassImporter.Create;
-      with Importer.Add(TKMScriptUtils) do RegisterMethod(@TKMScriptUtils.AbsI, 'AbsI');
+      with Importer.Add(TKMScriptUtils) do begin
+        RegisterMethod(@TKMScriptUtils.AbsI, 'AbsI');
+        RegisterMethod(@TKMScriptUtils.KMPoint, 'KMPoint');
+      end;
       Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
       if not Exec.LoadData(Data) then begin Result := -4; Exit end;
       Instance := TKMScriptUtils.Create;
