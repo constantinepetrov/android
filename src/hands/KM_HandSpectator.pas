@@ -76,7 +76,7 @@ uses
   KM_Units, KM_UnitGroup, KM_UnitWarrior, KM_Houses,
   KM_CommonUtils,
   KM_GameTypes,
-  KM_Main;
+  {$IFNDEF ANDROID} KM_Main {$ENDIF};
 
 
 { TKMSpectator }
@@ -343,9 +343,11 @@ begin
       fLastSpecSelectedObjUID[fHandIndex] := UID;
   end;
 
-  // Update F11 Debug panel  UIDs
+  // Update desktop F11 debug panel UIDs
+  {$IFNDEF ANDROID}
   if gMain <> nil then
     gMain.FormMain.SetEntitySelected(Selected.UID, Selected.AsGroup.SelectedUnit.UID);
+  {$ENDIF}
 end;
 
 
