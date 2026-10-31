@@ -127,7 +127,7 @@ begin
           TB := (Word(Transparency[4]) shl 8) or Transparency[5]; HaveRGB := True;
         end;
       end else begin
-        if (ChunkName[0] >= 'A') and (ChunkName[0] <= 'Z') then
+        if (ChunkName[0] >= 'A') and (ChunkName[0] <= 'Z') and (string(ChunkName) <> 'IEND') then
           raise Exception.CreateFmt('Unsupported critical PNG chunk %.4s', [string(ChunkName)]);
         F.Position := F.Position + ChunkLen;
       end;
