@@ -226,6 +226,26 @@ const
 
   XML_ROOT_TAG = 'campaignData';
 
+{$IFDEF FPC}
+function KMCompareCampaigns(const aLeft, aRight: TKMCampaign): Integer;
+var
+  sLeft, sRight: string;
+begin
+  sLeft := aLeft.Spec.IdStr;
+  sRight := aRight.Spec.IdStr;
+
+  // Keep campaign categories in their established UI order.
+  if sLeft = 'TSK' then sLeft := '1' + sLeft else
+  if sLeft = 'TPR' then sLeft := '2' + sLeft else
+    sLeft := '3' + sLeft;
+  if sRight = 'TSK' then sRight := '1' + sRight else
+  if sRight = 'TPR' then sRight := '2' + sRight else
+    sRight := '3' + sRight;
+
+  Result := CompareStr(sLeft, sRight);
+end;
+{$ENDIF}
+
 
 { TKMCampaignsCollection }
 constructor TKMCampaignsCollection.Create;
@@ -340,24 +360,28 @@ begin
     fList.Add(aCampaign);
 
     // Keep the campaigns properly sorted
-    fList.Sort(TComparer<TKMCampaign>.Construct(
-      function (const aLeft, aRight: TKMCampaign): Integer
-      var
-        sLeft, sRight: string;
-      begin
-        sLeft := aLeft.Spec.IdStr;
-        sRight := aRight.Spec.IdStr;
-
-        // Add extra sorting key to get TSK and TPR on top
-        if sLeft = 'TSK' then sLeft := '1' + sLeft else
-        if sLeft = 'TPR' then sLeft := '2' + sLeft else
-          sLeft := '3' + sLeft;
-        if sRight = 'TSK' then sRight := '1' + sRight else
-        if sRight = 'TPR' then sRight := '2' + sRight else
-          sRight := '3' + sRight;
-
-        Result := CompareStr(sLeft, sRight);
-      end));
+    {$IFDEF FPC}
+    fList.Sort(TComparer<TKMCampaign>.Construct(KMCompareCampaigns));
+    {$ELSE}
+        fList.Sort(TComparer<TKMCampaign>.Construct(
+          function (const aLeft, aRight: TKMCampaign): Integer
+          var
+            sLeft, sRight: string;
+          begin
+            sLeft := aLeft.Spec.IdStr;
+            sRight := aRight.Spec.IdStr;
+    
+            // Add extra sorting key to get TSK and TPR on top
+            if sLeft = 'TSK' then sLeft := '1' + sLeft else
+            if sLeft = 'TPR' then sLeft := '2' + sLeft else
+              sLeft := '3' + sLeft;
+            if sRight = 'TSK' then sRight := '1' + sRight else
+            if sRight = 'TPR' then sRight := '2' + sRight else
+              sRight := '3' + sRight;
+    
+            Result := CompareStr(sLeft, sRight);
+          end));
+    {$ENDIF}
   finally
     Unlock;
   end;
