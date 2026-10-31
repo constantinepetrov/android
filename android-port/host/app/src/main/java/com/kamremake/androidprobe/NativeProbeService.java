@@ -4,9 +4,17 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** A fatal native fault must kill only the diagnostic subprocess. */
 public final class NativeProbeService extends Service {
+    // FPC 3.2.2 initializes process-global RTL state; never enter it concurrently.
+    private static final ExecutorService PASCAL_WORKER = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "pascal-probe");
+        thread.setDaemon(true);
+        return thread;
+    });
     static native int[] nativeReadMap(String path);
     static native int nativeFfiProbe();
     static native int nativeFfiScriptProbe();
@@ -20,12 +28,13 @@ public final class NativeProbeService extends Service {
         sendBroadcast(message);
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        new Thread(() -> {
+        final Intent request = intent == null ? null : new Intent(intent);
+        PASCAL_WORKER.execute(() -> {
             try {
                 report("LOAD", "loading libkamprobe.so and Pascal RTL");
                 System.loadLibrary("kamprobe");
                 report("LOAD", "library and Pascal RTL initialized");
-                if (intent != null && intent.getBooleanExtra("ffiTest", false)) {
+                if (request != null && request.getBooleanExtra("ffiTest", false)) {
                     System.loadLibrary("kamffi_probe");
                     int ffi = nativeFfiProbe();
                     if (ffi != 42) throw new IllegalStateException("FFI_ABI_FAILED code=" + ffi);
@@ -38,7 +47,7 @@ public final class NativeProbeService extends Service {
                     report("FFI", "REAL_UTILS_SCRIPT_OK registered TKMScriptUtils.AbsI Self integer result; invalid script rejected");
                     return;
                 }
-                if (intent != null && intent.getBooleanExtra("selfTest", false)) {
+                if (request != null && request.getBooleanExtra("selfTest", false)) {
                     java.io.File f = new java.io.File(getFilesDir(), "synthetic-test.map");
                     java.nio.ByteBuffer bytes = java.nio.ByteBuffer.allocate(8 + 4 * 23).order(java.nio.ByteOrder.LITTLE_ENDIAN);
                     bytes.putInt(2).putInt(2);
@@ -54,8 +63,8 @@ public final class NativeProbeService extends Service {
                     Log.i("KaMProbe", "MAP_SELFTEST_OK 2x2 heightSum=46");
                     return;
                 }
-                if (intent != null && intent.hasExtra("mapPath")) {
-                    int[] map = nativeReadMap(intent.getStringExtra("mapPath"));
+                if (request != null && request.hasExtra("mapPath")) {
+                    int[] map = nativeReadMap(request.getStringExtra("mapPath"));
                     if (map == null) report("ERROR", "Invalid, truncated, or unsupported map (only original KaM .map format supported)");
                     else {
                         Intent result = new Intent(MainActivity.DIAGNOSTIC_ACTION).setPackage(getPackageName());
@@ -80,7 +89,7 @@ public final class NativeProbeService extends Service {
             } finally {
                 stopSelf(startId);
             }
-        }, "pascal-probe").start();
+        });
         return START_NOT_STICKY;
     }
     @Override public IBinder onBind(Intent intent) { return null; }
