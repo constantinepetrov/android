@@ -1,0 +1,54 @@
+name: Existing APK ARM64 runtime diagnostic
+on:
+  push:
+    branches: [codex/android-native-port]
+    paths:
+      - '.github/workflows/android-arm64-runtime-diagnostic.yml'
+      - 'android-port/diagnostics/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  existing-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the previously reported 16 KiB APK unchanged
+        uses: actions/download-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: existing-apk
+          run-id: 41180964842
+          github-token: ${{ github.token }}
+      - name: Prepare ARM64 system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          test -n "$sdkmanager"
+          "$sdkmanager" 'platform-tools' 'emulator'
+          image='system-images;android-35;google_apis;arm64-v8a'
+          if ! "$sdkmanager" "$image"; then
+            image='system-images;android-30;google_apis;arm64-v8a'
+            "$sdkmanager" "$image"
+          fi
+          avdmanager="$(dirname "$sdkmanager")/avdmanager"
+          echo no | "$avdmanager" create avd --force --name kam_arm64 --package "$image"
+          echo "AVD image: $image"
+      - name: Run existing APK, collect logcat and screen
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/arm64-diagnostic"
+          apk=$(find existing-apk -name '*.apk' -type f -print -quit)
+          test -n "$apk"
+          sha256sum "$apk" | tee "$RUNNER_TEMP/arm64-diagnostic/apk-sha256.txt"
+          APK_PATH="$apk" DIAGNOSTIC_OUT="$RUNNER_TEMP/arm64-diagnostic" bash android-port/diagnostics/run-existing-apk-arm64.sh
+      - name: Preserve diagnostics even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: existing-apk-arm64-runtime-evidence
+          path: ${{ runner.temp }}/arm64-diagnostic/
+          if-no-files-found: warn
