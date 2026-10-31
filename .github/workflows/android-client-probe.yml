@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'android-port/**'
+      - 'src/**'
       - '.github/workflows/android-client-probe.yml'
 permissions:
   contents: read
