@@ -13,6 +13,8 @@ import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.WindowInsets;
+import android.graphics.Insets;
 import android.view.ScaleGestureDetector;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -62,7 +64,35 @@ public final class MainActivity extends Activity {
         label.setPadding(16, 12, 16, 12);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START);
         frame.addView(label, params);
+        frame.setOnApplyWindowInsetsListener((v, insets) -> {
+            int left, top, right, bottom;
+            if (Build.VERSION.SDK_INT >= 30) {
+                Insets safe = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                left = safe.left; top = safe.top; right = safe.right; bottom = safe.bottom;
+            } else {
+                left = insets.getSystemWindowInsetLeft(); top = insets.getSystemWindowInsetTop();
+                right = insets.getSystemWindowInsetRight(); bottom = insets.getSystemWindowInsetBottom();
+                if (Build.VERSION.SDK_INT >= 28 && insets.getDisplayCutout() != null) {
+                    left = Math.max(left, insets.getDisplayCutout().getSafeInsetLeft());
+                    top = Math.max(top, insets.getDisplayCutout().getSafeInsetTop());
+                    right = Math.max(right, insets.getDisplayCutout().getSafeInsetRight());
+                    bottom = Math.max(bottom, insets.getDisplayCutout().getSafeInsetBottom());
+                }
+            }
+            FrameLayout.LayoutParams safe = (FrameLayout.LayoutParams) label.getLayoutParams();
+            safe.setMargins(left, top, right, bottom);
+            label.setLayoutParams(safe);
+            final int safeTop = top;
+            label.post(() -> {
+                int[] location = new int[2];
+                label.getLocationOnScreen(location);
+                android.util.Log.i("KaMProbe", "INSETS_" + (location[1] >= safeTop ? "OK" : "FAIL")
+                        + " labelTop=" + location[1] + " safeTop=" + safeTop);
+            });
+            return insets;
+        });
         setContentView(frame);
+        frame.requestApplyInsets();
     }
     @Override protected void onDestroy() { handler.removeCallbacksAndMessages(null); unregisterReceiver(diagnostics); super.onDestroy(); }
     @Override protected void onPause() { view.onPause(); super.onPause(); }

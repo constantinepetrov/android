@@ -36,6 +36,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/krom-test"
           fpc -dANDROID -Mdelphi -Fi. -Fusrc/utils -FU"$RUNNER_TEMP/krom-test" -FE"$RUNNER_TEMP/krom-test" android-port/tests/kromutils_smoke.pas
           "$RUNNER_TEMP/krom-test/kromutils_smoke"
+      - name: Measure FPC RTTI invocation support on Linux
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/rtti-test"
+          fpc -Mdelphi -FU"$RUNNER_TEMP/rtti-test" -FE"$RUNNER_TEMP/rtti-test" android-port/tests/fpc_rtti_probe.pas
+          set +e
+          "$RUNNER_TEMP/rtti-test/fpc_rtti_probe" | tee "$RUNNER_TEMP/rtti-probe.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          # Exit 2 records an unavailable call manager; do not claim RTTI support.
+          test "$status" -eq 0 || test "$status" -eq 2
       - name: Cache FPC cross compiler
         id: fpc-cache
         uses: actions/cache@v4
@@ -68,5 +79,6 @@ jobs:
           path: |
             ${{ runner.temp }}/cross-build.log
             ${{ runner.temp }}/client-build.log
+            ${{ runner.temp }}/rtti-probe.log
             ${{ runner.temp }}/client-units/
           if-no-files-found: warn

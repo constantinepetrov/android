@@ -77,4 +77,9 @@ if [ "$ui_ok" -ne 1 ]; then
   echo "JNI_RESULT_MISSING: inspect window and logcat" | tee "$results/failure.txt"
   exit 1
 fi
-echo "PROCESS_ALIVE_AND_JNI_RESULT_134" | tee -a "$results/runtime.txt"
+adb logcat -d -s KaMProbe:I '*:S' > "$results/probe-stages.txt"
+if ! grep -q 'INSETS_OK' "$results/probe-stages.txt" || grep -q 'INSETS_FAIL' "$results/probe-stages.txt"; then
+  echo "INSETS_CHECK_FAILED: inspect probe-stages.txt" | tee "$results/failure.txt"
+  exit 1
+fi
+echo "PROCESS_ALIVE_AND_JNI_RESULT_134_AND_INSETS_OK" | tee -a "$results/runtime.txt"
