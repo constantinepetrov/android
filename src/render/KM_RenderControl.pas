@@ -3,16 +3,28 @@ unit KM_RenderControl;
 interface
 uses
   Classes, Types,
-  ExtCtrls, Forms,
+  {$IFNDEF ANDROID} ExtCtrls, Forms, {$ENDIF}
   KromOGLUtils
   {$IFDEF MSWindows} , Windows, dglOpenGL  {$ENDIF}
-  {$IFDEF Unix} , OpenGLContext, dglOpenGL {$ENDIF}
+  {$IF Defined(Unix) and not Defined(ANDROID)} , OpenGLContext, dglOpenGL {$ENDIF}
   {$IFDEF WDC}, Messages {$ENDIF}
   ;
 
 type
   TKMResizeEvent = procedure(aWidth, aHeight: Integer) of object;
 
+  {$IFDEF ANDROID}
+    // The Android host owns EGL and must provide a concrete surface adapter.
+    // Abstract methods prevent accidental use of the desktop context backend.
+    TKMRenderControl = class(TObject)
+    public
+      OnRender: TNotifyEvent;
+      OnResize: TKMResizeEvent;
+      procedure CreateRenderContext; virtual; abstract;
+      procedure DestroyRenderContext; virtual; abstract;
+      procedure SwapBuffers; virtual; abstract;
+    end;
+  {$ELSE}
   {$IFDEF MSWindows}
     //Custom flicker-free Panel
     TKMRenderControl = class(TPanel)
@@ -45,6 +57,7 @@ type
       procedure SwapBuffers; //Already exists in TOpenGLControl for Unix
     {$ENDIF}
   end;
+  {$ENDIF}
 
 
 implementation
@@ -102,7 +115,7 @@ implementation
 {$ENDIF}
 
 
-{$IFDEF Unix}
+{$IF Defined(Unix) and not Defined(ANDROID)}
   procedure TKMRenderControl.DoOnResize;
   begin
     inherited;
@@ -112,6 +125,7 @@ implementation
 {$ENDIF}
 
 
+{$IFNDEF ANDROID}
 procedure TKMRenderControl.CreateRenderContext;
 begin
   {$IFDEF MSWindows}
@@ -138,6 +152,7 @@ begin
     //Not needed?
   {$ENDIF}
 end;
+{$ENDIF}
 
 
 end.
