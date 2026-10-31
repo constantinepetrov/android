@@ -467,7 +467,7 @@ interface
 uses
   SysUtils
   {$IFDEF DGL_WIN}, Windows{$ENDIF}
-  {$IFDEF DGL_LINUX}, X, XLib, XUtil, types {$ENDIF}
+  {$IFDEF DGL_LINUX}, X, XLib, XUtil, types {$ELSE}{$IFNDEF DGL_WIN}, Types{$ENDIF}{$ENDIF}
   ;
 
 type
