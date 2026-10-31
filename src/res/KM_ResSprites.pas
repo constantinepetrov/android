@@ -4,7 +4,7 @@ interface
 uses
   Classes, Math, SysUtils, Generics.Collections,
   KM_CommonTypes, KM_Defaults,
-  KM_Pics, {$IFNDEF ANDROID} KM_IoPNG, {$ENDIF} KM_RenderTypes,
+  KM_Pics, KM_IoPNG, KM_RenderTypes,
   KM_ResTexts, KM_ResTileset, KM_ResHouses, KM_ResTypes, KM_ResTilesetTypes,
   KM_BinPacking
   {$IFDEF FPC}, zstream {$ENDIF}
