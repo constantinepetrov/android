@@ -14,10 +14,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          printf 'ANDROID_USER_HOME=%s\nANDROID_AVD_HOME=%s\n' "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           manager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
           (yes || true) | "$manager" --licenses > /dev/null
           "$manager" 'platform-tools' 'emulator' 'system-images;android-35;google_apis;arm64-v8a'
-          echo no | "$(dirname "$manager")/avdmanager" create avd --force --name inspect_arm64 --package 'system-images;android-35;google_apis;arm64-v8a'
+          echo no | "$(dirname "$manager")/avdmanager" create avd --force --name inspect_arm64 --package 'system-images;android-35;google_apis;arm64-v8a' --path "$ANDROID_AVD_HOME/inspect_arm64.avd"
+          ls -la "$ANDROID_AVD_HOME"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+          test -f "$ANDROID_AVD_HOME/inspect_arm64.ini"
       - name: Observe unaccelerated ARM64 guest
         shell: bash
         run: |

@@ -61,9 +61,19 @@ if [ -z "$pid" ]; then
 fi
 
 # Assert the on-screen native result, not just a surviving Java process.
-adb shell uiautomator dump /sdcard/smoke-window.xml > "$results/ui-check.txt" 2>&1
-adb shell cat /sdcard/smoke-window.xml > "$results/smoke-window.xml"
-if ! grep -q 'Native Pascal KM_Sort: 134' "$results/smoke-window.xml"; then
+ui_ok=0
+for attempt in $(seq 1 12); do
+  adb shell uiautomator dump /sdcard/smoke-window.xml >> "$results/ui-check.txt" 2>&1 || true
+  adb shell cat /sdcard/smoke-window.xml > "$results/smoke-window.xml" 2>/dev/null || true
+  if grep -q 'Native Pascal KM_Sort: 134' "$results/smoke-window.xml"; then ui_ok=1; break; fi
+  # The emulator launcher can show an ANR dialog over the app. Dismiss only that known dialog.
+  if grep -q 'Pixel Launcher isn.t responding' "$results/smoke-window.xml"; then
+    adb shell input keyevent KEYCODE_BACK || true
+    adb shell am start -n "$package/.MainActivity" >> "$results/ui-check.txt" 2>&1 || true
+  fi
+  sleep 5
+done
+if [ "$ui_ok" -ne 1 ]; then
   echo "JNI_RESULT_MISSING: inspect window and logcat" | tee "$results/failure.txt"
   exit 1
 fi

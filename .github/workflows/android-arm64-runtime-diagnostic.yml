@@ -26,6 +26,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          printf 'ANDROID_USER_HOME=%s\nANDROID_AVD_HOME=%s\n' "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
           test -n "$sdkmanager"
           (yes || true) | "$sdkmanager" --licenses > /dev/null
@@ -37,7 +41,10 @@ jobs:
             "$sdkmanager" "$image"
           fi
           avdmanager="$(dirname "$sdkmanager")/avdmanager"
-          echo no | "$avdmanager" create avd --force --name kam_arm64 --package "$image"
+          echo no | "$avdmanager" create avd --force --name kam_arm64 --package "$image" --path "$ANDROID_AVD_HOME/kam_arm64.avd"
+          ls -la "$ANDROID_AVD_HOME"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+          test -f "$ANDROID_AVD_HOME/kam_arm64.ini"
           echo "AVD image: $image"
       - name: Run existing APK, collect logcat and screen
         shell: bash
