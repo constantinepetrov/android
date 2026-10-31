@@ -50,14 +50,6 @@ begin
   else if PB <= PC then Result := B else Result := C;
 end;
 
-procedure AppendBytes(var Dest: TByteArray; const Src; Count: Integer);
-var N: Integer;
-begin
-  if Count <= 0 then Exit;
-  N := Length(Dest); SetLength(Dest, N + Count);
-  Move(Src, Dest[N], Count);
-end;
-
 procedure WriteChunk(S: TStream; const Name: AnsiString; Data: TStream; DataSize: Cardinal);
 var C: Cardinal; Start: Int64;
 begin
@@ -77,6 +69,9 @@ const Signature: array[0..7] of Byte = (137,80,78,71,13,10,26,10);
 var
   F, Compressed, Raw: TMemoryStream;
   Z: TDecompressionStream;
+  InflateBuffer: array[0..32767] of Byte;
+  InflateCount: Integer;
+  ExpectedRawSize: Int64;
   Sig: array[0..7] of Byte;
   ChunkName: array[0..3] of AnsiChar;
   ChunkLen, W, H, ExpectedCRC: Cardinal;
@@ -86,7 +81,6 @@ var
   I, J, X, Y, RowBytes, Sample: Integer;
   A, B, C, V: Integer;
   R, G, Bl, Al: Byte;
-  PixelCount: Int64;
   TGray, TR, TG, TB: Word;
   HaveGray, HaveRGB: Boolean;
 begin
@@ -113,7 +107,9 @@ begin
         F.ReadBuffer(Interlace, 1);
         // CRC is consumed and checked below.
       end else if string(ChunkName) = 'IDAT' then begin
-        I := Length(IDAT); SetLength(IDAT, I + ChunkLen);
+        I := Length(IDAT);
+        if Int64(I) + ChunkLen > 67108864 then raise Exception.Create('PNG compressed data exceeds 64 MiB');
+        SetLength(IDAT, I + ChunkLen);
         if ChunkLen > 0 then F.ReadBuffer(IDAT[I], ChunkLen);
       end else if string(ChunkName) = 'PLTE' then begin
         SetLength(Palette, ChunkLen);
@@ -155,9 +151,19 @@ begin
     RowBytes := Integer(W) * Channels; Bpp := Channels;
     if Length(IDAT) = 0 then raise Exception.Create('PNG contains no image data');
     Compressed.WriteBuffer(IDAT[0], Length(IDAT)); Compressed.Position := 0;
+    ExpectedRawSize := Int64(H) * (RowBytes + 1);
     Z := TDecompressionStream.Create(Compressed);
-    try Raw.CopyFrom(Z, 0); finally Z.Free; end;
-    if Raw.Size <> Int64(H) * (RowBytes + 1) then
+    try
+      repeat
+        InflateCount := Z.Read(InflateBuffer, SizeOf(InflateBuffer));
+        if InflateCount > 0 then begin
+          if Raw.Size + InflateCount > ExpectedRawSize then
+            raise Exception.Create('PNG decompressed data exceeds dimensions in IHDR');
+          Raw.WriteBuffer(InflateBuffer, InflateCount);
+        end;
+      until InflateCount = 0;
+    finally Z.Free; end;
+    if Raw.Size <> ExpectedRawSize then
       raise Exception.Create('PNG decompressed data size does not match IHDR');
     SetLength(Row, RowBytes); SetLength(Prev, RowBytes);
     SetLength(aPixelData, W * H); Raw.Position := 0;
@@ -178,9 +184,9 @@ begin
       for X := 0 to Integer(W)-1 do begin
         I := X * Channels; R := 0; G := 0; Bl := 0; Al := 255;
         case ColorType of
-          0: begin R := Row[I]; G := R; Bl := R; if HaveGray and (R = Byte(TGray)) then Al := 0; end;
+          0: begin R := Row[I]; G := R; Bl := R; if HaveGray and (Word(R) = TGray) then Al := 0; end;
           2: begin R := Row[I]; G := Row[I+1]; Bl := Row[I+2];
-                 if HaveRGB and (R = Byte(TR)) and (G = Byte(TG)) and (Bl = Byte(TB)) then Al := 0; end;
+                 if HaveRGB and (Word(R) = TR) and (Word(G) = TG) and (Word(Bl) = TB) then Al := 0; end;
           3: begin Sample := Row[I]; J := Sample * 3;
                  if J + 2 >= Length(Palette) then raise Exception.Create('PNG palette index is out of range');
                  R := Palette[J]; G := Palette[J+1]; Bl := Palette[J+2];
