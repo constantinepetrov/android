@@ -85,6 +85,9 @@ if [ "$ui_ok" -ne 1 ]; then
   exit 1
 fi
 adb logcat -d -s KaMProbe:I '*:S' > "$results/probe-stages.txt"
+if ! grep -q 'RTTI_NO_CALL_MANAGER_ENOTIMPLEMENTED' "$results/probe-stages.txt"; then
+  echo 'RTTI_BLOCKER_OBSERVATION_MISSING' | tee "$results/failure.txt"; exit 1
+fi
 if ! grep -q 'FOG_FLOW_OK reveal cover save/load and 20 updates' "$results/probe-stages.txt"; then
   echo 'FOG_FLOW_MISSING' | tee "$results/failure.txt"; exit 1
 fi

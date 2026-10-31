@@ -33,6 +33,7 @@ import javax.microedition.khronos.opengles.GL10;
 public final class MainActivity extends Activity {
     static native int nativeSortProbe();
     static native int nativeFogProbe();
+    static native int nativeRttiProbe();
     static final String DIAGNOSTIC_ACTION = "com.kamremake.androidprobe.DIAGNOSTIC";
     private ProbeView view;
     private TextView label;

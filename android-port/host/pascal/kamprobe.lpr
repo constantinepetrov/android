@@ -1,6 +1,6 @@
 library kamprobe;
 {$mode delphi}
-uses KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario;
+uses KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario, KM_AndroidRttiProbe;
 
 type TIntArray = array[0..2] of LongInt;
 function CompareInt(const A, B): Integer;
@@ -58,7 +58,10 @@ begin
     finally fog.Free end;
   except Result := -2 end;
 end;
-exports Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe,
+function Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe(env, clazz: Pointer): LongInt; cdecl;
+begin Result := ProbeUnconfiguredRtti end;
+exports Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe,
+        Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe,
         Java_com_kamremake_androidprobe_NativeProbeService_nativeReadMap;
 begin

@@ -49,6 +49,9 @@ public final class NativeProbeService extends Service {
                     }
                     return;
                 }
+                int rtti = MainActivity.nativeRttiProbe();
+                if (rtti != 1) throw new IllegalStateException("Unexpected unconfigured RTTI result: " + rtti);
+                Log.i("KaMProbe", "RTTI_NO_CALL_MANAGER_ENOTIMPLEMENTED");
                 int fog = MainActivity.nativeFogProbe();
                 if (fog != 88) throw new IllegalStateException("Pascal fog state mismatch: " + fog);
                 Log.i("KaMProbe", "FOG_FLOW_OK reveal cover save/load and 20 updates");
