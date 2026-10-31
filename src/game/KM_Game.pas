@@ -7,6 +7,7 @@ uses
   KM_Networking,
   KM_PathFinding,
   KM_GameParams, KM_GameInputProcess,
+  KM_GamePresentationState,
   KM_GameSavePoints,
   KM_GameOptions, KM_GameTypes,
   KM_MapEditor, KM_Campaigns, KM_Maps, KM_MapTypes, KM_CampaignClasses, KM_TerrainPainter,
@@ -29,6 +30,7 @@ type
     fActiveInterface: TKMUserInterfaceGame; // Shortcut for both of UI
     fGamePlayInterface: TKMGamePlayInterface;
     fMapEditorInterface: TKMMapEdInterface;
+    fPresentationState: TKMGamePresentationState;
     fMapEditor: TKMMapEditor;
     fTerrainPainter: TKMTerrainPainter;
     fSavePoints: TKMSavePointCollection;
@@ -160,7 +162,8 @@ type
                        aSaveWorkerThreadHolder,
                        aBaseSaveWorkerThreadHolder,
                        aAutoSaveWorkerThreadHolder,
-                       aSavePointWorkerThreadHolder: TKMWorkerThreadHolder);
+                       aSavePointWorkerThreadHolder: TKMWorkerThreadHolder;
+                       aPresentationState: TKMGamePresentationState = nil);
     destructor Destroy; override;
 
     procedure CreateFromScript(const aMissionFullFilePath, aName: UnicodeString; aFullCRC, aSimpleCRC: Cardinal; aCampaign: TKMCampaign;
@@ -313,6 +316,7 @@ var
 
 implementation
 uses
+  {$IFNDEF ANDROID} KM_GamePresentationStateDesktop, {$ENDIF}
   {$IFDEF PARALLEL_RUNNER}
     KM_AIParameters, // If you want to remove this, then please make sure that the Runner can be compiled with ParallelRunner Build Configuration
   {$ENDIF}
@@ -437,7 +441,8 @@ constructor TKMGame.Create(aGameMode: TKMGameMode; aRender: TKMRender; aOnDestro
                            aSaveWorkerThreadHolder,
                            aBaseSaveWorkerThreadHolder,
                            aAutoSaveWorkerThreadHolder,
-                           aSavePointWorkerThreadHolder: TKMWorkerThreadHolder);
+                           aSavePointWorkerThreadHolder: TKMWorkerThreadHolder;
+                           aPresentationState: TKMGamePresentationState);
 const
   UI_MODE: array [TKMGameMode] of TKMUIMode = (umSP, umSP, umMP, umSpectate, umSP, umReplay, umReplay);
 begin
@@ -505,6 +510,14 @@ begin
       fActiveInterface := fGamePlayInterface;
     end;
   end;
+
+  // Session owns the persistence port. Desktop delegates to the exact original serializers;
+  // Android callers inject their implementation.
+  fPresentationState := aPresentationState;
+  {$IFNDEF ANDROID}
+  if (fPresentationState = nil) and (fGamePlayInterface <> nil) then
+    fPresentationState := TKMDesktopGamePresentationState.Create(fGamePlayInterface);
+  {$ENDIF}
 
   // pseudo GIP command, since we just want to initialize speed with default values
   SetSpeedGIP(GAME_SPEED_NORMAL, True);
@@ -578,6 +591,7 @@ begin
 
   FreeAndNil(fSavePoints);
 
+  FreeAndNil(fPresentationState);
   FreeThenNil(fGamePlayInterface);
   FreeThenNil(fMapEditorInterface);
 
@@ -2233,7 +2247,11 @@ begin
   // In SinglePlayer we want to show player a preview of what the game looked like when he saved
   // Save Minimap is near the start so it can be accessed quickly
   if not isMulti then
-    fGamePlayInterface.SaveMinimap(aHeaderStream);
+  begin
+    if fPresentationState = nil then
+      raise Exception.Create('Singleplayer save requires a game presentation-state provider');
+    fPresentationState.SavePreviewState(aHeaderStream);
+  end;
 
   // ----------------------------------------------------------------
   // Save to BodyStream from that point
@@ -2294,7 +2312,7 @@ begin
 
   // For multiplayer consistency we compare all saves CRCs, they should be created identical on all player's computers.
   if not isMulti then
-    fGamePlayInterface.Save(aBodyStream); //Saves message queue and school/barracks selected units
+    fPresentationState.SaveSinglePlayerState(aBodyStream);
 
   {$IFDEF PARALLEL_RUNNER}
     SaveGAParameters(aBodyStream);
@@ -2639,7 +2657,11 @@ begin
 
     // Not used, (only stored for SP preview) but it's easiest way to skip past it
     if not saveIsMultiplayer then
-      fGamePlayInterface.LoadMinimap(headerStream);
+    begin
+      if fPresentationState = nil then
+        raise Exception.Create('Singleplayer load requires a game presentation-state provider');
+      fPresentationState.LoadPreviewState(headerStream);
+    end;
 
     // ----------------------------------------------------------------
     // Load from BodyStream from that point
@@ -2716,7 +2738,7 @@ begin
     // Multiplayer saves don't have this piece of information. Its valid only for MyPlayer
     //todo -cComplicated: Send all message commands through GIP (note: that means there will be a delay when you press delete)
     if not saveIsMultiplayer then
-      fGamePlayInterface.Load(bodyStream);
+      fPresentationState.LoadSinglePlayerState(bodyStream);
 
     {$IFDEF PARALLEL_RUNNER}
       LoadGAParameters(bodyStream);
