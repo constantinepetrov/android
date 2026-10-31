@@ -6,6 +6,7 @@ uses
   Math, StrUtils, SysUtils,
   KM_CommonTypes, KM_Points, KM_ScriptingTypes;
 
+{$M+}
 type
   TKMScriptUtils = class
   private
@@ -60,6 +61,7 @@ type
 
     procedure InsertString(Source: String; var Target: String; Index: Integer);
 
+  published
     function KMPoint(X,Y: Integer): TKMPoint;
 
     function Ln(const X: Extended): Extended;
