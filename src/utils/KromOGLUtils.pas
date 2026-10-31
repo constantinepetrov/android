@@ -2,11 +2,11 @@ unit KromOGLUtils;
 {$I KaM_Remake.inc}
 interface
 uses
-  KM_ColorTypes, dglOpenGL,
+  KM_ColorTypes, dglOpenGL
   {$IFNDEF ANDROID}
-    {$IFDEF FPC} GL, LCLIntf, {$ENDIF}
-    {$IFDEF MSWindows} Windows {$ENDIF}
-    {$IFDEF Unix} LCLType, glx, x, xlib, xutil {$ENDIF}
+    {$IFDEF FPC}, GL, LCLIntf{$ENDIF}
+    {$IFDEF MSWindows}, Windows{$ENDIF}
+    {$IFDEF Unix}, LCLType, glx, x, xlib, xutil{$ENDIF}
   {$ENDIF}
   ;
 
