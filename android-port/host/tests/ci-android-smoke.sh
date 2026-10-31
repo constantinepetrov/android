@@ -75,7 +75,23 @@ for attempt in $(seq 1 12); do
   if grep -q 'Native Pascal KM_Sort: 134' "$results/smoke-window.xml"; then ui_ok=1; break; fi
   # The emulator launcher can show an ANR dialog over the app. Dismiss only that known dialog.
   if grep -q 'Pixel Launcher isn.t responding' "$results/smoke-window.xml"; then
-    adb shell input keyevent KEYCODE_BACK || true
+    # BACK does not dismiss Android's ANR dialog on all emulator images.
+    # Click only the explicit close button on the known Pixel Launcher dialog.
+    coords=$(python3 - "$results/smoke-window.xml" <<'PYCODE'
+import re, sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+    for node in root.iter('node'):
+        if node.get('text') in ('Close app', 'Close'):
+            values = list(map(int, re.findall(r'\d+', node.get('bounds', ''))))
+            if len(values) == 4:
+                print((values[0]+values[2])//2, (values[1]+values[3])//2)
+                break
+except (OSError, ET.ParseError):
+    pass
+PYCODE
+    )
+    if [ -n "$coords" ]; then adb shell input tap $coords || true; fi
     adb shell am start -n "$package/.MainActivity" >> "$results/ui-check.txt" 2>&1 || true
   fi
   sleep 5
