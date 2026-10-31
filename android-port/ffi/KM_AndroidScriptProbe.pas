@@ -23,7 +23,7 @@ type
     LastValue: Integer;
     procedure Capture(Value: Integer);
   end;
-function TFogScriptResult.Capture(Value: Integer);
+procedure TFogScriptResult.Capture(Value: Integer);
 begin
   LastValue := Value;
 end;
@@ -136,7 +136,8 @@ function RunFogStateScriptProbe: Integer;
 const
   Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
     + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
-    + 'i := Fog.CheckTileRevelation(1,1); Probe.Capture(i); '    + 'if i <> 255 then i := 1 div (i-i); end.';
+    + 'i := Fog.CheckTileRevelation(1,1); Probe.Capture(i); '
+    + 'if i <> 255 then i := 1 div (i-i); end.';
 var
   Compiler: TPSPascalCompiler;
   Exec: TPSExec;
@@ -146,7 +147,7 @@ var
   Data: AnsiString;
   X, Y: Integer;
 begin
-  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil; FogProbe := nil;
   try
     try
       Compiler := TPSPascalCompiler.Create;
