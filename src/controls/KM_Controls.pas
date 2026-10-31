@@ -3,7 +3,7 @@
 interface
 uses
   Classes,
-  Controls,
+  {$IFNDEF ANDROID} Controls, {$ELSE} KM_ControlsTypes, {$ENDIF}
   Generics.Collections,
   KromOGLUtils,
   KM_RenderUI, KM_Pics,
@@ -412,9 +412,9 @@ type
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   SysUtils, StrUtils, Math,
-  Clipbrd,
+  {$IFNDEF ANDROID} Clipbrd, {$ENDIF}
   KromUtils,
   KM_System,
   KM_ControlsBase, KM_ControlsDragger, KM_ControlsEdit, KM_ControlsSwitch, KM_ControlsTrackBar, KM_ControlsTypes,
@@ -508,6 +508,7 @@ function TKMControl.KeyDown(Key: Word; Shift: TShiftState): Boolean;
 //var
 //  keyPress: TKMKeyPress;
 begin
+  {$IFDEF ANDROID} KMInputSetKeyState(Key, True); {$ENDIF}
 //  if fKeyPressList.Count = 0 then
 //    keyPress.Time := TimeGetUSec
 //  else
@@ -564,6 +565,7 @@ end;
 
 function TKMControl.KeyUp(Key: Word; Shift: TShiftState): Boolean;
 begin
+  {$IFDEF ANDROID} KMInputSetKeyState(Key, False); {$ENDIF}
   Result := False;
   if (Key = VK_TAB) and CanFocusNext and IsFocused then
   begin
@@ -588,6 +590,12 @@ end;
 
 procedure TKMControl.MouseDown(X,Y: Integer; Shift: TShiftState; Button: TMouseButton);
 begin
+  {$IFDEF ANDROID}
+  KMInputSetButtonDown(Button, True);
+  KMInputSetKeyState(VK_SHIFT, ssShift in Shift);
+  KMInputSetKeyState(VK_CONTROL, ssCtrl in Shift);
+  KMInputSetKeyState(VK_MENU, ssAlt in Shift);
+  {$ENDIF}
   //if Assigned(fOnMouseDown) then fOnMouseDown(Self); { Unused }
   fClickHoldMode := True;
   fTimeOfLastMouseDown := TimeGet;
@@ -597,6 +605,11 @@ end;
 
 procedure TKMControl.MouseMove(X,Y: Integer; Shift: TShiftState);
 begin
+  {$IFDEF ANDROID}
+  KMInputSetKeyState(VK_SHIFT, ssShift in Shift);
+  KMInputSetKeyState(VK_CONTROL, ssCtrl in Shift);
+  KMInputSetKeyState(VK_MENU, ssAlt in Shift);
+  {$ENDIF}
   //if Assigned(fOnMouseOver) then fOnMouseOver(Self); { Unused }
   if (csDown in State) then
   begin
@@ -613,6 +626,12 @@ procedure TKMControl.MouseUp(X,Y: Integer; Shift: TShiftState; Button: TMouseBut
 var
   clickHoldHandled: Boolean;
 begin
+  {$IFDEF ANDROID}
+  KMInputSetButtonDown(Button, False);
+  KMInputSetKeyState(VK_SHIFT, ssShift in Shift);
+  KMInputSetKeyState(VK_CONTROL, ssCtrl in Shift);
+  KMInputSetKeyState(VK_MENU, ssAlt in Shift);
+  {$ENDIF}
   //if Assigned(fOnMouseUp) then OnMouseUp(Self); { Unused }
 
   if (csDown in State) then
