@@ -44,7 +44,7 @@ public final class NativeProbeService extends Service {
                     Log.i("KaMProbe", "FFI_SCRIPT_OK facade self integer single out; invalid script rejected");
                     int gameUtils = nativeRealUtilsScriptProbe();
                     if (gameUtils != 42) throw new IllegalStateException("REAL_UTILS_SCRIPT_FAILED code=" + gameUtils);
-                    report("FFI", "REAL_UTILS_SCRIPT_OK registered TKMScriptUtils.AbsI Self integer result; invalid script rejected");
+                    report("FFI", "REAL_UTILS_SCRIPT_OK TKMScriptUtils.AbsI and KMPoint TKMPoint record result; invalid script rejected");
                     return;
                 }
                 if (request != null && request.getBooleanExtra("selfTest", false)) {
