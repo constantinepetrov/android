@@ -116,3 +116,38 @@ jobs:
             ${{ runner.temp }}/host-segments.log
             ${{ runner.temp }}/host-gradle.log
           if-no-files-found: warn
+
+  runtime-smoke:
+    name: Launch APK in Android 15 emulator
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download APK from this build
+        uses: actions/download-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: ${{ runner.temp }}/kam-apk
+      - name: Enable KVM on GitHub runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot emulator and test native APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: bash android-port/host/tests/ci-android-smoke.sh "${{ runner.temp }}/kam-apk/app-debug.apk"
+      - name: Upload runtime diagnostics (even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-android-emulator-runtime
+          path: android-runtime-results/
+          if-no-files-found: warn
