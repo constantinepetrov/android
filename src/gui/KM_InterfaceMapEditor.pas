@@ -3,7 +3,7 @@ unit KM_InterfaceMapEditor;
 interface
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   Classes, Math, StrUtils, SysUtils, Controls,
   KM_Controls, KM_ControlsBase, KM_ControlsList, KM_ControlsMinimapView, KM_ControlsForm,
   KM_Defaults, KM_Pics, KM_Points,
@@ -178,7 +178,7 @@ uses
   KM_System,
   KM_HandsCollection, KM_Hand, KM_HandTypes, KM_HandEntity,
   KM_ResTexts, KM_Game, KM_GameParams, KM_Cursor,
-  KM_Resource, KM_ResHouses, KM_TerrainDeposits, KM_ResKeys, KM_GameApp,
+  KM_Resource, KM_ResHouses, KM_TerrainDeposits, KM_ResKeys, {$IFDEF ANDROID} KM_GameRuntime {$ELSE} KM_GameApp {$ENDIF},
   KM_AIDefensePos, KM_RenderUI, KM_ResFonts, KM_CommonClasses, KM_UnitWarrior,
   KM_InterfaceDefaults, KM_Units, KM_UnitGroup, KM_Terrain, KM_Maps,
   KM_Utils, KM_CommonUtils,
@@ -867,37 +867,37 @@ begin
   begin
     HidePages;
     fGuiTerrain.Show(I);
-    gGameApp.PrintScreen(path + 'Terrain' + IntToStr(Ord(I)) + '.jpeg');
+    {$IFDEF ANDROID} KMHostPrintScreen(path + 'Terrain' + IntToStr(Ord(I)) + '.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'Terrain' + IntToStr(Ord(I)) + '.jpeg') {$ENDIF};
   end;
 
   for K := Low(TKMTownTab) to High(TKMTownTab) do
   begin
     HidePages;
     fGuiTown.Show(K);
-    gGameApp.PrintScreen(path + 'Town' + IntToStr(Ord(K)) + '.jpeg');
+    {$IFDEF ANDROID} KMHostPrintScreen(path + 'Town' + IntToStr(Ord(K)) + '.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'Town' + IntToStr(Ord(K)) + '.jpeg') {$ENDIF};
   end;
 
   for L := Low(TKMPlayerTab) to High(TKMPlayerTab) do
   begin
     HidePages;
     fGuiPlayer.Show(L);
-    gGameApp.PrintScreen(path + 'Player' + IntToStr(Ord(L)) + '.jpeg');
+    {$IFDEF ANDROID} KMHostPrintScreen(path + 'Player' + IntToStr(Ord(L)) + '.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'Player' + IntToStr(Ord(L)) + '.jpeg') {$ENDIF};
   end;
 
   for M := Low(TKMMissionTab) to High(TKMMissionTab) do
   begin
     HidePages;
     fGuiMission.Show(M);
-    gGameApp.PrintScreen(path + 'Mission' + IntToStr(Ord(M)) + '.jpeg');
+    {$IFDEF ANDROID} KMHostPrintScreen(path + 'Mission' + IntToStr(Ord(M)) + '.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'Mission' + IntToStr(Ord(M)) + '.jpeg') {$ENDIF};
   end;
 
   HidePages;
   fGuiHouse.Show(nil);
-  gGameApp.PrintScreen(path + 'House.jpeg');
+  {$IFDEF ANDROID} KMHostPrintScreen(path + 'House.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'House.jpeg') {$ENDIF};
 
   HidePages;
   fGuiUnit.Show(TKMUnit(nil));
-  gGameApp.PrintScreen(path + 'Unit.jpeg');
+  {$IFDEF ANDROID} KMHostPrintScreen(path + 'Unit.jpeg') {$ELSE} gGameApp.PrintScreen(path + 'Unit.jpeg') {$ENDIF};
 end;
 
 
@@ -1009,7 +1009,7 @@ begin
   Label_Info.Visible := True;
   Label_Info.Caption := gResTexts[TX_MAPED_MAP_SAVING];
 
-  gGameApp.Render; // Update 'Map saving' label
+  {$IFDEF ANDROID} KMHostRenderGameFrame; {$ELSE} gGameApp.Render; {$ENDIF} // Update 'Map saving' label
 end;
 
 
@@ -1040,8 +1040,12 @@ begin
   end;
 
   //Call event handlers after we updated visible layers
+  {$IFDEF ANDROID}
+  KMHostGameOptionsChanged;
+  {$ELSE}
   if Assigned(gGameApp.OnOptionsChange) then
     gGameApp.OnOptionsChange;
+  {$ENDIF}
 
   fGuiExtras.Refresh;
 end;
