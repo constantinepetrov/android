@@ -43,6 +43,12 @@ jobs:
           set -o pipefail
           LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/game-options-test" \
             bash android-port/tests/test-game-options-linux.sh 2>&1 | tee "$RUNNER_TEMP/game-options-test.log"
+      - name: Test game presentation save-state port on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/game-presentation-port" \
+            bash android-port/tests/test-game-presentation-port-linux.sh 2>&1 | tee "$RUNNER_TEMP/game-presentation-port.log"
       - name: Compile real map header probe (no game data bundled)
         shell: bash
         run: |
@@ -169,6 +175,7 @@ jobs:
             ${{ runner.temp }}/client-overlay.log
             ${{ runner.temp }}/ps-android-units/
             ${{ runner.temp }}/game-options-test.log
+            ${{ runner.temp }}/game-presentation-port.log
             ${{ runner.temp }}/map-header-build.log
             ${{ runner.temp }}/client-units/
           if-no-files-found: warn
