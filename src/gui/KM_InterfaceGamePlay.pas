@@ -2841,7 +2841,7 @@ begin
     // Reset the cursor position as it will have moved during direction selection
     {$IFNDEF ANDROID}
     SetCursorPos(gMain.ClientToScreen(fSelectingDirPosition).X, gMain.ClientToScreen(fSelectingDirPosition).Y);
-    {$IFNDEF ANDROID} gMain.ApplyCursorRestriction; {$ENDIF} // Reset the cursor restrictions from selecting direction
+    gMain.ApplyCursorRestriction; // Reset the cursor restrictions from selecting direction
     {$ENDIF}
     fSelectingTroopDirection := False;
     gSystem.Cursor := kmcDefault; // Reset direction selection cursor when mouse released
@@ -3640,7 +3640,7 @@ begin
 
   if fSelectingTroopDirection then
   begin
-    gMain.ApplyCursorRestriction; // Reset the cursor restrictions from selecting direction
+    {$IFNDEF ANDROID} gMain.ApplyCursorRestriction; {$ENDIF} // Reset the cursor restrictions from selecting direction
     fSelectingTroopDirection := False;
     DirectionCursorHide;
   end;
