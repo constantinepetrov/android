@@ -362,7 +362,7 @@ const
 
 implementation
 uses
-  System.Classes, System.SysUtils, System.TypInfo,
+  {$IFDEF FPC} Classes, SysUtils, TypInfo, {$ELSE} System.Classes, System.SysUtils, System.TypInfo, {$ENDIF}
   KM_Entity,
   KM_Terrain,
   {$IFNDEF ANDROID} KM_FormLogistics, {$ENDIF} KM_UnitTaskDelivery,
