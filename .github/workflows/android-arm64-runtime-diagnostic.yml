@@ -15,12 +15,12 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Download the previously reported 16 KiB APK unchanged
+      - name: Download linker-fixed APK from verified build
         uses: actions/download-artifact@v4
         with:
           name: kam-native-integration-probe-arm64
           path: existing-apk
-          run-id: 41180964842
+          run-id: 41182212756
           github-token: ${{ github.token }}
       - name: Prepare ARM64 system image
         shell: bash
