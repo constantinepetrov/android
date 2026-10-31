@@ -2,7 +2,7 @@ unit KromOGLUtils;
 {$I KaM_Remake.inc}
 interface
 uses
-  dglOpenGL,
+  KM_ColorTypes, dglOpenGL,
   {$IFDEF FPC} GL, LCLIntf, {$ENDIF}
   {$IFDEF MSWindows} Windows {$ENDIF}
   {$IFDEF Unix} LCLType, glx, x, xlib, xutil {$ENDIF}
@@ -18,7 +18,7 @@ type PFD_MAIN_PLANE = Integer;
 {$ENDIF}
 
 type
-  TColor4 = Cardinal;
+  TColor4 = KM_ColorTypes.TColor4;
   TTexture = record Tex: Cardinal; U, V: Single; end;
 
   procedure SetRenderFrame(RenderFrame: HWND; out h_DC: HDC; out h_RC: HGLRC);
