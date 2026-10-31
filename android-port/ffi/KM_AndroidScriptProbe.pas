@@ -4,7 +4,7 @@ interface
 function RunScriptProbe: Integer;
 function RunRealUtilsScriptProbe: Integer;
 implementation
-uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
+uses SysUtils, Rtti, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
 function __android_log_write(priority: LongInt; tag, text: PChar): LongInt; cdecl; external 'log' name '__android_log_write';
 procedure AndroidLog(const aText: AnsiString);
 begin
@@ -79,6 +79,8 @@ function RunRealUtilsScriptProbe: Integer;
 const Source = 'var n: Integer; p: TKMPoint; begin n := Utils.AbsI(-42); p := Utils.KMPoint(13,17); if (n <> 42) or (p.X <> 13) or (p.Y <> 17) then n := 1 div (n-n); end.';
 var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
     Instance: TKMScriptUtils; Data: AnsiString;
+    Context: TRttiContext; MethodInfo: TRttiMethod; Args: TValueArray;
+    Value: TValue; PointValue: TKMPoint; MetaFound: Boolean;
 begin
   Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
   try
@@ -96,6 +98,45 @@ begin
       Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
       if not Exec.LoadData(Data) then begin Result := -4; Exit end;
       Instance := TKMScriptUtils.Create;
+      Context := TRttiContext.Create;
+      try
+        MetaFound := False;
+        for MethodInfo in Context.GetType(Instance.ClassType).GetMethods do
+          if MethodInfo.Name = 'KMPoint' then
+          begin
+            MetaFound := True;
+            Break;
+          end;
+        if not MetaFound then
+        begin
+          AndroidLog('REAL_UTILS_RTTI_FAILED KMPoint method not published');
+          Result := -10;
+          Exit;
+        end;
+        try
+          SetLength(Args, 3);
+          Args[0] := TValue.From<Pointer>(Instance);
+          Args[1] := TValue.From<Integer>(13);
+          Args[2] := TValue.From<Integer>(17);
+          Value := Rtti.Invoke(@TKMScriptUtils.KMPoint, Args, ccReg, MethodInfo.ReturnType.Handle, False, False);
+          Value.ExtractRawData(@PointValue);
+          AndroidLog(AnsiString('REAL_UTILS_DIRECT_RTTI_OK ' + IntToStr(PointValue.X) + ',' + IntToStr(PointValue.Y)));
+          if (PointValue.X <> 13) or (PointValue.Y <> 17) then
+          begin
+            Result := -11;
+            Exit;
+          end;
+        except
+          on E: Exception do
+          begin
+            AndroidLog(AnsiString('REAL_UTILS_DIRECT_RTTI_FAILED ' + E.ClassName + ': ' + E.Message));
+            Result := -12;
+            Exit;
+          end;
+        end;
+      finally
+        Context.Free;
+      end;
       SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
       if not Exec.RunScript then begin
         AndroidLog(AnsiString('REAL_UTILS_SCRIPT_RUNTIME_ERROR code=' + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
