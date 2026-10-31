@@ -19,6 +19,7 @@ public final class NativeProbeService extends Service {
     static native int nativeFfiProbe();
     static native int nativeFfiScriptProbe();
     static native int nativeRealUtilsScriptProbe();
+    static native int nativeFogStateScriptProbe();
     private void report(String stage, String detail) {
         Log.i("KaMProbe", stage + ": " + detail);
         Intent message = new Intent(MainActivity.DIAGNOSTIC_ACTION);
@@ -45,6 +46,9 @@ public final class NativeProbeService extends Service {
                     int gameUtils = nativeRealUtilsScriptProbe();
                     if (gameUtils != 42) throw new IllegalStateException("REAL_UTILS_SCRIPT_FAILED code=" + gameUtils);
                     report("FFI", "REAL_UTILS_SCRIPT_OK TKMScriptUtils.AbsI and KMPoint TKMPoint record result; invalid script rejected");
+                    int gameState = nativeFogStateScriptProbe();
+                    if (gameState != 42) throw new IllegalStateException("FOG_STATE_SCRIPT_FAILED code=" + gameState);
+                    report("FFI", "REAL_GAME_STATE_SCRIPT_OK TKMFogOfWar reveal + 10 updates: 255->243");
                     return;
                 }
                 if (request != null && request.getBooleanExtra("selfTest", false)) {
