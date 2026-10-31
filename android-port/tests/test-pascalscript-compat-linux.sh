@@ -10,7 +10,9 @@ python3 "$root/android-port/experiments/prepare-pascalscript-fpc.py" "$root/src/
 python3 - "$root/android-port/tests/pascal_script_game_probe.pas" "$out/src" <<'PY'
 import pathlib, sys
 source=pathlib.Path(sys.argv[1]).read_text().replace('uses SysUtils, uPSCompiler', 'uses ffi.manager, SysUtils, uPSCompiler')
-pathlib.Path(sys.argv[2], 'record_probe.pas').write_text(source)
+record_source=source.replace('o:=TFacade.Create;o.bias:=7;', 'o:=TFacade.Create;o.bias:=7;PSRegisterRecordReturnType(@TFacade.Point,TypeInfo(TKMPoint));')
+assert record_source != source, 'record metadata registration anchor changed'
+pathlib.Path(sys.argv[2], 'record_probe.pas').write_text(record_source)
 start=source.index("const source='")
 end=source.index("';\nbegin", start)
 script="const source='var n: Integer; begin Utils.OutValue(8,n); if (n <> 15) then begin n:=1 div (n-n); end; end."
@@ -30,7 +32,7 @@ record_status=$?
 set -e
 cat "$out/record-result.txt"
 if [ "$record_status" -eq 0 ] && grep -q PASCAL_SCRIPT_POINT_AND_OUT_OK "$out/record-result.txt"; then
-  echo 'PASCAL_SCRIPT_FPC_RECORD_RESULT_OK (Linux x86_64 libffi compatibility test)'
+  echo 'PASCAL_SCRIPT_FPC_OUT_PARAMETER_OK (Linux x86_64 libffi compatibility test)'
 elif [ "$record_status" -eq 3 ] && grep -q 'run failed' "$out/record-result.txt"; then
   echo 'PASCAL_SCRIPT_HOST_RECORD_RESULT_UNAVAILABLE (FPC 3.2.2 Linux x86_64 diagnostic only)'
 else
