@@ -24,12 +24,8 @@ for probe in record_probe out_probe; do
   "${FPC_HOST:-fpc}" -B -Mobjfpc -Sc -dANDROID -dUSEINVOKECALL "-Fi$root" "-Fu$out/src" "-Fu$FFI_FIXED_SOURCE" \
     ${LIBFFI_LIB_DIR:+"-Fl$LIBFFI_LIB_DIR"} "-Fu$LAZUTILS_SOURCE" "${paths[@]}" "-FU$out/units" "-FE$out/bin" "$out/src/$probe.pas"
 done
-set +e
-"$out/bin/record_probe" > "$out/record-result.txt" 2>&1
-status=$?
-set -e
-cat "$out/record-result.txt"
-[ "$status" -eq 3 ] && grep -q 'run failed' "$out/record-result.txt" || { echo "Unexpected record probe result: $status" >&2; exit 1; }
+"$out/bin/record_probe" | tee "$out/record-result.txt"
+grep -q PASCAL_SCRIPT_POINT_AND_OUT_OK "$out/record-result.txt"
 "$out/bin/out_probe" | tee "$out/out-result.txt"
 grep -q PASCAL_SCRIPT_FFI_OUT_OK "$out/out-result.txt"
-echo 'RECORD_RESULT_BLOCKED_FPC_BRANCH (diagnostic fixture)'
+echo 'PASCAL_SCRIPT_FPC_RECORD_RESULT_OK (Linux x86_64 libffi compatibility test)'
