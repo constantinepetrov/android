@@ -49,7 +49,10 @@ begin
       if not Exec.LoadData(Data) then begin Result := -4; Exit end;
       Instance := TScriptFacade.Create; Instance.Bias := 7;
       SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
-      if not Exec.RunScript then begin Result := -5; Exit end;
+      if not Exec.RunScript then begin
+        WriteLn(ErrOutput, 'REAL_UTILS_SCRIPT_RUNTIME_ERROR code=', Ord(Exec.ExceptionCode), ' text=', Exec.ExceptionString);
+        Result := -5; Exit
+      end;
       Result := 42;
     except on E: Exception do Result := -6 end;
   finally Exec.Free; Importer.Free; Instance.Free; Compiler.Free end;
