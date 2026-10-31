@@ -4,7 +4,7 @@ interface
 function RunScriptProbe: Integer;
 function RunRealUtilsScriptProbe: Integer;
 implementation
-uses SysUtils, Rtti, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
+uses SysUtils, Rtti, TypInfo, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
 function __android_log_write(priority: LongInt; tag, text: PChar): LongInt; cdecl; external 'log' name '__android_log_write';
 procedure AndroidLog(const aText: AnsiString);
 begin
