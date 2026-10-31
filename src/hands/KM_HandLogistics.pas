@@ -12,7 +12,7 @@ uses
   {$IFDEF USE_HASH}
   System.Generics.Collections, System.Generics.Defaults, System.Hash,
   {$ENDIF}
-  System.Math,
+  {$IFDEF FPC} Math, {$ELSE} System.Math, {$ENDIF}
   KM_Units, KM_Houses,
   KM_HandEntity, KM_HandTypes,
   KM_CommonClasses, KM_Defaults, KM_Points,
