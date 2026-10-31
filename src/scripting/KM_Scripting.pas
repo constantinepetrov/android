@@ -1525,7 +1525,9 @@ begin
       RegisterMethod(@TKMScriptUtils.InsertString, 'InsertString');
       RegisterMethod(@TKMScriptUtils.KMPoint, 'KMPoint');
       {$IFDEF FPC}
+      {$IFDEF ANDROID}
       PSRegisterRecordReturnType(@TKMScriptUtils.KMPoint, TypeInfo(TKMPoint));
+      {$ENDIF}
       {$ENDIF}
       RegisterMethod(@TKMScriptUtils.Ln, 'Ln');
       RegisterMethod(@TKMScriptUtils.Log10, 'Log10');
