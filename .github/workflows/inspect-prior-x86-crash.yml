@@ -14,7 +14,7 @@ jobs:
         with:
           name: kam-android-emulator-runtime
           path: prior
-          run-id: 41181499535
+          run-id: 41182400304
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
@@ -31,5 +31,6 @@ jobs:
       - name: Show crash evidence (x86_64, not ARM64 verification)
         run: |
           ls -la prior
-          cat prior/install.txt prior/start.txt prior/failure.txt
+          cat prior/install.txt prior/start.txt prior/failure.txt prior/smoke-window.xml
+          grep -i -C 5 -E 'KaMProbe|nativeprobe|FATAL EXCEPTION|Fatal signal|UnsatisfiedLinkError' prior/logcat.txt | tail -300 || true
           grep -i -C 18 -E 'FATAL EXCEPTION|Fatal signal|DEBUG.*pid:|linker.*kamprobe|UnsatisfiedLinkError|kamremake.androidprobe.*died' prior/logcat.txt | tail -500 || true
