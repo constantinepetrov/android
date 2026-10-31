@@ -57,6 +57,10 @@ public final class GestureInstrumentation extends Instrumentation {
         long t=SystemClock.uptimeMillis(); touch(t,t,MotionEvent.ACTION_DOWN,new float[]{x},new float[]{y});
         touch(t,t+50,MotionEvent.ACTION_UP,new float[]{x},new float[]{y});
     }
+    private IntentFilter pickerFilter() throws Exception {
+        IntentFilter filter=new IntentFilter(Intent.ACTION_OPEN_DOCUMENT);
+        filter.addCategory(Intent.CATEGORY_OPENABLE); filter.addDataType("*/*"); return filter;
+    }
     private void importThroughPickerResult() throws Exception {
         // Synthetic, non-copyrighted fixture in MediaStore; the picker result is
         // intercepted, but app's button, URI stream and private copy are real.
@@ -70,7 +74,7 @@ public final class GestureInstrumentation extends Instrumentation {
             for(int i=0;i<64*64;i++){data.put((byte)(i%64)).put((byte)0).put((byte)((i/64+i%64)%64)).put((byte)0).put((byte)0).put((byte)255);data.position(data.position()+17);}
             try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){check(out!=null,"fixture stream");out.write(data.array());}
             Intent result=new Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            ActivityMonitor monitor=addMonitor(new IntentFilter(Intent.ACTION_OPEN_DOCUMENT),new ActivityResult(Activity.RESULT_OK,result),true);
+            ActivityMonitor monitor=addMonitor(pickerFilter(),new ActivityResult(Activity.RESULT_OK,result),true);
             Button button=findButton((View)activity.getWindow().getDecorView(), "Open .map"); check(button!=null,"open button missing");
             int[] xy=new int[2]; button.getLocationOnScreen(xy); tap(xy[0]+button.getWidth()/2f,xy[1]+button.getHeight()/2f);
             await(() -> activity.testMapWidth()==64 && activity.testLabel().getText().toString().contains("height sum: 129024"),"SAF import did not complete");
@@ -107,7 +111,7 @@ public final class GestureInstrumentation extends Instrumentation {
         try {
             try(OutputStream out=activity.getContentResolver().openOutputStream(uri)){check(out!=null,"tileset stream");out.write(bytes);}
             Intent result=new Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            ActivityMonitor monitor=addMonitor(new IntentFilter(Intent.ACTION_OPEN_DOCUMENT),new ActivityResult(Activity.RESULT_OK,result),true);
+            ActivityMonitor monitor=addMonitor(pickerFilter(),new ActivityResult(Activity.RESULT_OK,result),true);
             Button button=findButton(activity.getWindow().getDecorView(),"Open Tileset.rxx");check(button!=null,"tileset button missing");
             int[] xy=new int[2];button.getLocationOnScreen(xy);tap(xy[0]+button.getWidth()/2f,xy[1]+button.getHeight()/2f);
             await(() -> activity.testLabel().getText().toString().contains("Imported Tileset.rxx"),"tileset import did not complete");
