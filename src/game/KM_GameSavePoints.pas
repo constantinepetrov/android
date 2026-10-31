@@ -246,10 +246,12 @@ end;
 
 
 procedure TKMSavePointCollection.NewSavePoint(aStream: TKMemoryStream; aTick: Cardinal; aCursor: Integer);
+var
+  S: TKMemoryStreamBinary;
 begin
   Lock;
   try
-    var S := TKMemoryStreamBinary.Create;
+    S := TKMemoryStreamBinary.Create;
     aStream.SaveToStreamCompressed(S);
 
     fSavePoints.Add(aTick, TKMSavePoint.Create(S, aTick, aCursor));
