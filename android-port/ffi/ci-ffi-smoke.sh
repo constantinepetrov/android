@@ -26,6 +26,11 @@ for attempt in $(seq 1 45); do
   sleep 2
 done
 [ "$found" = 1 ] || { echo 'ARM64_FFI_PROBE_FAILED' | tee "$results/failure.txt"; exit 1; }
+adb logcat -d -v threadtime > "$results/logcat-preflight.txt"
+if grep -Eq 'Fatal signal|FORTIFY:|FATAL EXCEPTION' "$results/logcat-preflight.txt"; then
+  echo 'Unexpected native or Java process failure in smoke log' | tee "$results/failure.txt"
+  exit 1
+fi
 # UI inspection is diagnostic here; full UI assertions run in Android native host.
 # Launcher ANR dialogs can obscure this screen without invalidating native calls.
 adb shell uiautomator dump /sdcard/ffi-window.xml >/dev/null 2>&1 || true
