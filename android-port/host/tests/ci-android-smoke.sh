@@ -12,13 +12,18 @@ collect() {
   local code="$?"
   set +e
   adb logcat -d -v threadtime > "$results/logcat.txt" 2>&1
-  rg -i "KaMProbe|FATAL EXCEPTION|Fatal signal|signal 11|nativebridge" "$results/logcat.txt" | tail -120 || true
+  grep -Ei "KaMProbe|FATAL EXCEPTION|Fatal signal|signal 11|nativebridge" "$results/logcat.txt" | tail -120 || true
   adb shell dumpsys activity activities > "$results/activities.txt" 2>&1
   adb shell getprop > "$results/device-properties.txt" 2>&1
   adb exec-out screencap -p > "$results/screen.png" 2>/dev/null
   adb shell uiautomator dump /sdcard/window.xml > "$results/uiautomator-output.txt" 2>&1
   adb shell cat /sdcard/window.xml > "$results/window.xml" 2>/dev/null
   cat "$results/window.xml" || true
+  for phase in before pan pinch context-restored tileset resumed; do
+    adb exec-out run-as "$package" cat "files/qa-$phase.png" > "$results/qa-$phase.png" 2>/dev/null || true
+    test -s "$results/qa-$phase.png" || rm -f "$results/qa-$phase.png"
+  done
+  adb shell ls -l /data/tombstones > "$results/tombstones-list.txt" 2>&1 || true
   echo "Smoke result exit code: $code" | tee "$results/result.txt"
 }
 trap collect EXIT
@@ -108,7 +113,7 @@ adb shell am force-stop "$package"
 adb install -r "$2" | tee "$results/instrumentation-install.txt"
 timeout 120s adb shell am instrument -w -r com.kamremake.androidprobe.test/com.kamremake.androidprobe.GestureInstrumentation | tee "$results/instrumentation.txt"
 grep -q QA_PASSED "$results/instrumentation.txt"
-for phase in before pan pinch context-restored tileset; do
+for phase in before pan pinch context-restored tileset resumed; do
   adb exec-out run-as "$package" cat "files/qa-$phase.png" > "$results/qa-$phase.png"
   test -s "$results/qa-$phase.png"
 done
