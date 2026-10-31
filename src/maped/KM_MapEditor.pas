@@ -536,6 +536,7 @@ end;
 procedure TKMMapEditor.EraseObject(aEraseAll: Boolean);
 var
   entity: TKMHandEntity;
+  U: TKMUnit;
   P: TKMPoint;
   fieldsChanged, isCorn, isWine: Boolean;
   removeTxID: Integer;
@@ -548,7 +549,7 @@ begin
   try
     case entity.EntityType of
       etUnit: begin
-                var U := TKMUnit(entity);
+                U := TKMUnit(entity);
 
                 // Delete unit by using precise HitTest result from gCursor (rather than Position)
                 if gHands.RemAnyUnit(U.Position) then
