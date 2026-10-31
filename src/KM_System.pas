@@ -3,15 +3,23 @@ unit KM_System;
 interface
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   KM_ResSprites, KM_ResTypes,
   KM_Defaults;
 
+
+{$IFDEF ANDROID}
+type
+  HWND = type Pointer;
+{$ENDIF}
 
 type
   // System related features are encapsulated in this class
   TKMSystem = class
   private
+    {$IFDEF ANDROID}
+    fCursor: TKMCursorImageType;
+    {$ENDIF}
     {$IFNDEF FPC}
     {$IFDEF MSWindows}
     fFormMainHandle: HWND;
@@ -39,8 +47,8 @@ var
 
 implementation
 uses
-  SysUtils, Math,
-  Forms, Graphics;
+  SysUtils, Math
+  {$IFNDEF ANDROID}, Forms, Graphics{$ENDIF};
 
 const
   // Screen.Cursors[0] is used by System default cursor
@@ -57,6 +65,9 @@ constructor TKMSystem.Create(aFormMainHandle: HWND);
 begin
   inherited Create;
 
+  {$IFDEF ANDROID}
+  fCursor := kmcDefault;
+  {$ENDIF}
   {$IFNDEF FPC}
   {$IFDEF MSWindows}
   fFormMainHandle := aFormMainHandle;
@@ -67,21 +78,36 @@ end;
 
 function TKMSystem.GetCursor: TKMCursorImageType;
 begin
+  {$IFDEF ANDROID}
+  Result := fCursor;
+  {$ELSE}
   if InRange(Screen.Cursor - CURSOR_CNT_OFFSET, Ord(Low(TKMCursorImageType)), Ord(High(TKMCursorImageType))) then
     Result := TKMCursorImageType(Screen.Cursor - CURSOR_CNT_OFFSET)
   else
     Result := kmcDefault;
+  {$ENDIF}
 end;
 
 
 procedure TKMSystem.SetCursor(Value: TKMCursorImageType);
 begin
+  {$IFDEF ANDROID}
+  fCursor := Value;
+  {$ELSE}
   if SKIP_LOADING_CURSOR then Exit;
   Screen.Cursor := Ord(Value) + CURSOR_CNT_OFFSET;
+  {$ENDIF}
 end;
 
 
 procedure TKMSystem.MakeCursors(aSprites: TKMSpritePack);
+{$IFDEF ANDROID}
+begin
+  // Android touch input has no desktop pointer cursor. The game's cursor mode
+  // and any map overlay remain owned by the game UI, not the OS pointer.
+end;
+{$ELSE}
+
 const
   SF = 17; //Full width/height of a scroll cursor
   SH = 8; //Half width/height of a scroll cursor
@@ -194,6 +220,7 @@ begin
   {$ENDIF}
 end;
 
+{$ENDIF}
 
 procedure TKMSystem.FlashingStart;
 {$IFNDEF FPC}{$IFDEF MSWindows}
