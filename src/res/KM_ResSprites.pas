@@ -12,6 +12,12 @@ uses
 
 
 type
+  {$IFDEF FPC}
+  TKMStringProgressProc = procedure(const aText: string);
+  {$ELSE}
+  TKMStringProgressProc = TProc<string>;
+  {$ENDIF}
+
   // How do we want to soften the sprite
   TKMSpriteSoftening = (ssNone, ssOnlyShadow, ssWhole);
 
@@ -89,7 +95,7 @@ type
                                           aOnCheckTerminated: TBooleanFuncSimple = nil);
 
     procedure LoadFromRXXFile(const aFileName: string; aStartingIndex: Integer = 1);
-    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TKMStringProgressProc; aSoftenShadows: Boolean = True);
 
     function GetSoftenShadowType(aID: Integer): TKMSpriteSoftening;
 
@@ -1020,7 +1026,7 @@ end;
 // Parse all valid files in Sprites folder:
 // - append or replace original sprites with new ones
 // - exclude original sprites if necessary as well
-procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TKMStringProgressProc; aSoftenShadows: Boolean = True);
   {$IFDEF WDC}
   // Append all PNGs including the subfolders
   // Pattern is X_nnnn.png, where nnnn is dynamic (1..n chars) for modders convenience
