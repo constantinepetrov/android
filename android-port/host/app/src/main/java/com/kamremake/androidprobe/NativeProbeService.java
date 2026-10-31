@@ -8,6 +8,7 @@ import android.util.Log;
 /** A fatal native fault must kill only the diagnostic subprocess. */
 public final class NativeProbeService extends Service {
     static native int[] nativeReadMap(String path);
+    static native int nativeFfiProbe();
     private void report(String stage, String detail) {
         Log.i("KaMProbe", stage + ": " + detail);
         Intent message = new Intent(MainActivity.DIAGNOSTIC_ACTION);
@@ -22,6 +23,13 @@ public final class NativeProbeService extends Service {
                 report("LOAD", "loading libkamprobe.so and Pascal RTL");
                 System.loadLibrary("kamprobe");
                 report("LOAD", "library and Pascal RTL initialized");
+                if (intent != null && intent.getBooleanExtra("ffiTest", false)) {
+                    System.loadLibrary("kamffi_probe");
+                    int ffi = nativeFfiProbe();
+                    if (ffi != 42) throw new IllegalStateException("FFI_ABI_FAILED code=" + ffi);
+                    report("FFI", "FFI_ABI_OK self integer single out TKMPoint");
+                    return;
+                }
                 if (intent != null && intent.getBooleanExtra("selfTest", false)) {
                     java.io.File f = new java.io.File(getFilesDir(), "synthetic-test.map");
                     java.nio.ByteBuffer bytes = java.nio.ByteBuffer.allocate(8 + 4 * 23).order(java.nio.ByteOrder.LITTLE_ENDIAN);

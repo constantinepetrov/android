@@ -53,7 +53,7 @@ public final class MainActivity extends Activity {
                     label.setText("Diagnostic height/terrain colours (not game graphics)\n" + map[0] + " × " + map[1] + " tiles: " + (map.length - 3) + "  height sum: " + map[2]);
                 } else label.setText("ERROR: invalid native map response");
             } else label.setText(stage + ": " + detail);
-            if ("JNI".equals(stage) || "ERROR".equals(stage)) nativeFinished = true;
+            if ("JNI".equals(stage) || "FFI".equals(stage) || "ERROR".equals(stage)) nativeFinished = true;
             if ("JNI".equals(stage) && getIntent().getBooleanExtra("synthetic_test", false)) {
                 getIntent().removeExtra("synthetic_test");
                 startService(new Intent(MainActivity.this, NativeProbeService.class).putExtra("selfTest", true));
@@ -63,7 +63,7 @@ public final class MainActivity extends Activity {
     private void graphicsReady() {
         if (isFinishing() || isDestroyed()) return;
         label.setText("OpenGL ES: ready; starting isolated Pascal process");
-        startService(new Intent(this, NativeProbeService.class));
+        startService(new Intent(this, NativeProbeService.class).putExtra("ffiTest", getIntent().getBooleanExtra("ffi_test", false)));
         handler.postDelayed(() -> {
             if (!nativeFinished && !isFinishing() && !isDestroyed())
                 label.setText("Native process did not respond; inspect logcat and tombstone");

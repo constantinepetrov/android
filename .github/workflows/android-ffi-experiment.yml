@@ -1,0 +1,150 @@
+name: Android AArch64 libffi experiment
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/android-native-port]
+    paths:
+      - 'android-port/ffi/**'
+      - 'android-port/host/**'
+      - '.github/workflows/android-ffi-experiment.yml'
+  pull_request:
+    paths:
+      - 'android-port/ffi/**'
+      - 'android-port/host/**'
+      - '.github/workflows/android-ffi-experiment.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/FPCSource
+          ref: release_3_2_2
+          path: fpc-source
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/Lazarus
+          ref: lazarus_4_0
+          path: lazarus-source
+      - uses: actions/checkout@v4
+        with:
+          repository: libffi/libffi
+          ref: 3d0ce1e6fcf19f853894862abcbac0ae78a7be60
+          path: libffi-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Install cross tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 fp-units-fcl-3.2.2 binutils-aarch64-linux-gnu autoconf automake libtool patchelf
+          sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          "$sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - name: Cache FPC cross compiler
+        id: fpc-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/fpc-android
+          key: fpc-3.2.2-aarch64-android-ubuntu-24.04-v1
+      - name: Build FPC cross compiler
+        if: steps.fpc-cache.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          make -C fpc-source crossall crossinstall CPU_TARGET=aarch64 OS_TARGET=android BINUTILSPREFIX=aarch64-linux-gnu- INSTALL_PREFIX="$RUNNER_TEMP/fpc-android" 2>&1 | tee "$RUNNER_TEMP/fpc-build.log"
+      - name: Build pinned Android libffi
+        shell: bash
+        run: |
+          set -o pipefail
+          ndk="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64"
+          cd libffi-source
+          ./autogen.sh 2>&1 | tee "$RUNNER_TEMP/ffi-autogen.log"
+          mkdir -p build-android
+          cd build-android
+          CC="$ndk/bin/aarch64-linux-android24-clang" AR="$ndk/bin/llvm-ar" RANLIB="$ndk/bin/llvm-ranlib" \
+            LDFLAGS='-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384' \
+            ../configure --host=aarch64-linux-android --disable-static --enable-shared 2>&1 | tee "$RUNNER_TEMP/ffi-config.log"
+          make -j2 2>&1 | tee "$RUNNER_TEMP/ffi-build.log"
+          printf '#include <ffi.h>\n_Static_assert(FFI_SYSV == 1 && FFI_DEFAULT_ABI == 1, "Unexpected AArch64 ABI");\n' > "$RUNNER_TEMP/ffi-abi.c"
+          "$ndk/bin/aarch64-linux-android24-clang" -Iinclude -c "$RUNNER_TEMP/ffi-abi.c" -o "$RUNNER_TEMP/ffi-abi.o"
+          file=$(find . -type f -path '*/.libs/libffi.so.*' -print -quit)
+          test -n "$file"
+          out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$out" "$GITHUB_WORKSPACE/android-port/host/app/src/main/assets/licenses"
+          cp "$file" "$out/libffi.so"
+          patchelf --set-soname libffi.so "$out/libffi.so"
+          cp ../LICENSE "$GITHUB_WORKSPACE/android-port/host/app/src/main/assets/licenses/libffi.txt"
+          aarch64-linux-gnu-readelf -h -d -lW "$out/libffi.so" | tee "$RUNNER_TEMP/ffi-elf.log"
+      - name: Build original and experimental Pascal JNI libraries
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          test -n "$compiler" && test -n "$units"
+          sysroot="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$RUNNER_TEMP/ffi-units" "$RUNNER_TEMP/host-units" "$RUNNER_TEMP/ffi-source"
+          cp "$(find fpc-source -name ffi.pp -print -quit)" "$RUNNER_TEMP/ffi-source/ffi.pp"
+          cp "$(find fpc-source -name ffi.manager.pp -print -quit)" "$RUNNER_TEMP/ffi-source/ffi.manager.pp"
+          # No Linux x86_64 enum patch: Android AArch64 FFI_SYSV is 1.
+          for unit in ffi.pp ffi.manager.pp; do
+            "$compiler" -Tandroid -Paarch64 -Mobjfpc -Cg -Cn -XPaarch64-linux-gnu- "-Fu$units/*" "-Fu$RUNNER_TEMP/ffi-source" "-Fu$RUNNER_TEMP/ffi-units" "-FU$RUNNER_TEMP/ffi-units" "$RUNNER_TEMP/ffi-source/$unit"
+          done
+          paths=()
+          while IFS= read -r -d '' dir; do [[ "$dir" == *' '* ]] || paths+=("-Fu$dir" "-Fi$dir"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
+          common=(-Tandroid -Paarch64 -Mdelphi -Sc -Cg -XPaarch64-linux-gnu- "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384)
+          "$compiler" "${common[@]}" "-FU$RUNNER_TEMP/host-units" "-o$out/libkamprobe.so" "$GITHUB_WORKSPACE/android-port/host/pascal/kamprobe.lpr"
+          "$compiler" "${common[@]}" "-Fu$RUNNER_TEMP/ffi-units" "-Fl$out" "-FU$RUNNER_TEMP/ffi-units" "-o$out/libkamffi_probe.so" "$GITHUB_WORKSPACE/android-port/ffi/kamffi_probe.lpr"
+          aarch64-linux-gnu-readelf -h -d -lW "$out/libkamffi_probe.so" | tee "$RUNNER_TEMP/ffi-probe-elf.log"
+          grep -q 'Shared library: \[libffi.so\]' "$RUNNER_TEMP/ffi-probe-elf.log"
+      - name: Build diagnostic APK
+        working-directory: android-port/host
+        run: gradle --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-ffi-experiment-apk
+          path: android-port/host/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-ffi-build-logs
+          path: ${{ runner.temp }}/*ffi*.log
+          if-no-files-found: warn
+  runtime:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-ffi-experiment-apk
+          path: ${{ runner.temp }}/ffi-apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: bash android-port/ffi/ci-ffi-smoke.sh "${{ runner.temp }}/ffi-apk/app-debug.apk"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-ffi-runtime-diagnostics
+          path: android-ffi-results/
+          if-no-files-found: warn
