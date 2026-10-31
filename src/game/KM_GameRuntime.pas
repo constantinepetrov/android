@@ -19,6 +19,12 @@ type
     LockGame: function: Boolean of object;
     UnlockGame: TKMEvent;
     ReplayMismatch: function(const aText: UnicodeString): TKMReplayMismatchDecision of object;
+    NewGameSingleSave: procedure(const aSaveName: UnicodeString) of object;
+    PrintScreen: procedure(const aFilename: UnicodeString) of object;
+    PrepageStopGame: procedure(aMsg: TKMGameResultMsg) of object;
+    NewGameMapEditor: procedure(const aPath: UnicodeString; aSizeX, aSizeY: Integer; aMapFullCRC, aMapSimpleCRC: Cardinal; aMultiplayerLoadMode: Boolean) of object;
+    TryLoadSavePoint: function(aTick: Integer): Boolean of object;
+    GetChatText: function: UnicodeString of object;
   end;
 
 var
@@ -33,6 +39,12 @@ procedure KMHostStopGame(aMsg: TKMGameResultMsg; const aText: UnicodeString);
 procedure KMHostStartReplay(const aSavePath: UnicodeString);
 function KMHostCampaignSoundPath(const aSound: AnsiString; aFormat: TKMAudioFormat): UnicodeString;
 function KMHostReplayMismatch(const aText: UnicodeString): TKMReplayMismatchDecision;
+procedure KMHostNewGameSingleSave(const aSaveName: UnicodeString);
+procedure KMHostPrintScreen(const aFilename: UnicodeString);
+procedure KMHostPrepageStopGame(aMsg: TKMGameResultMsg);
+procedure KMHostNewGameMapEditor(const aPath: UnicodeString; aSizeX, aSizeY: Integer; aMapFullCRC, aMapSimpleCRC: Cardinal; aMultiplayerLoadMode: Boolean);
+function KMHostTryLoadSavePoint(aTick: Integer): Boolean;
+function KMHostGetChatText: UnicodeString;
 
 implementation
 uses SysUtils;
@@ -99,6 +111,42 @@ begin
   if not Assigned(KMGameHost.ReplayMismatch) then
     raise Exception.Create('Android game host cannot report replay consistency errors');
   Result := KMGameHost.ReplayMismatch(aText);
+end;
+
+procedure KMHostNewGameSingleSave(const aSaveName: UnicodeString);
+begin
+  if not Assigned(KMGameHost.NewGameSingleSave) then raise Exception.Create('Android host cannot load a saved game');
+  KMGameHost.NewGameSingleSave(aSaveName);
+end;
+
+procedure KMHostPrintScreen(const aFilename: UnicodeString);
+begin
+  if not Assigned(KMGameHost.PrintScreen) then raise Exception.Create('Android host has no screenshot exporter');
+  KMGameHost.PrintScreen(aFilename);
+end;
+
+procedure KMHostPrepageStopGame(aMsg: TKMGameResultMsg);
+begin
+  if not Assigned(KMGameHost.PrepageStopGame) then raise Exception.Create('Android host cannot transition from the active game');
+  KMGameHost.PrepageStopGame(aMsg);
+end;
+
+procedure KMHostNewGameMapEditor(const aPath: UnicodeString; aSizeX, aSizeY: Integer; aMapFullCRC, aMapSimpleCRC: Cardinal; aMultiplayerLoadMode: Boolean);
+begin
+  if not Assigned(KMGameHost.NewGameMapEditor) then raise Exception.Create('Android host cannot open a map editor session');
+  KMGameHost.NewGameMapEditor(aPath, aSizeX, aSizeY, aMapFullCRC, aMapSimpleCRC, aMultiplayerLoadMode);
+end;
+
+function KMHostTryLoadSavePoint(aTick: Integer): Boolean;
+begin
+  if not Assigned(KMGameHost.TryLoadSavePoint) then raise Exception.Create('Android host cannot load a save point');
+  Result := KMGameHost.TryLoadSavePoint(aTick);
+end;
+
+function KMHostGetChatText: UnicodeString;
+begin
+  if not Assigned(KMGameHost.GetChatText) then raise Exception.Create('Android host has no chat state');
+  Result := KMGameHost.GetChatText();
 end;
 
 end.
