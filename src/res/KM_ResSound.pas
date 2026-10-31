@@ -2,7 +2,6 @@ unit KM_ResSound;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
   KM_Defaults;
 
 type
@@ -344,7 +343,7 @@ begin
         memoryStream.Read(fWaves[I].Data[0], fWaves[I].Head.DataSize);
 
         // Footer contains optional LIST INFO chunks (start is aligned to 2-byte boundaries):
-        //  - ICOP - Copyright information about the file (e.g., "Copyright © Microsoft Corp. 1995")
+        //  - ICOP - Copyright information about the file (e.g., "Copyright Â© Microsoft Corp. 1995")
         //  - ICRD - The date the subject of the file was created (e.g., "1995-10-24.A")
         //  - ISFT - Name of the software package used to create the file (e.g. "GoldWave v2.10 (C) Chris Craig")
         // Since these chunks do not bear any functional load, we just ignore them
