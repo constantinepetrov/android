@@ -1,7 +1,7 @@
 program map_header_semantics;
 {$mode delphi}
-uses SysUtils, KM_CommonClasses, KM_MapHeader;
-var s: TKMemoryStreamBinary; w, h, rev: Integer; dataSize: Cardinal; rejected: Boolean;
+uses SysUtils, KM_CommonClasses, KM_MapHeader, KM_MapLegacyTile;
+var s: TKMemoryStreamBinary; w, h, rev: Integer; dataSize: Cardinal; rejected: Boolean; tile: TKMLegacyMapTile; i: Integer;
 procedure ReadHeader;
 begin
   s.Position := 0; w := -1; h := -1; rev := -1; dataSize := 0;
@@ -23,6 +23,14 @@ begin
     rejected := False;
     try ReadHeader except on E: Exception do rejected := True end;
     if not rejected then Halt(3);
-    WriteLn('original map header: legacy, remake and invalid size OK');
+    s.Clear;
+    s.Write(Byte(14)); s.Write(Byte(0)); s.Write(Byte(33)); s.Write(Byte(7));
+    s.Write(Byte(0)); s.Write(Byte(255));
+    for i := 1 to 17 do s.Write(Byte(i));
+    s.Position := 0;
+    ReadLegacyMapTile(s, tile);
+    if (tile.Terrain <> 14) or (tile.Height <> 33) or (tile.Rotation <> 3) or
+       (tile.Obj <> 255) or (s.Position <> 23) then Halt(4);
+    WriteLn('original map header and legacy tile semantics OK');
   finally s.Free end;
 end.
