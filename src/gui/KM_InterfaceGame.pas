@@ -204,7 +204,7 @@ implementation
 uses
   StrUtils, KromUtils,
   KM_AIDefensePos,
-  KM_Cursor, KM_Main, KM_System,
+  KM_Cursor, {$IFNDEF ANDROID} KM_Main, {$ENDIF} KM_System,
   KM_GameParams, KM_GameSettings,
   KM_HandsCollection, 
   KM_Terrain, 
@@ -303,8 +303,10 @@ begin
   if SHOW_VIEWPORT_INFO then
     Result := Result + 'Viewport: ' + fViewport.ToStr + '|';
 
+  {$IFNDEF ANDROID}
   if SHOW_FPS then
     Result := Result + gMain.FPSString + '|';
+  {$ENDIF}
 end;
 
 
@@ -491,7 +493,7 @@ procedure TKMUserInterfaceGame.ResetDragScrolling;
 begin
   fDragScrolling := False;
   gSystem.Cursor := kmcDefault; //Reset cursor
-  gMain.ApplyCursorRestriction;
+  {$IFNDEF ANDROID} gMain.ApplyCursorRestriction; {$ENDIF}
 end;
 
 
