@@ -139,6 +139,13 @@ public final class GestureInstrumentation extends Instrumentation {
             WindowInsets insets=activity.getWindow().getDecorView().getRootWindowInsets();
             int top=insets==null?0:insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()).top;
             check(loc[1]>=top && loc[0]>=0 && loc[0]+label.getWidth()<=w && loc[1]+label.getHeight()<=h,"label outside safe screen");
+            Button mapButton=findButton(activity.getWindow().getDecorView(),"Open .map");
+            Button tileButton=findButton(activity.getWindow().getDecorView(),"Open Tileset.rxx");
+            check(mapButton!=null && tileButton!=null,"buttons missing");
+            android.graphics.Rect labelRect=new android.graphics.Rect(), mapRect=new android.graphics.Rect(), tileRect=new android.graphics.Rect();
+            check(label.getGlobalVisibleRect(labelRect) && mapButton.getGlobalVisibleRect(mapRect) && tileButton.getGlobalVisibleRect(tileRect),"control clipped or invisible");
+            check(mapRect.width()==mapButton.getWidth() && mapRect.height()==mapButton.getHeight() && tileRect.width()==tileButton.getWidth() && tileRect.height()==tileButton.getHeight(),"button clipped");
+            check(!android.graphics.Rect.intersects(labelRect,mapRect) && !android.graphics.Rect.intersects(labelRect,tileRect) && !android.graphics.Rect.intersects(mapRect,tileRect),"controls overlap");
             checkpoint("pan"); float[] initial=activity.testTransform();
             float x=w*.47f,y=h*.55f; long t=SystemClock.uptimeMillis();
             touch(t,t,MotionEvent.ACTION_DOWN,new float[]{x},new float[]{y});
