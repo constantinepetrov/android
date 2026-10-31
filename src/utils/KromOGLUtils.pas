@@ -3,18 +3,32 @@ unit KromOGLUtils;
 interface
 uses
   KM_ColorTypes, dglOpenGL,
-  {$IFDEF FPC} GL, LCLIntf, {$ENDIF}
-  {$IFDEF MSWindows} Windows {$ENDIF}
-  {$IFDEF Unix} LCLType, glx, x, xlib, xutil {$ENDIF}
+  {$IFNDEF ANDROID}
+    {$IFDEF FPC} GL, LCLIntf, {$ENDIF}
+    {$IFDEF MSWindows} Windows {$ENDIF}
+    {$IFDEF Unix} LCLType, glx, x, xlib, xutil {$ENDIF}
+  {$ENDIF}
   ;
 
-{$IFDEF Unix}
+{$IF Defined(Unix) and not Defined(ANDROID)}
 type HGLRC = Integer;
 type PFD_DRAW_TO_WINDOW = Integer;
 type PFD_SUPPORT_OPENGL = Integer;
 type PFD_DOUBLEBUFFER = Integer;
 type PFD_TYPE_RGBA = Integer;
 type PFD_MAIN_PLANE = Integer;
+{$ENDIF}
+
+{$IFDEF ANDROID}
+type
+  // Android supplies its EGL context and surface from the Java host. These
+  // opaque handles retain the legacy API shape for shared renderer units.
+  HWND = Pointer;
+  HDC = Pointer;
+  HGLRC = Pointer;
+  HFONT = Pointer;
+const
+  FW_NORMAL = 400;
 {$ENDIF}
 
 type
@@ -34,6 +48,8 @@ type
 
 implementation
 
+uses
+  SysUtils;
 
 function SetDCPixelFormat(h_DC: HDC; PixelFormat: Integer): Boolean;
 var
@@ -184,10 +200,14 @@ end;
 
 procedure SetRenderFrame(RenderFrame: HWND; out h_DC: HDC; out h_RC: HGLRC);
 begin
+  {$IFDEF ANDROID}
+  raise Exception.Create('Android EGL surface is owned by the native host; desktop SetRenderFrame is unavailable');
+  {$ELSE}
   InitOpenGL;
   SetContexts(RenderFrame, 0, h_DC, h_RC);
   ReadExtensions;
   ReadImplementationProperties;
+  {$ENDIF}
 end;
 
 
@@ -200,9 +220,14 @@ context to get function pointers, then use those functions directly. Unfortunate
 allow recreation of a rendering context within a single HWND. We must destroy previous HWND context
 and create final HWND context after we are finished with the dummy context.}
 procedure SetRenderFrameAA(DummyFrame, RenderFrame: HWND; AntiAliasing: Byte; out h_DC: HDC; out h_RC: HGLRC);
+{$IFNDEF ANDROID}
 var
   PixelFormat: Integer;
+{$ENDIF}
 begin
+  {$IFDEF ANDROID}
+  raise Exception.Create('Android EGL surface is owned by the native host; desktop multisample setup is unavailable');
+  {$ELSE}
   InitOpenGL;
   SetContexts(DummyFrame, 0, h_DC, h_RC);
   ReadExtensions;
@@ -216,13 +241,19 @@ begin
   SetContexts(RenderFrame, PixelFormat, h_DC, h_RC);
   ReadExtensions;
   ReadImplementationProperties;
+  {$ENDIF}
 end;
 
 
 procedure BuildFont(h_DC: HDC; FontSize: Integer; FontWeight: Word = FW_NORMAL);
+{$IFNDEF ANDROID}
 var
   Font: HFONT;
+{$ENDIF}
 begin
+  {$IFDEF ANDROID}
+  raise Exception.Create('Android font rendering is provided by the GLES renderer');
+  {$ELSE}
 //New parameter FontSize=16
   font:=CreateFont(-abs(FontSize),0,0,0,FontWeight,0,0,0,ANSI_CHARSET,
     OUT_TT_PRECIS,CLIP_DEFAULT_PRECIS,
@@ -234,6 +265,7 @@ begin
   {$ENDIF}
   {$IFDEF Unix}
   // Emulate these functions (with freetype we should be able to code a multi platform solution)
+  {$ENDIF}
   {$ENDIF}
 end;
 
