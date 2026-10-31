@@ -141,7 +141,9 @@ type
     procedure Add(const aKey: TKMDeliveryRouteBidKey; const aValue: Single; const aRouteStep: TKMDeliveryRouteStep); reintroduce; overload;
 //    procedure Add(const aKey: TKMDeliveryBidKey; const aBid: TKMDeliveryBid); reintroduce; overload;
   end;
+  {$ENDIF}
 
+  // These types are required by delivery bidding even when the route cache is disabled.
   TKMDeliveryCalcKind = (dckFast, dckAccurate);
 
   TKMDeliveryRouteCalcCost = record
@@ -178,8 +180,6 @@ type
   end;
 
   TKMDeliveryBidCalcEventType = (bceBid, bceBidBasic, bceSerfBid);
-
-  {$ENDIF}
 
   TKMDeliveryRouteEvaluator = class
   private
