@@ -47,7 +47,7 @@ const Source = 'var n: Integer; f: Single; begin n := Utils.Add(35); if n <> 42 
 var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
     Instance: TScriptFacade; Data: AnsiString;
 begin
-  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil; FogProbe := nil;
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
   try
     try
       Compiler := TPSPascalCompiler.Create; Compiler.OnUses := @RegisterScriptTypes;
