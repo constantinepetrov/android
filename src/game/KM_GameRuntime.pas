@@ -2,7 +2,7 @@ unit KM_GameRuntime;
 {$I KaM_Remake.inc}
 interface
 uses
-  KM_CommonTypes, KM_GameTypes, KM_MediaTypes;
+  KM_CommonTypes, KM_GameTypes, KM_MediaTypes, KM_Defaults;
 
 type
   TKMReplayMismatchDecision = (rmdContinue, rmdContinueAlways, rmdStop);
