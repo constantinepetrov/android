@@ -1283,6 +1283,17 @@ begin
       RegisterMethod(@TKMScriptStates.WareTypeName, 'WareTypeName');
       RegisterMethod(@TKMScriptStates.WareTypeNameEx, 'WareTypeNameEx');
       RegisterMethod(@TKMScriptStates.WarriorInFight, 'WarriorInFight');
+      {$IFDEF FPC}
+      {$IFDEF ANDROID}
+      // FPC 3.2.2 lacks the RTTI method enumeration Pascal Script uses for
+      // record return values. Register every exposed TKMPoint-return method
+      // against its real type metadata before scripts execute.
+      PSRegisterRecordReturnType(@TKMScriptStates.AIStartPosition, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.HouseFlagPoint, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.HousePosition, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.UnitPosition, TypeInfo(TKMPoint));
+      {$ENDIF}
+      {$ENDIF}
       //*Area-States-Reg*//
     end;
 
