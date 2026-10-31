@@ -179,7 +179,7 @@ type
 
 implementation
 uses
-  KM_Main, KM_ResTexts, KM_Game, KM_HandsCollection, KM_CommonUtils, KM_Resource, KM_ResFonts,
+  {$IFNDEF ANDROID} KM_Main, {$ENDIF} KM_ResTexts, KM_Game, KM_HandsCollection, KM_CommonUtils, KM_Resource, KM_ResFonts,
   KM_RenderUI, KM_Hand, KM_ResUnits, KM_MapTypes, KM_Pics,
   KM_GameParams, KM_GameTypes, KM_InterfaceTypes;
 
@@ -1969,7 +1969,7 @@ begin
 
   Panel_ResultsMP.Show;
   //ALERT !!!! Refactor
-  gMain.ForceResize; //For some reason we could have wrong Panel_ResultsMP Panel position on screen, ForcedResize fix the Issue
+  {$IFNDEF ANDROID} gMain.ForceResize; {$ENDIF} // Desktop form may need a forced panel resize
   Resize(nil, 0);
 end;
 
