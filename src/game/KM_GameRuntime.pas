@@ -25,6 +25,8 @@ type
     NewGameMapEditor: procedure(const aPath: UnicodeString; aSizeX, aSizeY: Integer; aMapFullCRC, aMapSimpleCRC: Cardinal; aMultiplayerLoadMode: Boolean) of object;
     TryLoadSavePoint: function(aTick: Integer): Boolean of object;
     GetChatText: function: UnicodeString of object;
+    RenderGameFrame: TKMEvent;
+    GameOptionsChanged: TKMEvent;
   end;
 
 var
@@ -45,6 +47,8 @@ procedure KMHostPrepageStopGame(aMsg: TKMGameResultMsg);
 procedure KMHostNewGameMapEditor(const aPath: UnicodeString; aSizeX, aSizeY: Integer; aMapFullCRC, aMapSimpleCRC: Cardinal; aMultiplayerLoadMode: Boolean);
 function KMHostTryLoadSavePoint(aTick: Integer): Boolean;
 function KMHostGetChatText: UnicodeString;
+procedure KMHostRenderGameFrame;
+procedure KMHostGameOptionsChanged;
 
 implementation
 uses SysUtils;
@@ -147,6 +151,18 @@ function KMHostGetChatText: UnicodeString;
 begin
   if not Assigned(KMGameHost.GetChatText) then raise Exception.Create('Android host has no chat state');
   Result := KMGameHost.GetChatText();
+end;
+
+procedure KMHostRenderGameFrame;
+begin
+  if not Assigned(KMGameHost.RenderGameFrame) then raise Exception.Create('Android host cannot render the current game frame');
+  KMGameHost.RenderGameFrame();
+end;
+
+procedure KMHostGameOptionsChanged;
+begin
+  if not Assigned(KMGameHost.GameOptionsChanged) then raise Exception.Create('Android host cannot apply changed game options');
+  KMGameHost.GameOptionsChanged();
 end;
 
 end.
