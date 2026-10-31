@@ -118,7 +118,7 @@ var
 implementation
 uses
   SysUtils, Classes, TypInfo, Math,
-  Dialogs,
+  {$IFNDEF ANDROID} Dialogs, {$ENDIF}
   {$IFDEF WDC} UITypes, {$ENDIF}
   {$IFNDEF NO_OGG_SOUND}
   Codec, VorbisFile,
@@ -139,6 +139,17 @@ const
   MAX_DISTANCE = 32; // After this distance sounds are completely mute
   MAX_PRIORITY_DISTANCE_FACTOR = (1/2); // Sounds past this distance will not play if there are few slots left (gives close sounds priority)
   MAX_DURATION_FROM_LAST_SND_MESSAGE_NOTICE = 100; // Maximum time in ms from last message notice. To avoid 'echo' effect for multiple messages at one time
+
+
+procedure ShowOpenALWarning(const aText: string);
+begin
+  {$IFDEF ANDROID}
+  // Android has no desktop modal dialog; preserve the warning in the game log and continue without sound.
+  gLog.AddTime('OpenAL warning: ' + aText);
+  {$ELSE}
+  MessageDlg(aText, mtWarning, [mbOk], 0);
+  {$ENDIF}
+end;
 
 
 { TKMSoundPlayer }
@@ -197,7 +208,7 @@ begin
       begin
         gLog.AddNoTime('OpenAL warning. OpenAL could not be initialized.');
         //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        MessageDlg('OpenAL could not be initialized. Please refer to Readme.html for solution', mtWarning, [mbOk], 0);
+        ShowOpenALWarning('OpenAL could not be initialized. Please refer to Readme.html for solution');
         fIsSoundInitialized := False;
         Exit;
       end;
@@ -210,7 +221,7 @@ begin
       begin
         gLog.AddNoTime('OpenAL warning. Device could not be opened.');
         //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        MessageDlg('OpenAL device could not be opened. Please refer to Readme.html for solution', mtWarning, [mbOk], 0);
+        ShowOpenALWarning('OpenAL device could not be opened. Please refer to Readme.html for solution');
         fIsSoundInitialized := False;
         Exit;
       end;
@@ -222,7 +233,7 @@ begin
       begin
         gLog.AddNoTime('OpenAL warning. Context could not be created.');
         //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        MessageDlg('OpenAL context could not be created. Please refer to Readme.html for solution', mtWarning, [mbOk], 0);
+        ShowOpenALWarning('OpenAL context could not be created. Please refer to Readme.html for solution');
         fIsSoundInitialized := False;
         Exit;
       end;
@@ -234,7 +245,7 @@ begin
       begin
         gLog.AddNoTime('OpenAL warning. Context could not be made current.');
         //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        MessageDlg('OpenAL context could not be made current. Please refer to Readme.html for solution', mtWarning, [mbOk], 0);
+        ShowOpenALWarning('OpenAL context could not be made current. Please refer to Readme.html for solution');
         fIsSoundInitialized := False;
         Exit;
       end;
@@ -281,7 +292,7 @@ begin
   if errCode <> ALC_NO_ERROR then begin
     gLog.AddNoTime('OpenAL warning. There is OpenAL error '+inttostr(errCode)+' raised. Sound will be disabled.');
     //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-    MessageDlg('There is OpenAL error '+IntToStr(errCode)+' raised. Sound will be disabled.', mtWarning, [mbOk], 0);
+    ShowOpenALWarning('There is OpenAL error '+IntToStr(errCode)+' raised. Sound will be disabled.');
     fIsSoundInitialized := False;
   end;
 end;
