@@ -178,7 +178,7 @@ jobs:
           echo "$sdk/platform-tools" >> "$GITHUB_PATH"
           echo "$sdk/emulator" >> "$GITHUB_PATH"
           echo "$sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          sdkmanager --sdk_root="$sdk" --licenses </dev/null || true
+          (yes || true) | sdkmanager --sdk_root="$sdk" --licenses
           sdkmanager --sdk_root="$sdk" 'platform-tools' 'emulator' 'platforms;android-35' 'system-images;android-35;google_apis;arm64-v8a'
           file "$sdk/emulator/emulator" | tee "$RUNNER_TEMP/arm64-emulator-results/host-binary.txt"
           uname -m | tee "$RUNNER_TEMP/arm64-emulator-results/runner-arch.txt"
@@ -191,7 +191,8 @@ jobs:
           emulator -avd kam_arm64 -no-window -no-audio -no-snapshot -no-boot-anim -accel off -gpu swiftshader_indirect -memory 3072 > "$RUNNER_TEMP/arm64-emulator-results/emulator.log" 2>&1 &
           emulator_pid=$!
           trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
-          adb wait-for-device
+          timeout 120 adb wait-for-device
+          booted=""
           for attempt in $(seq 1 120); do
             booted=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
             if [[ "$booted" == 1 ]]; then break; fi
