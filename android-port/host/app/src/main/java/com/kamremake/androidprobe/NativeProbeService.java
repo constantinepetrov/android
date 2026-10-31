@@ -10,6 +10,7 @@ public final class NativeProbeService extends Service {
     static native int[] nativeReadMap(String path);
     static native int nativeFfiProbe();
     static native int nativeFfiScriptProbe();
+    static native int nativeRealUtilsScriptProbe();
     private void report(String stage, String detail) {
         Log.i("KaMProbe", stage + ": " + detail);
         Intent message = new Intent(MainActivity.DIAGNOSTIC_ACTION);
@@ -31,7 +32,10 @@ public final class NativeProbeService extends Service {
                     Log.i("KaMProbe", "FFI_ABI_OK self integer single out TKMPoint");
                     int script = nativeFfiScriptProbe();
                     if (script != 42) throw new IllegalStateException("FFI_SCRIPT_FAILED code=" + script);
-                    report("FFI", "FFI_SCRIPT_OK facade self integer single out; invalid script rejected");
+                    Log.i("KaMProbe", "FFI_SCRIPT_OK facade self integer single out; invalid script rejected");
+                    int gameUtils = nativeRealUtilsScriptProbe();
+                    if (gameUtils != 42) throw new IllegalStateException("REAL_UTILS_SCRIPT_FAILED code=" + gameUtils);
+                    report("FFI", "REAL_UTILS_SCRIPT_OK registered TKMScriptUtils.AbsI Self integer result; invalid script rejected");
                     return;
                 }
                 if (intent != null && intent.getBooleanExtra("selfTest", false)) {
