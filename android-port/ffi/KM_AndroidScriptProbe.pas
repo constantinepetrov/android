@@ -123,7 +123,7 @@ function RunFogStateScriptProbe: Integer;
 const
   Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
     + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
-    + 'if Fog.CheckTileRevelation(1,1) <> 243 then i := 1 div (i-i); end.';
+    + 'i := Fog.CheckTileRevelation(1,1); end.';
 var
   Compiler: TPSPascalCompiler;
   Exec: TPSExec;
@@ -160,6 +160,9 @@ begin
         Result := -5;
         Exit
       end;
+      AndroidLog(AnsiString('FOG_STATE_SCRIPT_RESULT checkTile='
+        + IntToStr(Instance.CheckTileRevelation(1,1)) + ' raw00='
+        + IntToStr(Instance.Revelation[0,0])));
       for Y := 0 to 1 do
         for X := 0 to 2 do
           if Instance.Revelation[Y, X] <> 243 then
