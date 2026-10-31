@@ -104,7 +104,8 @@ type
 
 implementation
 uses
-  SysUtils, KM_DevPerfLog, KM_DevPerfLogTypes;
+  SysUtils
+  {$IFDEF DBG_PERFLOG}, KM_DevPerfLog, KM_DevPerfLogTypes{$ENDIF};
 
 const
   // Addition to Revelation radius for Render revelation

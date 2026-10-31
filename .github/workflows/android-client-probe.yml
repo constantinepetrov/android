@@ -59,6 +59,12 @@ jobs:
           set -e
           # Exit 2 records an unavailable call manager; do not claim RTTI support.
           test "$status" -eq 0 || test "$status" -eq 2
+      - name: Test real fog-of-war state update on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/fog-game" \
+            bash android-port/tests/test-fog-state-linux.sh 2>&1 | tee "$RUNNER_TEMP/fog-game-test.log"
       - name: Run Pascal Script game-type invocation on Linux
         shell: bash
         run: |
@@ -106,6 +112,7 @@ jobs:
             ${{ runner.temp }}/rtti-probe.log
             ${{ runner.temp }}/ffi-abi-test.log
             ${{ runner.temp }}/ps-game-test.log
+            ${{ runner.temp }}/fog-game-test.log
             ${{ runner.temp }}/game-options-test.log
             ${{ runner.temp }}/map-header-build.log
             ${{ runner.temp }}/client-units/

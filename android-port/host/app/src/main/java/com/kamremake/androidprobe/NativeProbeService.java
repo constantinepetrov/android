@@ -49,6 +49,9 @@ public final class NativeProbeService extends Service {
                     }
                     return;
                 }
+                int fog = MainActivity.nativeFogProbe();
+                if (fog != 88) throw new IllegalStateException("Pascal fog state mismatch: " + fog);
+                Log.i("KaMProbe", "FOG_STATE_UPDATE_OK 3x2 ticks=10 from=100 to=" + fog);
                 int value = MainActivity.nativeSortProbe();
                 report("JNI", "Native Pascal KM_Sort: " + value + " (expected 134)");
             } catch (Throwable failure) {

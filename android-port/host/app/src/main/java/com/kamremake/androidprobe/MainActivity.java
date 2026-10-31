@@ -32,6 +32,7 @@ import javax.microedition.khronos.opengles.GL10;
 /** Integration probe only: there is no game loop or original map here. */
 public final class MainActivity extends Activity {
     static native int nativeSortProbe();
+    static native int nativeFogProbe();
     static final String DIAGNOSTIC_ACTION = "com.kamremake.androidprobe.DIAGNOSTIC";
     private ProbeView view;
     private TextView label;

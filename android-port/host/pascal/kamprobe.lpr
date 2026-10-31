@@ -1,6 +1,6 @@
 library kamprobe;
 {$mode delphi}
-uses KM_Sort, KM_AndroidMap;
+uses KM_Sort, KM_AndroidMap, KM_FogOfWar;
 
 type TIntArray = array[0..2] of LongInt;
 function CompareInt(const A, B): Integer;
@@ -42,7 +42,23 @@ begin
     TReleaseUtf(table^[170])(env, path, chars);
   end;
 end;
-exports Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe,
+// A real subsystem update, not TKMGame.PlayGameTick or a playable game.
+function Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe(env, clazz: Pointer): LongInt; cdecl;
+var fog: TKMFogOfWar; x,y,t: Integer;
+begin
+  Result := -1;
+  try
+    fog := TKMFogOfWar.Create(3,2,True);
+    try
+      for y := 0 to 1 do for x := 0 to 2 do fog.Revelation[y,x] := 100;
+      for t := 1 to 10 do fog.UpdateState(True);
+      for y := 0 to 1 do for x := 0 to 2 do if fog.Revelation[y,x] <> 88 then Exit;
+      Result := fog.Revelation[0,0];
+    finally fog.Free end;
+  except Result := -2 end;
+end;
+exports Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe,
+        Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe,
         Java_com_kamremake_androidprobe_NativeProbeService_nativeReadMap;
 begin
 end.
