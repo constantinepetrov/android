@@ -38,6 +38,7 @@ public final class MainActivity extends Activity {
     private ProbeView view;
     private TextView label;
     private boolean nativeFinished;
+    private boolean nativeStarted;
     private volatile boolean mapPending;
     private volatile int resumeGeneration;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -62,6 +63,8 @@ public final class MainActivity extends Activity {
     };
     private void graphicsReady() {
         if (isFinishing() || isDestroyed()) return;
+        if (nativeStarted) return;
+        nativeStarted = true;
         label.setText("OpenGL ES: ready; starting isolated Pascal process");
         startService(new Intent(this, NativeProbeService.class).putExtra("ffiTest", getIntent().getBooleanExtra("ffi_test", false)));
         handler.postDelayed(() -> {
