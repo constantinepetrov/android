@@ -28,9 +28,11 @@ jobs:
           set -euo pipefail
           sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
           test -n "$sdkmanager"
+          (yes || true) | "$sdkmanager" --licenses > /dev/null
           "$sdkmanager" 'platform-tools' 'emulator'
           image='system-images;android-35;google_apis;arm64-v8a'
-          if ! "$sdkmanager" "$image"; then
+          "$sdkmanager" "$image" || true
+          if [ ! -f "$ANDROID_HOME/system-images/android-35/google_apis/arm64-v8a/system.img" ]; then
             image='system-images;android-30;google_apis;arm64-v8a'
             "$sdkmanager" "$image"
           fi
