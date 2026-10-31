@@ -79,7 +79,8 @@ implementation
 uses
   SysUtils, Math,
   KromOGLUtils, KromUtils,
-  KM_Log, KM_Defaults, KM_IoPNG, KM_CommonClasses;
+  KM_Log, KM_Defaults
+  {$IFDEF WDC}, KM_CommonClasses{$ENDIF};
 
 const
   // We want to use off-screen FBO buffer to render full map to the file,
