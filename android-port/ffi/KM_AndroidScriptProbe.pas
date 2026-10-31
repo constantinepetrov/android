@@ -5,6 +5,11 @@ function RunScriptProbe: Integer;
 function RunRealUtilsScriptProbe: Integer;
 implementation
 uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils;
+function __android_log_write(priority: LongInt; tag, text: PChar): LongInt; cdecl; external 'log' name '__android_log_write';
+procedure AndroidLog(const aText: AnsiString);
+begin
+  __android_log_write(6, 'KaMProbe', PChar(aText));
+end;
 type
   TScriptFacade = class
     Bias: Integer;
@@ -50,7 +55,7 @@ begin
       Instance := TScriptFacade.Create; Instance.Bias := 7;
       SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
       if not Exec.RunScript then begin
-        WriteLn(ErrOutput, 'REAL_UTILS_SCRIPT_RUNTIME_ERROR code=', Ord(Exec.ExceptionCode), ' text=', Exec.ExceptionString);
+        AndroidLog(AnsiString('REAL_UTILS_SCRIPT_RUNTIME_ERROR code=' + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
         Result := -5; Exit
       end;
       Result := 42;
