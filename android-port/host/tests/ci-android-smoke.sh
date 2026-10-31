@@ -90,7 +90,7 @@ adb shell am start -W -n "$package/.MainActivity" --ez synthetic_test true
 map_ok=0
 for attempt in $(seq 1 30); do
   adb logcat -d -s KaMProbe:I '*:S' > "$results/map-stages.txt"
-  if grep -q MAP_TRUNCATED_REJECTED "$results/map-stages.txt" && grep -q MAP_SELFTEST_OK "$results/map-stages.txt" && grep -q MAP_TEXTURE_UPLOADED "$results/map-stages.txt"; then map_ok=1; break; fi
+  if grep -q MAP_TRUNCATED_REJECTED "$results/map-stages.txt" && grep -q MAP_SELFTEST_OK "$results/map-stages.txt" && grep -q MAP_TEXTURE_UPLOADED "$results/map-stages.txt" && grep -q MAP_DRAWN "$results/map-stages.txt"; then map_ok=1; break; fi
   sleep 2
 done
 if [ "$map_ok" -ne 1 ]; then echo "MAP_RUNTIME_FAILED" | tee "$results/failure.txt"; exit 1; fi

@@ -192,7 +192,7 @@ public final class MainActivity extends Activity {
         int program, textureProgram, texture;
         volatile int[] pendingMap, currentMap;
         int mapWidth, mapHeight;
-        boolean reported;
+        boolean reported, mapDrawReported;
         void setMap(int[] map) { currentMap = map; pendingMap = map; }
         final MainActivity activity;
         ProbeRenderer(MainActivity activity) { this.activity = activity; vertices.put(new float[]{-.5f,-.4f, .5f,-.4f, 0f,.5f}).position(0); }
@@ -231,7 +231,7 @@ public final class MainActivity extends Activity {
             GLES20.glClearColor(.08f,.13f,.12f,1f); GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT); GLES20.glUseProgram(program);
             int[] map = pendingMap;
             if (map != null) {
-                pendingMap = null; mapWidth = map[0]; mapHeight = map[1];
+                pendingMap = null; mapDrawReported = false; mapWidth = map[0]; mapHeight = map[1];
                 ByteBuffer pixels = ByteBuffer.allocateDirect(mapWidth * mapHeight * 4);
                 for (int i = 3; i < map.length; i++) {
                     int terrain = map[i] & 255, height = (map[i] >>> 8) & 255;
@@ -257,7 +257,11 @@ public final class MainActivity extends Activity {
                 GLES20.glVertexAttribPointer(a,2,GLES20.GL_FLOAT,false,0,quad);
                 GLES20.glUniform1f(GLES20.glGetUniformLocation(textureProgram,"z"),zoom);
                 GLES20.glUniform2f(GLES20.glGetUniformLocation(textureProgram,"o"),offsetX,offsetY);
-                GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4); GLES20.glDisableVertexAttribArray(a); return;
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4); GLES20.glDisableVertexAttribArray(a);
+                if (!mapDrawReported && GLES20.glGetError() == GLES20.GL_NO_ERROR) {
+                    mapDrawReported = true; android.util.Log.i("KaMProbe", "MAP_DRAWN");
+                }
+                return;
             }
             int pos = GLES20.glGetAttribLocation(program,"p"); GLES20.glEnableVertexAttribArray(pos);
             GLES20.glVertexAttribPointer(pos,2,GLES20.GL_FLOAT,false,0,vertices);
