@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Create an experimental FPC 3.2.2 source overlay; never modify the submodule.
 
-This fixes compile-time syntax/signature only. It is NOT a complete invocation
-bridge: an AArch64 call manager and result marshalling must be proven first.
+The overlay adapts FPC 3.2.2 signatures and adds imported instance-method record
+result marshalling. Keep it experimental until runtime smoke tests pass.
 """
 import pathlib
 import shutil
@@ -26,6 +26,38 @@ s = s.replace('Invoke(Address, Args, SysCalConv, nil);', 'InvokeCompat(Address, 
 s = s.replace('Invoke(Address,', 'InvokeCompat(Address,')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended')
+s = s.replace('    ResValue: TValue;\nbegin', '    ResValue: TValue;\n    RttiMethod: TRttiMethod;\nbegin')
+record_anchor = "      {$ENDIF}\\n      else\\n//          writeln(stderr, 'Result type not implemented!');"
+record_case = """      {$ENDIF}
+      {$IFDEF FPC}
+      btRecord:
+      begin
+        // Resolve the record type from the imported instance method's RTTI.
+        if _Self = nil then
+          Exit(False);
+        ctx := TRttiContext.Create;
+        try
+          for RttiMethod in ctx.GetType(TObject(_Self).ClassType).GetMethods do
+            if (RttiMethod.CodeAddress = Address)
+              and Assigned(RttiMethod.ReturnType)
+              and (RttiMethod.ReturnType.TypeKind = tkRecord) then
+            begin
+              ResValue := InvokeCompat(Address, Args, SysCalConv,
+                RttiMethod.ReturnType.Handle, IsStatic);
+              Result := CopyArrayContents(res.dta,
+                ResValue.GetReferenceToRawData, 1, res.aType);
+              Exit;
+            end;
+        finally
+          ctx.Free;
+        end;
+        Exit(False);
+      end;
+      {$ENDIF}
+      else
+//          writeln(stderr, 'Result type not implemented!');"""
+assert s.count(record_anchor) == 1, 'Pascal Script result-case anchor changed'
+s = s.replace(record_anchor, record_case)
 helper = '''{$IFDEF FPC}
 // Experimental signature adapter only. It requires a compatible call manager.
 function InvokeCompat(Address: Pointer; const Args: TArray<TValue>;
