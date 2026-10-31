@@ -1,0 +1,36 @@
+name: Observe ARM64 emulator startup
+on:
+  push:
+    branches: [codex/android-native-port]
+    paths: ['.github/workflows/android-arm64-boot-observation.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Install ARM64 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          manager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          (yes || true) | "$manager" --licenses > /dev/null
+          "$manager" 'platform-tools' 'emulator' 'system-images;android-35;google_apis;arm64-v8a'
+          echo no | "$(dirname "$manager")/avdmanager" create avd --force --name inspect_arm64 --package 'system-images;android-35;google_apis;arm64-v8a'
+      - name: Observe unaccelerated ARM64 guest
+        shell: bash
+        run: |
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          emulator -avd inspect_arm64 -no-window -no-audio -no-snapshot -no-boot-anim -accel off -gpu swiftshader_indirect -memory 2048 > /tmp/arm-boot.txt 2>&1 &
+          pid=$!
+          sleep 90
+          echo '--- emulator process ---'
+          ps -p "$pid" -o pid,etime,pcpu,rss,args || true
+          echo '--- adb devices ---'
+          timeout 10 adb devices -l || true
+          echo '--- boot property ---'
+          timeout 5 adb -s emulator-5554 shell getprop sys.boot_completed || true
+          echo '--- emulator log ---'
+          tail -200 /tmp/arm-boot.txt
+          timeout 10 adb -s emulator-5554 emu kill || kill "$pid" || true
