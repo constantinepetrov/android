@@ -99,6 +99,8 @@ begin
       if ChunkLen > 67108864 then raise Exception.Create('PNG chunk exceeds 64 MiB');
       ChunkStart := F.Position;
       F.ReadBuffer(ChunkName, 4);
+      if Int64(F.Position) + ChunkLen + 4 > F.Size then
+        raise Exception.Create('Truncated PNG chunk');
       if string(ChunkName) = 'IHDR' then begin
         if ChunkLen <> 13 then raise Exception.Create('Invalid PNG IHDR length');
         W := ReadBE32(F); H := ReadBE32(F);
@@ -125,6 +127,8 @@ begin
           TB := (Word(Transparency[4]) shl 8) or Transparency[5]; HaveRGB := True;
         end;
       end else begin
+        if (ChunkName[0] >= 'A') and (ChunkName[0] <= 'Z') then
+          raise Exception.CreateFmt('Unsupported critical PNG chunk %.4s', [string(ChunkName)]);
         F.Position := F.Position + ChunkLen;
       end;
       ExpectedCRC := ReadBE32(F);
@@ -145,8 +149,10 @@ begin
     else
       raise Exception.CreateFmt('Unsupported PNG color type %d', [ColorType]);
     end;
-    if (ColorType = 3) and ((Length(Palette) = 0) or ((Length(Palette) mod 3) <> 0)) then
-      raise Exception.Create('Indexed PNG has no valid palette');
+    if (Length(Palette) > 768) or ((Length(Palette) mod 3) <> 0) then
+      raise Exception.Create('PNG palette has invalid size');
+    if (ColorType = 3) and (Length(Palette) = 0) then
+      raise Exception.Create('Indexed PNG has no palette');
     if (Int64(W) * H > 16777216) then raise Exception.Create('PNG image exceeds 16 megapixels');
     RowBytes := Integer(W) * Channels; Bpp := Channels;
     if Length(IDAT) = 0 then raise Exception.Create('PNG contains no image data');
