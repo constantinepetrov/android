@@ -4,9 +4,7 @@ interface
 uses
   {$IFDEF MSWINDOWS} Windows, {$ENDIF}
   KM_CommonClasses, KM_CommonTypes, KM_Points
-  {$IFDEF Unix}
-  , Mouse
-  {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID}, Mouse{$ENDIF}{$ENDIF}
   {$IFDEF FPC}
   {$IFDEF Unix}
   , Types
@@ -84,7 +82,7 @@ uses
   KromUtils, KM_InterfaceTypes,
   KM_Resource, KM_ResTypes,
   KM_RenderAux,
-  KM_Main, KM_System, KM_GameApp, KM_GameSettings,
+  {$IFDEF ANDROID} KM_GameRuntime {$ELSE} KM_Main, KM_GameApp {$ENDIF}, KM_System, KM_GameSettings,
   KM_Defaults, KM_CommonUtils;
 
 
@@ -340,7 +338,7 @@ begin
   fPanFrom := fPosition;
   fPanImmediately := aTicksCnt = 0;
   fPanProgress := 0;
-  fPanDuration := Round(aTicksCnt * gGameApp.Game.TickDuration);
+  fPanDuration := Round(aTicksCnt * KMHostGetGameTickDuration);
   //Panning will be skipped when duration is zero
   if fPanImmediately then
     SetPosition(aLoc);
@@ -398,6 +396,7 @@ begin
     Exit;
   end;
 
+{$IFNDEF ANDROID}
   {$IFDEF MSWindows}
     //Don't use Mouse.CursorPos, it will throw an EOSError (code 5: access denied) in some cases when
     //the OS doesn't want us controling the mouse, or possibly when the mouse is reset in some way.
@@ -440,6 +439,15 @@ begin
     fScrollStarted := 0;
     Exit;
   end;
+{$ELSE}
+  if not aAllowMouseScrolling then
+  begin
+    ReleaseScrollKeys;
+    fScrolling := False;
+    fScrollStarted := 0;
+    Exit;
+  end;
+{$ENDIF}
 
   // Both advancements have minimal value > 0
   // ScrollAdv depends on Zoom. Value was taken empirically
@@ -468,6 +476,7 @@ begin
   if ScrollKeyDown  then fPosition.Y := fPosition.Y + scrollAdv;
   if ZoomKeyIn      then fZoom := fZoom * (1 + zoomAdv);
   if ZoomKeyOut     then fZoom := fZoom * (1 - zoomAdv);
+  {$IFNDEF ANDROID}
   //Mouse
   if not IGNORE_MOUSE_SCROLLING then
   begin
@@ -476,6 +485,7 @@ begin
     if cursorPoint.X >= screenBounds.Right -1-SCROLL_FLEX then begin Inc(I, 4); fPosition.X := fPosition.X + scrollAdv*(1-(screenBounds.Right -1-cursorPoint.X)/SCROLL_FLEX); end;
     if cursorPoint.Y >= screenBounds.Bottom-1-SCROLL_FLEX then begin Inc(I, 8); fPosition.Y := fPosition.Y + scrollAdv*(1-(screenBounds.Bottom-1-cursorPoint.Y)/SCROLL_FLEX); end;
   end;
+  {$ENDIF}
 
   //Now do actual the scrolling, if needed
   fScrolling := I <> 0;
