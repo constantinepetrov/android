@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 34185)
+Total output lines: 2160
+
 unit KM_Scripting;
 {$I KaM_Remake.inc}
 {$WARN IMPLICIT_STRING_CAST OFF}
@@ -230,7 +233,7 @@ begin
   gScriptEvents := TKMScriptEvents.Create(fExec, fPreProcessor.PSPreProcessor, fIDCache);
   fStates := TKMScriptStates.Create(fIDCache);
   fActions := TKMScriptActions.Create(fIDCache);
-  fUtils := TKMScriptUtils.Create(fIDCache);
+  fUtils := TKMScriptUtils.Create;
 
   fActions.OnSetLogLinesMaxCnt := fErrorHandler.SetLogLinesCntMax;
 
@@ -883,189 +886,7 @@ begin
       'aX, aY: Integer): Integer');
     RegisterMethodCheck(c, 'function  PlayOGGFadeMusic(aHand: ShortInt; aFileName: AnsiString; aVolume: Single): Integer');
     RegisterMethodCheck(c, 'function  PlayOGGLooped(aHand: ShortInt; aFileName: AnsiString; aVolume: Single): Integer');
-    RegisterMethodCheck(c, 'function  PlaySound(aHand: ShortInt; aFileName: AnsiString; aAudioFormat: TKMAudioFormat; ' +
-      'aVolume: Single; aFadeMusic: Boolean; aLooped: Boolean): Integer');
-    RegisterMethodCheck(c, 'function  PlaySoundAtLocation(aHand: ShortInt; aFileName: AnsiString; aAudioFormat: TKMAudioFormat; ' +
-      'aVolume: Single; aFadeMusic: Boolean; aLooped: Boolean; aRadius: Single; ' +
-      'aX, aY: Integer): Integer');
-    RegisterMethodCheck(c, 'function  PlayWAV(aHand: ShortInt; aFileName: AnsiString; aVolume: Single): Integer');
-    RegisterMethodCheck(c, 'function  PlayWAVAtLocation(aHand: ShortInt; aFileName: AnsiString; aVolume: Single; aRadius: Single; ' +
-      'aX, aY: Integer): Integer');
-    RegisterMethodCheck(c, 'function  PlayWAVAtLocationLooped(aHand: ShortInt; aFileName: AnsiString; aVolume: Single; aRadius: Single; ' +
-      'aX, aY: Integer): Integer');
-    RegisterMethodCheck(c, 'function  PlayWAVFadeMusic(aHand: ShortInt; aFileName: AnsiString; aVolume: Single): Integer');
-    RegisterMethodCheck(c, 'function  PlayWAVLooped(aHand: ShortInt; aFileName: AnsiString; aVolume: Single): Integer');
-    RegisterMethodCheck(c, 'procedure RemoveRoad(X, Y: Integer)');
-    RegisterMethodCheck(c, 'procedure SetTradeAllowed(aHand: Integer; aResType: Integer; aAllowed: Boolean)');
-    RegisterMethodCheck(c, 'procedure ShowMsg(aHand: ShortInt; aText: AnsiString)');
-    RegisterMethodCheck(c, 'procedure ShowMsgFormatted(aHand: ShortInt; aText: AnsiString; Params: array of const)');
-    RegisterMethodCheck(c, 'procedure ShowMsgGoto(aHand: ShortInt; aX, aY: Integer; aText: AnsiString)');
-    RegisterMethodCheck(c, 'procedure ShowMsgGotoFormatted(aHand: ShortInt; aX, aY: Integer; aText: AnsiString; Params: array of const)');
-    RegisterMethodCheck(c, 'procedure StopLoopedOGG(aSoundIndex: Integer)');
-    RegisterMethodCheck(c, 'procedure StopLoopedWAV(aSoundIndex: Integer)');
-    RegisterMethodCheck(c, 'procedure StopSound(aSoundIndex: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitAllowAllyToSelect(aUnitID: Integer; aAllow: Boolean)');
-    RegisterMethodCheck(c, 'procedure UnitBlock(aHand: Byte; aType: Integer; aBlock: Boolean)');
-    RegisterMethodCheck(c, 'function  UnitDirectionSet(aUnitID: Integer; aDirection: Integer): Boolean');
-    RegisterMethodCheck(c, 'function  UnitDirectionSetEx(aUnitID: Integer; aDirection: TKMDirection): Boolean');
-    RegisterMethodCheck(c, 'procedure UnitDismiss(aUnitID: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitDismissableSet(aUnitID: Integer; aDismissable: Boolean)');
-    RegisterMethodCheck(c, 'procedure UnitDismissCancel(aUnitID: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitFishCountSet(aUnitID: Integer; aCount: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitHPChange(aUnitID: Integer; aHP: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitHPSetInvulnerable(aUnitID: Integer; aInvulnerable: Boolean)');
-    RegisterMethodCheck(c, 'procedure UnitHungerSet(aUnitID: Integer; aHungerLevel: Integer)');
-    RegisterMethodCheck(c, 'procedure UnitKill(aUnitID: Integer; aSilent: Boolean)');
-    RegisterMethodCheck(c, 'function  UnitOrderWalk(aUnitID: Integer; X, Y: Integer): Boolean');
-    //*Area-Actions-Check*//
-
-    c := Sender.AddClassN(nil, AnsiString(fUtils.ClassName));
-    //*Area-Utils-Check*//
-    RegisterMethodCheck(c, 'function  AbsI(aValue: Integer): Integer');
-    RegisterMethodCheck(c, 'function  AbsS(aValue: Single): Single');
-    RegisterMethodCheck(c, 'function  ArrayElementCount(aElement: AnsiString; aArray: array of String): Integer');
-    RegisterMethodCheck(c, 'function  ArrayElementCountB(aElement: Boolean; aArray: array of Boolean): Integer');
-    RegisterMethodCheck(c, 'function  ArrayElementCountI(aElement: Integer; aArray: array of Integer): Integer');
-    RegisterMethodCheck(c, 'function  ArrayElementCountS(aElement: Single; aArray: array of Single): Integer');
-    RegisterMethodCheck(c, 'function  ArrayHasElement(aElement: AnsiString; aArray: array of String): Boolean');
-    RegisterMethodCheck(c, 'function  ArrayHasElementB(aElement: Boolean; aArray: array of Boolean): Boolean');
-    RegisterMethodCheck(c, 'function  ArrayHasElementI(aElement: Integer; aArray: array of Integer): Boolean');
-    RegisterMethodCheck(c, 'function  ArrayHasElementS(aElement: Single; aArray: array of Single): Boolean');
-    RegisterMethodCheck(c, 'function  ArrayRemoveIndexI(aIndex: Integer; aArray: TIntegerArray): TIntegerArray');
-    RegisterMethodCheck(c, 'function  ArrayRemoveIndexS(aIndex: Integer; aArray: TAnsiStringArray): TAnsiStringArray');
-    RegisterMethodCheck(c, 'function  BoolToStr(aBool: Boolean): AnsiString');
-    RegisterMethodCheck(c, 'function  CeilTo(aValue: Single; aBase: Integer): Integer');
-    RegisterMethodCheck(c, 'function  ColorBrightness(aHexColor: string): Single');
-    RegisterMethodCheck(c, 'function  CompareString(Str1: string; Str2: string): Integer');
-    RegisterMethodCheck(c, 'function  CompareText(Str1: string; Str2: string): Integer');
-    RegisterMethodCheck(c, 'function  CopyString(Str: string; Index: Integer; Count: Integer): String');
-    RegisterMethodCheck(c, 'procedure DeleteString(var Str: string; Index: Integer; Count: Integer)');
-    RegisterMethodCheck(c, 'function  EnsureRangeI(aValue: Integer; aMin, aMax: Integer): Integer');
-    RegisterMethodCheck(c, 'function  EnsureRangeS(aValue: Single; aMin, aMax: Single): Single');
-    RegisterMethodCheck(c, 'function  FloorTo(aValue: Single; aBase: Integer): Integer');
-    RegisterMethodCheck(c, 'function  Format(aFormatting: string; aData: array of const): string');
-    RegisterMethodCheck(c, 'function  FormatFloat(aFormat: string; aValue: Single): string');
-    RegisterMethodCheck(c, 'function  IfThen(aBool: Boolean; aTrue: AnsiString; aFalse: AnsiString): AnsiString');
-    RegisterMethodCheck(c, 'function  IfThenI(aBool: Boolean; aTrue: Integer; aFalse: Integer): Integer');
-    RegisterMethodCheck(c, 'function  IfThenS(aBool: Boolean; aTrue: Single; aFalse: Single): Single');
-    RegisterMethodCheck(c, 'function  InAreaI(aX, aY: Integer; aXMin: Integer; aYMin: Integer; aXMax: Integer; aYMax: Integer): Boolean');
-    RegisterMethodCheck(c, 'function  InAreaS(aX, aY: Single; aXMin: Single; aYMin: Single; aXMax: Single; aYMax: Single): Boolean');
-    RegisterMethodCheck(c, 'function  InRangeI(aValue: Integer; aMin, aMax: Integer): Boolean');
-    RegisterMethodCheck(c, 'function  InRangeS(aValue: Single; aMin, aMax: Single): Boolean');
-    RegisterMethodCheck(c, 'procedure InsertString(Source: string; var Target: string; Index: Integer)');
-    RegisterMethodCheck(c, 'function  KMPoint(X, Y: Integer): TKMPoint');
-    RegisterMethodCheck(c, 'function  Ln(X: Extended): Extended');
-    RegisterMethodCheck(c, 'function  Log10(X: Extended): Extended');
-    RegisterMethodCheck(c, 'function  Log2(X: Extended): Extended');
-    RegisterMethodCheck(c, 'function  LogN(Base: Extended; X: Extended): Extended');
-    RegisterMethodCheck(c, 'function  LowerCase(Str: string): String');
-    RegisterMethodCheck(c, 'function  MaxI(A, B: Integer): Integer');
-    RegisterMethodCheck(c, 'function  MaxInArrayI(aArray: array of Integer): Integer');
-    RegisterMethodCheck(c, 'function  MaxInArrayS(aArray: array of Single): Single');
-    RegisterMethodCheck(c, 'function  MaxS(A, B: Single): Single');
-    RegisterMethodCheck(c, 'function  MinI(A, B: Integer): Integer');
-    RegisterMethodCheck(c, 'function  MinInArrayI(aArray: array of Integer): Integer');
-    RegisterMethodCheck(c, 'function  MinInArrayS(aArray: array of Single): Single');
-    RegisterMethodCheck(c, 'function  MinS(A, B: Single): Single');
-    RegisterMethodCheck(c, 'procedure MoveString(Source: string; var Destination: string; Count: Integer)');
-    RegisterMethodCheck(c, 'function  Pos(SubStr: string; Str: string): Integer');
-    RegisterMethodCheck(c, 'function  Power(aBase: Extended; aExp: Extended): Extended');
-    RegisterMethodCheck(c, 'function  RandomRangeI(aFrom: Integer; aTo: Integer): Integer');
-    RegisterMethodCheck(c, 'function  RGBDecToBGRHex(aR: Byte; aG: Byte; aB: Byte): AnsiString');
-    RegisterMethodCheck(c, 'function  RGBToBGRHex(aHexColor: string): AnsiString');
-    RegisterMethodCheck(c, 'function  RoundTo(aValue: Single; aBase: Integer): Integer');
-    RegisterMethodCheck(c, 'function  Sqr(A: Extended): Extended');
-    RegisterMethodCheck(c, 'function  StringReplace(Str: string; OldPattern: string; NewPattern: string; aReplaceAll: Boolean; ' +
-      'aIgnoreCase: Boolean): String');
-    RegisterMethodCheck(c, 'function  SumI(aArray: array of Integer): Integer');
-    RegisterMethodCheck(c, 'function  SumS(aArray: array of Single): Single');
-    RegisterMethodCheck(c, 'function  TimeToString(aTicks: Integer): AnsiString');
-    RegisterMethodCheck(c, 'function  TimeToTick(aHours: Integer; aMinutes: Integer; aSeconds: Integer): Cardinal');
-    RegisterMethodCheck(c, 'function  Trim(Str: string): String');
-    RegisterMethodCheck(c, 'function  TrimLeft(Str: string): String');
-    RegisterMethodCheck(c, 'function  TrimRight(Str: string): String');
-    RegisterMethodCheck(c, 'function  TruncTo(aValue: Single; aBase: Integer): Integer');
-    RegisterMethodCheck(c, 'function  UpperCase(Str: string): String');
-    //*Area-Utils-Check*//
-
-    // Register objects
-    AddImportedClassVariable(Sender, 'States', AnsiString(fStates.ClassName));
-    AddImportedClassVariable(Sender, 'Actions', AnsiString(fActions.ClassName));
-    AddImportedClassVariable(Sender, 'Utils', AnsiString(fUtils.ClassName));
-    AddImportedClassVariable(Sender, 'S', AnsiString(fStates.ClassName));
-    AddImportedClassVariable(Sender, 'A', AnsiString(fActions.ClassName));
-    AddImportedClassVariable(Sender, 'U', AnsiString(fUtils.ClassName));
-
-    Result := True;
-  end
-  else
-    Result := False;
-end;
-
-
-procedure TKMScripting.ScriptOnUseVariable(Sender: TPSPascalCompiler; VarType: TPSVariableType; VarNo: Integer; ProcNo, Position: Cardinal; const PropData: tbtString);
-begin
-  //There's no variable type info here
-  //GetVarCount is not including this current variable yet either
-end;
-
-
-{ The OnExportCheck callback function is called for each function in the script
-  (Also for the main proc, with '!MAIN' as a Proc^.Name). ProcDecl contains the
-  result type and parameter types of a function using this format:
-  ProcDecl: ResultType + ' ' + Parameter1 + ' ' + Parameter2 + ' '+Parameter3 + .....
-  Parameter: ParameterType+TypeName
-  ParameterType is @ for a normal parameter and ! for a var parameter.
-  A result type of 0 means no result}
-function TKMScripting.ScriptOnExportCheck(Sender: TPSPascalCompiler; Proc: TPSInternalProcedure; const ProcDecl: AnsiString): Boolean;
-const
-  PROCS: array [TKMScriptEventType] of record
-    ParamCount: Byte;
-    Typ: array [0..5] of Byte;
-    Dir: array [0..4] of TPSParameterMode;
-  end = (
-    //*Area-Events-Check*//
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnBeacon
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnFieldBuilt
-    (ParamCount: 1; Typ: (0, btSingle, 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGameSpeedChanged
-    (ParamCount: 4; Typ: (0, btS32   , btEnum  , btS32   , btEnum  , 0       ); Dir: (pmIn, pmInOut, pmInOut, pmInOut, pmIn)), // OnGroupBeforeOrderSplit
-    (ParamCount: 1; Typ: (0, btS32   , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupHungry
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupOrderAttackHouse
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupOrderAttackUnit
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupOrderLink
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btEnum  , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupOrderMove
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnGroupOrderSplit
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseAfterDestroyed
-    (ParamCount: 4; Typ: (0, btEnum  , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseAfterDestroyedEx
-    (ParamCount: 1; Typ: (0, btS32   , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseBuilt
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseDamaged
-    (ParamCount: 3; Typ: (0, btS32   , btEnum  , btEnum  , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseDeliveryModeChanged
-    (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseDestroyed
-    (ParamCount: 5; Typ: (0, btS32   , btS32   , btS32   , btS32   , btS32   ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseFlagPointChanged
-    (ParamCount: 1; Typ: (0, btS32   , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHousePlanDigged
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHousePlanPlaced
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btEnum  , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHousePlanPlacedEx
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHousePlanRemoved
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btEnum  , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHousePlanRemovedEx
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseRepaired
-    (ParamCount: 4; Typ: (0, btS32   , btEnum  , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnHouseWareCountChanged
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnMarketTrade
-    (ParamCount: 3; Typ: (0, btS32   , btEnum  , btEnum  , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnMarketTradeEx
-    (ParamCount: 0; Typ: (0, 0       , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnMissionStart
-    (ParamCount: 0; Typ: (0, 0       , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPeacetimeEnd
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanFieldPlaced
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanFieldRemoved
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanRoadDigged
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanRoadPlaced
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanRoadRemoved
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanWinefieldDigged
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanWinefieldPlaced
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlanWinefieldRemoved
-    (ParamCount: 1; Typ: (0, btS32   , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlayerDefeated
-    (ParamCount: 1; Typ: (0, btS32   , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnPlayerVictory
-    (ParamCount: 3; Typ: (0, btS32   , btS32   , btS32   , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnRoadBuilt
-    (ParamCount: 0; Typ: (0, 0       , 0       , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnTick
-    (ParamCount: 4; Typ: (0, btS32   , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnUnitAfterDied
+    RegisterMethodCheck(c, 'funct…4185 tokens truncated… btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnUnitAfterDied
     (ParamCount: 4; Typ: (0, btEnum  , btS32   , btS32   , btS32   , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnUnitAfterDiedEx
     (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnUnitAttacked
     (ParamCount: 2; Typ: (0, btS32   , btS32   , 0       , 0       , 0       ); Dir: (pmIn, pmIn, pmIn, pmIn, pmIn)), // OnUnitDied
