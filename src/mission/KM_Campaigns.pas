@@ -123,9 +123,15 @@ type
 
     // Saved in .rxx
     fBackGroundPic: TKMPic;
+    {$IFDEF FPC}
+    fFirstSpriteIndex: Word;
+    {$ENDIF}
 
     procedure LoadFromPath(const aPath: UnicodeString);
     procedure LoadSprites;
+    {$IFDEF FPC}
+    procedure MakeSpritesGFX;
+    {$ENDIF}
     function GetSpec: TKMCampaignSpec;
   public
     constructor Create;
@@ -156,6 +162,12 @@ type
     fOnAdd: TKMCampaignEvent;
     fOnAddDone: TNotifyEvent;
     fOnComplete: TNotifyEvent;
+    {$IFDEF FPC}
+    fCampaignToAdd: TKMCampaign;
+    procedure SynchronizeOnAdd;
+    procedure SynchronizeOnAddDone;
+    procedure SynchronizeOnComplete;
+    {$ENDIF}
   public
     constructor Create(aOnAdd: TKMCampaignEvent; aOnAddDone, aOnTerminate, aOnComplete: TNotifyEvent);
     procedure Execute; override;
@@ -756,9 +768,13 @@ begin
     nCamp.SetAttribute('id', string(fCampaignSpec.CampaignId.ID));
     nCamp.SetAttribute('name', fCampaignSpec.GetCampaignTitle);
 
+    {$IFDEF FPC}
+    nCamp.SetAttribute('wasOpened', BoolToStr(fCampaignWasOpened, True));
+    nCamp.SetAttribute('unlockedMission', IntToStr(fUnlockedMission));
+    {$ELSE}
     nCamp.SetAttribute('wasOpened', fCampaignWasOpened);
-
     nCamp.SetAttribute('unlockedMission', fUnlockedMission);
+    {$ENDIF}
     nMissions := nCamp.AddOrFindChild('missions');
     nMissions.Attributes['count'] := fCampaignSpec.MissionsCount;
 
@@ -766,12 +782,21 @@ begin
     begin
       nMission := nMissions.AddOrFindChild('mission' + IntToStr(I));
       nMission.SetAttribute('title', fCampaignSpec.GetCampaignMissionTitle(I));
+      {$IFDEF FPC}
+      nMission.SetAttribute('completed', BoolToStr(fMapsProgressData[I].Completed, True));
+      nMission.SetAttribute('bestCompletedDifficulty', IntToStr(Ord(fMapsProgressData[I].BestCompletedDifficulty)));
+      {$ELSE}
       nMission.SetAttribute('completed', fMapsProgressData[I].Completed);
       nMission.SetAttribute('bestCompletedDifficulty', Ord(fMapsProgressData[I].BestCompletedDifficulty));
+      {$ENDIF}
     end;
 
     nScriptData := nCamp.AddOrFindChild('scriptData');
+    {$IFDEF FPC}
+    nScriptData.SetAttribute('compressed', BoolToStr(fIsScriptDataBase64Compressed, True));
+    {$ELSE}
     nScriptData.SetAttribute('compressed', fIsScriptDataBase64Compressed);
+    {$ENDIF}
 
     if fIsScriptDataBase64Compressed then
       nScriptData.Attributes['data'] := fScriptDataStream.ToBase64Compressed
@@ -946,6 +971,16 @@ begin
 end;
 
 
+{$IFDEF FPC}
+procedure TKMCampaign.MakeSpritesGFX;
+begin
+  {$IFNDEF NO_OGL}
+  gRes.Sprites[rxCustom].MakeGFX(False, fFirstSpriteIndex);
+  {$ENDIF}
+end;
+{$ENDIF}
+
+
 procedure TKMCampaign.LoadSprites;
 var
   SP: TKMSpritePack;
@@ -963,6 +998,10 @@ begin
   if firstSpriteIndex <= SP.RXData.Count then
   begin
     // Make campaign sprite GFX in the main thread only
+    {$IFDEF FPC}
+    fFirstSpriteIndex := firstSpriteIndex;
+    TThread.Synchronize(TThread.CurrentThread, @MakeSpritesGFX);
+    {$ELSE}
     TThread.Synchronize(TThread.CurrentThread, procedure
       begin
         //Images were successfully loaded
@@ -971,6 +1010,7 @@ begin
         {$ENDIF}
       end
     );
+    {$ENDIF}
 
     SP.ClearTemp;
     fBackGroundPic.RX := rxCustom;
@@ -1116,6 +1156,26 @@ begin
 end;
 
 
+{$IFDEF FPC}
+procedure TKMCampaignsScanner.SynchronizeOnAdd;
+begin
+  fOnAdd(fCampaignToAdd);
+end;
+
+
+procedure TKMCampaignsScanner.SynchronizeOnAddDone;
+begin
+  fOnAddDone(Self);
+end;
+
+
+procedure TKMCampaignsScanner.SynchronizeOnComplete;
+begin
+  fOnComplete(Self);
+end;
+{$ENDIF}
+
+
 procedure TKMCampaignsScanner.Execute;
 var
   campaignPath: string;
@@ -1146,14 +1206,23 @@ begin
           camp := TKMCampaign.Create;
           camp.LoadFromPath(campaignPath + searchRec.Name + PathDelim);
 
+          {$IFDEF FPC}
+          fCampaignToAdd := camp;
+          TThread.Synchronize(nil, @SynchronizeOnAdd);
+          {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAdd(camp); end);
+          {$ENDIF}
 
           //todo -cPractical: Campaigns scan is very slow on first run - literaly 10-15 seconds for 9 stock campaigns (on SSD drive).
           // There's no real need to load all the campaign data (including sprites and etc) on scan. Just the localized name and optionally mission count.
           // Everything else (that takes literal seconds on first scan) should be loaded async by demand.
           camp.SavedData.LoadProgress;
 
+          {$IFDEF FPC}
+          TThread.Synchronize(nil, @SynchronizeOnAddDone);
+          {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAddDone(Self); end);
+          {$ENDIF}
 
           // Add campaign to the list to load sprites afterwards
           campaigns.Add(camp);
@@ -1169,7 +1238,13 @@ begin
   finally
     campaigns.Free;
     if not Terminated and Assigned(fOnComplete) then
+    begin
+      {$IFDEF FPC}
+      TThread.Synchronize(nil, @SynchronizeOnComplete);
+      {$ELSE}
       TThread.Synchronize(nil, procedure begin fOnComplete(Self); end);
+      {$ENDIF}
+    end;
   end;
 
   gLog.AddTime('[Campaigns scanner] Campaigns were loaded in: ' + IntToStr(TimeSince(t1)) + 'ms');
