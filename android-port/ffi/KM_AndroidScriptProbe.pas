@@ -123,7 +123,7 @@ function RunFogStateScriptProbe: Integer;
 const
   Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
     + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
-    + 'if Fog.CheckTileRevelation(1,1) <> 243 then i := 1 div (i-i); end.';
+    + 'if Fog.CheckTileRevelation(1,1) <> 255 then i := 1 div (i-i); end.';
 var
   Compiler: TPSPascalCompiler;
   Exec: TPSExec;
