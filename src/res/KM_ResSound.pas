@@ -166,7 +166,7 @@ type
 
 implementation
 uses
-  System.Classes, System.SysUtils, System.TypInfo, System.Math, System.StrUtils,
+  Classes, SysUtils, TypInfo, Math, StrUtils,
   KromUtils,
   KM_CommonClasses;
 
