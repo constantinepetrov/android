@@ -1,0 +1,23 @@
+name: Inspect existing translated-x86 log
+on:
+  push:
+    branches: [codex/android-native-port]
+    paths: ['.github/workflows/inspect-prior-x86-crash.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kam-android-emulator-runtime
+          path: prior
+          run-id: 41181499535
+          github-token: ${{ github.token }}
+      - name: Show crash evidence (x86_64, not ARM64 verification)
+        run: |
+          ls -la prior
+          cat prior/install.txt prior/start.txt prior/failure.txt
+          grep -i -C 18 -E 'FATAL EXCEPTION|Fatal signal|DEBUG.*pid:|linker.*kamprobe|UnsatisfiedLinkError|kamremake.androidprobe.*died' prior/logcat.txt | tail -500 || true
