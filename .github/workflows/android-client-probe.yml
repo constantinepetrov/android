@@ -63,9 +63,13 @@ jobs:
       - name: Test platform-neutral font identifiers
         run: PORT_TEST_DIR="$RUNNER_TEMP/font-types" bash android-port/tests/test-font-types-linux.sh
       - name: Test Android PNG codec round-trip
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$RUNNER_TEMP/png-codec"
-          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" -Fu"$GITHUB_WORKSPACE/src/common" -Fu"$GITHUB_WORKSPACE/src/utils" -Fu"$GITHUB_WORKSPACE/src/utils/io" \
+          paths=()
+          while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
+          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" "${paths[@]}" \
             -FU"$RUNNER_TEMP/png-codec" -FE"$RUNNER_TEMP/png-codec" android-port/tests/png_codec_smoke.pas
           "$RUNNER_TEMP/png-codec/png_codec_smoke"
       - name: Test real terrain type operations on Linux
