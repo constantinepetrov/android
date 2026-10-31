@@ -2,7 +2,7 @@ unit KM_GameTypes;
 {$I KaM_Remake.inc}
 interface
 uses
-  KM_Defaults, KM_MapTypes, KM_CampaignTypes, KM_CampaignClasses, KM_Points;
+  KM_GameMessageTypes, KM_Defaults, KM_MapTypes, KM_CampaignTypes, KM_CampaignClasses, KM_Points;
 
 const
   SAVE_HEADER_MARKER = 'Header';
@@ -22,13 +22,15 @@ type
   TKMAIType = (aitNone, aitClassic, aitAdvanced);
   TKMAITypeSet = set of TKMAIType;
 
-  //Message kind determines icon and available actions for Message
-  TKMMessageKind = (
-    mkText, //Mission text message
-    mkHouse,
-    mkGroup,
-    mkQuill //Utility message (warnings in script loading)
-  );
+  TKMMessageKind = KM_GameMessageTypes.TKMMessageKind;
+
+const
+  mkText = KM_GameMessageTypes.mkText;
+  mkHouse = KM_GameMessageTypes.mkHouse;
+  mkGroup = KM_GameMessageTypes.mkGroup;
+  mkQuill = KM_GameMessageTypes.mkQuill;
+
+type
 
   TKMGameModeChangeEvent = procedure (aGameMode: TKMGameMode) of object;
 

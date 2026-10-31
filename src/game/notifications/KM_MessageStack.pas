@@ -2,7 +2,7 @@ unit KM_MessageStack;
 {$I KaM_Remake.inc}
 interface
 uses
-  KM_CommonClasses, KM_GameTypes, KM_Points;
+  KM_CommonClasses, KM_GameMessageTypes, KM_Points;
 
 
 type

@@ -7,7 +7,7 @@ uses
   KM_Networking,
   KM_PathFinding,
   KM_GameParams, KM_GameInputProcess,
-  KM_GamePresentationState,
+  KM_GamePresentationState, KM_GameMessages,
   KM_GameSavePoints,
   KM_GameOptions, KM_GameTypes,
   KM_MapEditor, KM_Campaigns, KM_Maps, KM_MapTypes, KM_CampaignClasses, KM_TerrainPainter,
@@ -31,6 +31,7 @@ type
     fGamePlayInterface: TKMGamePlayInterface;
     fMapEditorInterface: TKMMapEdInterface;
     fPresentationState: TKMGamePresentationState;
+    fMessages: TKMGameMessagePort;
     fMapEditor: TKMMapEditor;
     fTerrainPainter: TKMTerrainPainter;
     fSavePoints: TKMSavePointCollection;
@@ -163,7 +164,8 @@ type
                        aBaseSaveWorkerThreadHolder,
                        aAutoSaveWorkerThreadHolder,
                        aSavePointWorkerThreadHolder: TKMWorkerThreadHolder;
-                       aPresentationState: TKMGamePresentationState = nil);
+                       aPresentationState: TKMGamePresentationState = nil;
+                       aMessages: TKMGameMessagePort = nil);
     destructor Destroy; override;
 
     procedure CreateFromScript(const aMissionFullFilePath, aName: UnicodeString; aFullCRC, aSimpleCRC: Cardinal; aCampaign: TKMCampaign;
@@ -316,7 +318,7 @@ var
 
 implementation
 uses
-  {$IFNDEF ANDROID} KM_GamePresentationStateDesktop, {$ENDIF}
+  {$IFNDEF ANDROID} KM_GamePresentationStateDesktop, KM_GameMessagesDesktop, {$ENDIF}
   {$IFDEF PARALLEL_RUNNER}
     KM_AIParameters, // If you want to remove this, then please make sure that the Runner can be compiled with ParallelRunner Build Configuration
   {$ENDIF}
@@ -442,7 +444,8 @@ constructor TKMGame.Create(aGameMode: TKMGameMode; aRender: TKMRender; aOnDestro
                            aBaseSaveWorkerThreadHolder,
                            aAutoSaveWorkerThreadHolder,
                            aSavePointWorkerThreadHolder: TKMWorkerThreadHolder;
-                           aPresentationState: TKMGamePresentationState);
+                           aPresentationState: TKMGamePresentationState;
+                           aMessages: TKMGameMessagePort);
 const
   UI_MODE: array [TKMGameMode] of TKMUIMode = (umSP, umSP, umMP, umSpectate, umSP, umReplay, umReplay);
 begin
@@ -513,6 +516,13 @@ begin
 
   // Session owns the persistence port. Desktop delegates to the exact original serializers;
   // Android callers inject their implementation.
+  fMessages := aMessages;
+  {$IFDEF ANDROID}
+  if fMessages = nil then fMessages := TKMStoredGameMessages.Create;
+  {$ELSE}
+  if (fMessages = nil) and (fGamePlayInterface <> nil) then
+    fMessages := TKMDesktopGameMessages.Create(fGamePlayInterface);
+  {$ENDIF}
   fPresentationState := aPresentationState;
   {$IFNDEF ANDROID}
   if (fPresentationState = nil) and (fGamePlayInterface <> nil) then
@@ -591,6 +601,7 @@ begin
 
   FreeAndNil(fSavePoints);
 
+  FreeAndNil(fMessages);
   FreeAndNil(fPresentationState);
   FreeThenNil(fGamePlayInterface);
   FreeThenNil(fMapEditorInterface);
@@ -1823,13 +1834,14 @@ end;
 
 procedure TKMGame.ShowMessageLocal(aKind: TKMMessageKind; const aText: UnicodeString; const aLoc: TKMPoint);
 begin
-  fGamePlayInterface.MessageIssue(aKind, aText, aLoc);
+  if fMessages = nil then raise Exception.Create('Game message provider is unavailable');
+  fMessages.Issue(aKind, aText, aLoc);
 end;
 
 
 procedure TKMGame.ShowScriptError(const aMsg: UnicodeString);
 begin
-  fGamePlayInterface.MessageIssue(mkQuill, aMsg);
+  ShowMessageLocal(mkQuill, aMsg, KMPOINT_ZERO);
 end;
 
 
