@@ -676,6 +676,7 @@ type
   PVector4i = ^TVector4i;
 
 
+  {$IFDEF DGL_WIN}
   PGPU_DEVICE = ^GPU_DEVICE;
   GPU_DEVICE = record
     cb: DWORD;
@@ -684,6 +685,7 @@ type
     Flags: DWORD;
     rcVirtualScreen: TRect;
   end;
+  {$ENDIF}
   
 
 type
