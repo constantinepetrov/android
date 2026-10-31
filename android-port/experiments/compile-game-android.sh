@@ -18,7 +18,7 @@ for unit in src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_M
   # The upstream secure-auth unit is absent from this repository. This diagnostic compile
   # uses the project's documented unsecure-auth option only to continue unit analysis.
   if "$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -dDBG_SKIP_SECURE_AUTH -B -Cn -Fi"$root" \
-    "-Fu$FPC_ANDROID_UNITS/*" "${overlay[@]}" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" "-Fu$LCL_SOURCE" "-Fi$LCL_SOURCE/include" "${paths[@]}" -FU"$out" "$root/$unit"; then
+    "-Fu$FPC_ANDROID_UNITS/*" "${overlay[@]}" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" "-Fu$root/android-port/pascal" "-Fi$root/android-port/pascal" "-Fu$LCL_SOURCE" "-Fi$LCL_SOURCE/include" "${paths[@]}" -FU"$out" "$root/$unit"; then
     echo "ANDROID_UNIT_OK $unit"
   else
     echo "ANDROID_UNIT_FAILED $unit"
