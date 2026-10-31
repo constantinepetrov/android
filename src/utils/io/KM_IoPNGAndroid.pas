@@ -243,8 +243,8 @@ begin
     try
       F.WriteBuffer(Signature, SizeOf(Signature));
       FillChar(Header, SizeOf(Header), 0);
-      Header[0] := aWidth shr 8; Header[1] := aWidth;
-      Header[4] := aHeight shr 8; Header[5] := aHeight;
+      Header[2] := aWidth shr 8; Header[3] := aWidth;
+      Header[6] := aHeight shr 8; Header[7] := aHeight;
       Header[8] := 8; Header[9] := 6;
       Data.WriteBuffer(Header, SizeOf(Header));
       WriteChunk(F, 'IHDR', Data, SizeOf(Header));
