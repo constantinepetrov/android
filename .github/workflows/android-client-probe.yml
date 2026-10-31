@@ -42,6 +42,12 @@ jobs:
           set -o pipefail
           LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/game-options-test" \
             bash android-port/tests/test-game-options-linux.sh 2>&1 | tee "$RUNNER_TEMP/game-options-test.log"
+      - name: Compile real map header probe (no game data bundled)
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/map-header-test" \
+            bash android-port/tests/test-map-header-linux.sh 2>&1 | tee "$RUNNER_TEMP/map-header-build.log"
       - name: Measure FPC RTTI invocation support on Linux
         shell: bash
         run: |
@@ -87,5 +93,6 @@ jobs:
             ${{ runner.temp }}/client-build.log
             ${{ runner.temp }}/rtti-probe.log
             ${{ runner.temp }}/game-options-test.log
+            ${{ runner.temp }}/map-header-build.log
             ${{ runner.temp }}/client-units/
           if-no-files-found: warn
