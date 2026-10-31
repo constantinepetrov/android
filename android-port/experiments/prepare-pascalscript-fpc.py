@@ -19,6 +19,55 @@ a = '            var bType := GetTypeNo(BlockInfo, tmp).BaseType;\n            i
 b = '            if not IsIntType(GetTypeNo(BlockInfo, tmp).BaseType) and not (GetTypeNo(BlockInfo, tmp).BaseType = btEnum) then'
 assert s.count(a) == 1, 'Pascal Script compiler source changed'
 compiler.write_text(s.replace(a, b))
+runtime = output / 'uPSRuntime.pas'
+s = runtime.read_text()
+decl = "function PSErrorToString(x: TPSError; const Param: tbtstring): tbtstring;\n"
+assert s.count(decl) == 1, 'Pascal Script runtime declaration anchor changed'
+s = s.replace(decl, decl + "{$IFDEF FPC}\nprocedure PSRegisterRecordReturnType(Address, ATypeInfo: Pointer);\n{$ENDIF}\n")
+impl_anchor = "implementation\nuses\n  TypInfo"
+impl_pos = s.find(impl_anchor)
+assert impl_pos >= 0, 'Pascal Script runtime implementation anchor changed'
+impl_end = s.index(";\n", impl_pos) + 2
+registry = """
+{$IFDEF FPC}
+type
+  TPSRecordReturnInfo = record
+    Address: Pointer;
+    ATypeInfo: Pointer;
+  end;
+var
+  PSRecordReturnInfos: array of TPSRecordReturnInfo;
+
+procedure PSRegisterRecordReturnType(Address, ATypeInfo: Pointer);
+var
+  i: Integer;
+begin
+  if (Address = nil) or (ATypeInfo = nil) then
+    Exit;
+  for i := 0 to High(PSRecordReturnInfos) do
+    if PSRecordReturnInfos[i].Address = Address then
+    begin
+      PSRecordReturnInfos[i].ATypeInfo := ATypeInfo;
+      Exit;
+    end;
+  SetLength(PSRecordReturnInfos, Length(PSRecordReturnInfos) + 1);
+  PSRecordReturnInfos[High(PSRecordReturnInfos)].Address := Address;
+  PSRecordReturnInfos[High(PSRecordReturnInfos)].ATypeInfo := ATypeInfo;
+end;
+
+function PSFindRecordReturnType(Address: Pointer): Pointer;
+var
+  i: Integer;
+begin
+  for i := 0 to High(PSRecordReturnInfos) do
+    if PSRecordReturnInfos[i].Address = Address then
+      Exit(PSRecordReturnInfos[i].ATypeInfo);
+  Result := nil;
+end;
+{$ENDIF}
+"""
+s = s[:impl_end] + registry + s[impl_end:]
+runtime.write_text(s)
 p = output / 'InvokeCall.inc'
 s = p.read_text()
 assert s.startswith('function TPSExec.InnerfuseCall')
@@ -26,45 +75,23 @@ s = s.replace('Invoke(Address, Args, SysCalConv, nil);', 'InvokeCompat(Address, 
 s = s.replace('Invoke(Address,', 'InvokeCompat(Address,')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended')
-s = s.replace('    ResValue : TValue;\n', '    ResValue : TValue;\n    RttiMethod : TRttiMethod;\n    RecordMethod : TRttiMethod;\n    MultipleRecordMethods : Boolean;\n')
+s = s.replace('    ResValue : TValue;\n', '    ResValue : TValue;\n    RecordTypeInfo : Pointer;\n')
 record_anchor = "      else\n//          writeln(stderr, 'Result type not implemented!');"
 record_case = """      {$IFDEF FPC}
       btRecord:
       begin
-        // Resolve the record type from the imported instance method's RTTI.
+        // FPC 3.2.2 does not implement TRttiContext.GetDeclaredMethods.
+        // The game registers exact method result metadata before running scripts.
         if _Self = nil then
           Exit(False);
-        ctx := TRttiContext.Create;
-        try
-          RecordMethod := nil;
-          MultipleRecordMethods := False;
-          for RttiMethod in ctx.GetType(TObject(_Self).ClassType).GetMethods do
-            if Assigned(RttiMethod.ReturnType)
-              and (RttiMethod.ReturnType.TypeKind = tkRecord) then
-            begin
-              if RttiMethod.CodeAddress = Address then
-              begin
-                RecordMethod := RttiMethod;
-                MultipleRecordMethods := False;
-                Break;
-              end;
-              if RecordMethod = nil then
-                RecordMethod := RttiMethod
-              else
-                MultipleRecordMethods := True;
-            end;
-          if MultipleRecordMethods then
-            RecordMethod := nil;
-          if not Assigned(RecordMethod) then
-            Exit(False);
-          ResValue := InvokeCompat(Address, Args, SysCalConv,
-            RecordMethod.ReturnType.Handle, IsStatic);
-          Result := CopyArrayContents(res.dta,
-            ResValue.GetReferenceToRawData, 1, res.aType);
-          Exit;
-        finally
-          ctx.Free;
-        end;
+        RecordTypeInfo := PSFindRecordReturnType(Address);
+        if not Assigned(RecordTypeInfo) then
+          Exit(False);
+        ResValue := InvokeCompat(Address, Args, SysCalConv,
+          PTypeInfo(RecordTypeInfo), IsStatic);
+        Result := CopyArrayContents(res.dta,
+          ResValue.GetReferenceToRawData, 1, res.aType);
+        Exit;
       end;
       {$ENDIF}
       else
@@ -82,4 +109,4 @@ end;
 {$ENDIF}
 '''
 p.write_text(helper + s)
-print('Prepared diagnostic Pascal Script overlay (no runtime support claimed)')
+print('Prepared FPC Pascal Script overlay with explicit record return registry')
