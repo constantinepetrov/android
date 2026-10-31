@@ -26,7 +26,7 @@ s = s.replace('Invoke(Address, Args, SysCalConv, nil);', 'InvokeCompat(Address, 
 s = s.replace('Invoke(Address,', 'InvokeCompat(Address,')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended')
-s = s.replace('    ResValue: TValue;\nbegin', '    ResValue: TValue;\n    RttiMethod: TRttiMethod;\nbegin')
+s = s.replace('    ResValue : TValue;\n', '    ResValue : TValue;\n    RttiMethod : TRttiMethod;\n')
 record_anchor = "      else\n//          writeln(stderr, 'Result type not implemented!');"
 record_case = """      {$IFDEF FPC}
       btRecord:
