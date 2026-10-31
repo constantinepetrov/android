@@ -114,14 +114,18 @@ public final class GestureInstrumentation extends Instrumentation {
             check(monitor.getHits()>0,"tileset picker not opened");removeMonitor(monitor);
         } finally {activity.getContentResolver().delete(uri,null,null);}
     }
+    private void checkpoint(String name) {
+        android.util.Log.i("KaMProbe", "QA_STEP " + name);
+        Bundle status=new Bundle(); status.putString("step",name); sendStatus(0,status);
+    }
     @Override public void onStart() {
         Bundle result=new Bundle();
         try {
             Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            activity=(MainActivity)startActivitySync(launch); waitForIdleSync();
+            checkpoint("launch"); activity=(MainActivity)startActivitySync(launch); waitForIdleSync();
             await(() -> activity.testLabel().getText().toString().contains("Native Pascal KM_Sort: 134"),"JNI 134 absent");
-            importThroughPickerResult();
-            Bitmap before=capture("before");
+            checkpoint("import"); importThroughPickerResult();
+            checkpoint("before"); Bitmap before=capture("before");
             int w=before.getWidth(),h=before.getHeight();
             check(w>0 && h>0,"empty screenshot");
             int samples=0, ref=before.getPixel(w/3,h/3);
@@ -131,7 +135,7 @@ public final class GestureInstrumentation extends Instrumentation {
             WindowInsets insets=activity.getWindow().getDecorView().getRootWindowInsets();
             int top=insets==null?0:insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()).top;
             check(loc[1]>=top && loc[0]>=0 && loc[0]+label.getWidth()<=w && loc[1]+label.getHeight()<=h,"label outside safe screen");
-            float[] initial=activity.testTransform();
+            checkpoint("pan"); float[] initial=activity.testTransform();
             float x=w*.47f,y=h*.55f; long t=SystemClock.uptimeMillis();
             touch(t,t,MotionEvent.ACTION_DOWN,new float[]{x},new float[]{y});
             touch(t,t+60,MotionEvent.ACTION_MOVE,new float[]{x+w*.15f},new float[]{y+h*.06f});
@@ -139,7 +143,7 @@ public final class GestureInstrumentation extends Instrumentation {
             waitForIdleSync(); float[] pan=activity.testTransform(); Bitmap panned=capture("pan");
             check(Math.abs(pan[1]-initial[1])>.1f,"pan did not change offset");
             check(different(before,panned)>100,"pan did not change screen pixels");
-            t=SystemClock.uptimeMillis(); float x1=w*.42f,x2=w*.58f;
+            checkpoint("pinch"); t=SystemClock.uptimeMillis(); float x1=w*.42f,x2=w*.58f;
             touch(t,t,MotionEvent.ACTION_DOWN,new float[]{x1},new float[]{y});
             touch(t,t+30,MotionEvent.ACTION_POINTER_DOWN | (1<<MotionEvent.ACTION_POINTER_INDEX_SHIFT),new float[]{x1,x2},new float[]{y,y});
             for(int i=1;i<=8;i++) touch(t,t+30+i*40,MotionEvent.ACTION_MOVE,new float[]{x1-i*w*.025f,x2+i*w*.025f},new float[]{y,y});
@@ -148,12 +152,12 @@ public final class GestureInstrumentation extends Instrumentation {
             waitForIdleSync(); float[] zoom=activity.testTransform(); Bitmap pinched=capture("pinch");
             check(zoom[0]>pan[0]+.05f,"pinch did not change scale");
             check(different(panned,pinched)>100,"pinch did not change screen pixels");
-            int generation=activity.testSurfaceGeneration();
+            checkpoint("context"); int generation=activity.testSurfaceGeneration();
             runOnMainSync(() -> activity.testRecreateGlContext());
             await(() -> activity.testSurfaceGeneration()>generation && activity.testMapWidth()==64,"GL context/map not restored");
             Bitmap restored=capture("context-restored");
             check(different(pinched,restored)<100,"GL context restored with changed map image");
-            importTileset(); Bitmap textured=capture("tileset");
+            checkpoint("tileset"); importTileset(); Bitmap textured=capture("tileset");
             check(different(restored,textured)>100,"RXX texture did not alter rendered map");
             android.util.Log.i("KaMProbe", "RXX_SYNTHETIC_RENDER_OK");
             android.util.Log.i("KaMProbe", "QA_PASSED pan="+pan[1]+" zoom="+zoom[0]+" context="+activity.testSurfaceGeneration());

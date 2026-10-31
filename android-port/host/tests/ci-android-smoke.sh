@@ -12,11 +12,13 @@ collect() {
   local code="$?"
   set +e
   adb logcat -d -v threadtime > "$results/logcat.txt" 2>&1
+  rg -i "KaMProbe|FATAL EXCEPTION|Fatal signal|signal 11|nativebridge" "$results/logcat.txt" | tail -120 || true
   adb shell dumpsys activity activities > "$results/activities.txt" 2>&1
   adb shell getprop > "$results/device-properties.txt" 2>&1
   adb exec-out screencap -p > "$results/screen.png" 2>/dev/null
   adb shell uiautomator dump /sdcard/window.xml > "$results/uiautomator-output.txt" 2>&1
   adb shell cat /sdcard/window.xml > "$results/window.xml" 2>/dev/null
+  cat "$results/window.xml" || true
   echo "Smoke result exit code: $code" | tee "$results/result.txt"
 }
 trap collect EXIT
@@ -104,7 +106,7 @@ echo "SYNTHETIC_MAP_PARSE_TRUNCATION_AND_GL_UPLOAD_OK" | tee -a "$results/runtim
 # compares captured pixels, then forces EGL context recreation.
 adb shell am force-stop "$package"
 adb install -r "$2" | tee "$results/instrumentation-install.txt"
-adb shell am instrument -w -r com.kamremake.androidprobe.test/com.kamremake.androidprobe.GestureInstrumentation | tee "$results/instrumentation.txt"
+timeout 120s adb shell am instrument -w -r com.kamremake.androidprobe.test/com.kamremake.androidprobe.GestureInstrumentation | tee "$results/instrumentation.txt"
 grep -q QA_PASSED "$results/instrumentation.txt"
 for phase in before pan pinch context-restored tileset; do
   adb exec-out run-as "$package" cat "files/qa-$phase.png" > "$results/qa-$phase.png"
