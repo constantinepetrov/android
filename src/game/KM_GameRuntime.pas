@@ -27,6 +27,7 @@ type
     GetChatText: function: UnicodeString of object;
     RenderGameFrame: TKMEvent;
     GameOptionsChanged: TKMEvent;
+    GameTickDuration: function: Single of object;
   end;
 
 var
@@ -49,6 +50,7 @@ function KMHostTryLoadSavePoint(aTick: Integer): Boolean;
 function KMHostGetChatText: UnicodeString;
 procedure KMHostRenderGameFrame;
 procedure KMHostGameOptionsChanged;
+function KMHostGetGameTickDuration: Single;
 
 implementation
 uses SysUtils;
@@ -163,6 +165,13 @@ procedure KMHostGameOptionsChanged;
 begin
   if not Assigned(KMGameHost.GameOptionsChanged) then raise Exception.Create('Android host cannot apply changed game options');
   KMGameHost.GameOptionsChanged();
+end;
+
+function KMHostGetGameTickDuration: Single;
+begin
+  if not Assigned(KMGameHost.GameTickDuration) then raise Exception.Create('Android host has no game tick duration');
+  Result := KMGameHost.GameTickDuration();
+  if Result <= 0 then raise Exception.Create('Android host returned an invalid game tick duration');
 end;
 
 end.
