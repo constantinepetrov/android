@@ -83,3 +83,19 @@ if ! grep -q 'INSETS_OK' "$results/probe-stages.txt" || grep -q 'INSETS_FAIL' "$
   exit 1
 fi
 echo "PROCESS_ALIVE_AND_JNI_RESULT_134_AND_INSETS_OK" | tee -a "$results/runtime.txt"
+
+# Synthetic map is generated on-device; no original assets enter CI or artifacts.
+adb shell am force-stop "$package"
+adb shell am start -W -n "$package/.MainActivity" --ez synthetic_test true
+map_ok=0
+for attempt in $(seq 1 30); do
+  adb logcat -d -s KaMProbe:I '*:S' > "$results/map-stages.txt"
+  if grep -q MAP_TRUNCATED_REJECTED "$results/map-stages.txt" && grep -q MAP_SELFTEST_OK "$results/map-stages.txt" && grep -q MAP_TEXTURE_UPLOADED "$results/map-stages.txt"; then map_ok=1; break; fi
+  sleep 2
+done
+if [ "$map_ok" -ne 1 ]; then echo "MAP_RUNTIME_FAILED" | tee "$results/failure.txt"; exit 1; fi
+adb shell uiautomator dump /sdcard/map-window.xml > /dev/null
+adb shell cat /sdcard/map-window.xml > "$results/map-window.xml"
+grep -q 'height sum: 46' "$results/map-window.xml"
+adb exec-out screencap -p > "$results/map-screen.png"
+echo "SYNTHETIC_MAP_PARSE_TRUNCATION_AND_GL_UPLOAD_OK" | tee -a "$results/runtime.txt"

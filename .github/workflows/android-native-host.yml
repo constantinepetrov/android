@@ -27,6 +27,11 @@ jobs:
           repository: fpc/FPCSource
           ref: release_3_2_2
           path: fpc-source
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/Lazarus
+          ref: lazarus_4_0
+          path: lazarus-source
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -67,8 +72,10 @@ jobs:
           sysroot="$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
           out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
           mkdir -p "$out" "$RUNNER_TEMP/host-units"
-          "$compiler" -Tandroid -Paarch64 -Mdelphi -Cg -XPaarch64-linux-gnu- \
-            "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
+          paths=()
+          while IFS= read -r -d '' dir; do paths+=("-Fu$dir" "-Fi$dir"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
+          "$compiler" -Tandroid -Paarch64 -Mdelphi -Sc -Cg -XPaarch64-linux-gnu- \
+            "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
             "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" \
             "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384 \
             "-FU$RUNNER_TEMP/host-units" \
