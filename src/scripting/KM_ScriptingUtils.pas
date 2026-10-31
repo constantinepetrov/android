@@ -4,10 +4,17 @@ unit KM_ScriptingUtils;
 interface
 uses
   Math, StrUtils, SysUtils,
-  KM_ScriptingEvents, KM_CommonTypes, KM_Points;
+  KM_CommonTypes, KM_Points, KM_ScriptingTypes;
 
 type
-  TKMScriptUtils = class(TKMScriptEntity)
+  TKMScriptUtils = class
+  private
+    fOnScriptError: TKMScriptErrorEvent;
+    procedure LogIntParamWarn(const aFuncName: string; const aValues: array of Integer);
+    procedure LogParamWarn(const aFuncName: String; const aValues: array of const); overload;
+    procedure LogParamWarn(const aFuncName: String; aValues1, aValues2: array of const); overload;
+  public
+    property OnScriptError: TKMScriptErrorEvent write fOnScriptError;
   public
     function AbsI(aValue: Integer): Integer;
     function AbsS(aValue: Single): Single;
@@ -110,7 +117,7 @@ type
 
 implementation
 uses
-  KM_CommonUtils;
+  KM_CommonUtils, KM_ScriptExceptionState;
 
 
 function TryParseHexColor(aHexColor: string; out aResult: string): Boolean;
@@ -135,6 +142,36 @@ end;
 
 { TKMScriptingUtils }
 
+procedure TKMScriptUtils.LogIntParamWarn(const aFuncName: string; const aValues: array of Integer);
+var
+  I: Integer;
+  values: string;
+begin
+  values := '';
+  for I := Low(aValues) to High(aValues) do
+  begin
+    if I > Low(aValues) then values := values + ', ';
+    values := values + IntToStr(aValues[I]);
+  end;
+  fOnScriptError(seInvalidParameter, 'Invalid parameter(s) passed to ' + aFuncName + ': ' + values);
+end;
+
+procedure TKMScriptUtils.LogParamWarn(const aFuncName: String; const aValues: array of const);
+var
+  str: string;
+begin
+  str := VarRecArrToStr(aValues);
+  fOnScriptError(seInvalidParameter, 'Invalid parameter(s) passed to ' + aFuncName + ': ' + str);
+end;
+
+procedure TKMScriptUtils.LogParamWarn(const aFuncName: String; aValues1, aValues2: array of const);
+begin
+  fOnScriptError(seInvalidParameter, SysUtils.Format('Invalid parameter(s) passed to %s: %s, [%s]',
+    [aFuncName, VarRecArrToStr(aValues1), VarRecArrToStr(aValues2)]));
+end;
+
+
+
 //* Version: 7000+
 //* Returns absolute value of specified integer
 function TKMScriptUtils.AbsI(aValue: Integer): Integer;
@@ -142,7 +179,7 @@ begin
   try
     Result := System.Abs(aValue);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -155,7 +192,7 @@ begin
   try
     Result := System.Abs(aValue);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -176,7 +213,7 @@ begin
           Inc(Result);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -197,7 +234,7 @@ begin
           Inc(Result);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -218,7 +255,7 @@ begin
           Inc(Result);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -239,7 +276,7 @@ begin
           Inc(Result);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -260,7 +297,7 @@ begin
           Exit(True);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -281,7 +318,7 @@ begin
           Exit(True);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -302,7 +339,7 @@ begin
           Exit(True);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -323,7 +360,7 @@ begin
           Exit(True);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -342,7 +379,7 @@ begin
       Result := aArray;
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -361,7 +398,7 @@ begin
       Result := aArray;
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -374,7 +411,7 @@ begin
   try
     Result := AnsiString(SysUtils.BoolToStr(aBool, True));
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -394,7 +431,7 @@ begin
     else
       Result := -1;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -408,7 +445,7 @@ begin
   try
     Result := SysUtils.AnsiCompareStr(Str1, Str2);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -422,7 +459,7 @@ begin
   try
     Result := SysUtils.AnsiCompareText(Str1, Str2);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -439,7 +476,7 @@ begin
   try
     Result := System.Copy(Str, Index, Count);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -455,7 +492,7 @@ begin
   try
     System.Delete(Str, Index, Count);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -468,7 +505,7 @@ begin
   try
     Result := Math.EnsureRange(aValue, aMin, aMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -481,7 +518,7 @@ begin
   try
     Result := Math.EnsureRange(aValue, aMin, aMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -501,7 +538,7 @@ begin
         LogParamWarn('Utils.Format: EConvertError: ' + E.Message, [aFormatting], aData);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -521,7 +558,7 @@ begin
         LogParamWarn('Utils.FormatFloat: EConvertError: ' + E.Message, [aFormat, aValue]);
     end;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -537,7 +574,7 @@ begin
     else
       Result := aFalse;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -550,7 +587,7 @@ begin
   try
     Result := Math.IfThen(aBool, aTrue, aFalse);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -563,7 +600,7 @@ begin
   try
     Result := Math.IfThen(aBool, aTrue, aFalse);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -576,7 +613,7 @@ begin
   try
     Result := (Math.InRange(aX, aXMin, aXMax)) and Math.InRange(aY, aYMin, aYMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -589,7 +626,7 @@ begin
   try
     Result := (Math.InRange(aX, aXMin, aXMax)) and Math.InRange(aY, aYMin, aYMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -602,7 +639,7 @@ begin
   try
     Result := Math.InRange(aValue, aMin, aMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -615,7 +652,7 @@ begin
   try
     Result := Math.InRange(aValue, aMin, aMax);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -633,7 +670,7 @@ begin
   try
     System.Insert(Source, Target, Index);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -654,7 +691,7 @@ begin
   try
     Result := System.Ln(X);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -667,7 +704,7 @@ begin
   try
     Result := Math.Log10(X);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -680,7 +717,7 @@ begin
   try
     Result := Math.Log2(X);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -693,7 +730,7 @@ begin
   try
     Result := Math.LogN(Base, X);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -706,7 +743,7 @@ begin
   try
     Result := SysUtils.AnsiLowerCase(Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -719,7 +756,7 @@ begin
   try
     Result := Math.Max(A, B);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -732,7 +769,7 @@ begin
   try
     Result := Math.Max(A, B);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -755,7 +792,7 @@ begin
     else
       LogIntParamWarn('Utils.MaxInArrayI: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -778,7 +815,7 @@ begin
     else
       LogIntParamWarn('Utils.MaxInArrayS: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -791,7 +828,7 @@ begin
   try
     Result := Math.Min(A, B);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -804,7 +841,7 @@ begin
   try
     Result := Math.Min(A, B);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -827,7 +864,7 @@ begin
     else
       LogIntParamWarn('Utils.MinInArrayI: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -850,7 +887,7 @@ begin
     else
       LogIntParamWarn('Utils.MinInArrayS: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -865,7 +902,7 @@ begin
   try
     System.Move(Source, Destination, Count);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -881,7 +918,7 @@ begin
   try
     Result := SysUtils.AnsiPos(SubStr, Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -896,7 +933,7 @@ begin
   try
     Result := Math.Power(aBase, aExp);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -909,7 +946,7 @@ begin
   try
     Result := KaMRandom(aTo - aFrom + 1{$IFDEF DBG_RNG_SPY}, 'TKMScriptUtils.RandomRangeI'{$ENDIF}) + aFrom;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -926,7 +963,7 @@ begin
   try
     Result := AnsiString(Format('%.6x', [RGB2BGR(StrToInt('$' + IntToHex(aR, 2) + IntToHex(aG, 2) + IntToHex(aB, 2)))]));
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -949,7 +986,7 @@ begin
     else
       Result := '';
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -963,7 +1000,7 @@ begin
   try
     Result := Ceil(aValue / aBase) * aBase
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -977,7 +1014,7 @@ begin
   try
     Result := Floor(aValue / aBase) * aBase
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -993,7 +1030,7 @@ begin
   try
     Result := Round(aValue / aBase) * aBase
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1007,7 +1044,7 @@ begin
   try
     Result := Trunc(aValue / aBase) * aBase
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1020,7 +1057,7 @@ begin
   try
     Result := System.Sqr(A);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1046,7 +1083,7 @@ begin
 
     Result := SysUtils.StringReplace(Str, OldPattern, NewPattern, flags);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1066,7 +1103,7 @@ begin
     else
       LogIntParamWarn('Utils.SumI: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1083,7 +1120,7 @@ begin
     else
       LogIntParamWarn('Utils.SumS: Requested array is empty',[]);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1107,7 +1144,7 @@ begin
     else
       Result := '';
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1121,7 +1158,7 @@ begin
   try
     Result := ((aHours * 60 * 60) + (aMinutes * 60) + aSeconds) * 10;
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1134,7 +1171,7 @@ begin
   try
     Result := SysUtils.Trim(Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1147,7 +1184,7 @@ begin
   try
     Result := SysUtils.TrimLeft(Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1160,7 +1197,7 @@ begin
   try
     Result := SysUtils.TrimRight(Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
@@ -1173,7 +1210,7 @@ begin
   try
     Result := SysUtils.AnsiUpperCase(Str);
   except
-    gScriptEvents.ExceptionOutsideScript := True;
+    SetScriptExceptionOutsideScript(True);
     raise;
   end;
 end;
