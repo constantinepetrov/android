@@ -63,6 +63,8 @@ jobs:
         run: PORT_TEST_DIR="$RUNNER_TEMP/font-types" bash android-port/tests/test-font-types-linux.sh
       - name: Test real terrain type operations on Linux
         run: LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/terrain-types" bash android-port/tests/test-terrain-types-linux.sh
+      - name: Test Android unit CSV exporter with synthetic data
+        run: LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/resunits-csv" bash android-port/tests/test-resunits-csv-linux.sh
       - name: Test real fog-of-war state update on Linux
         shell: bash
         run: |
