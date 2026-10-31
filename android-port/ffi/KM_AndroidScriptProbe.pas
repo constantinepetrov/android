@@ -2,8 +2,9 @@ unit KM_AndroidScriptProbe;
 {$mode delphi}
 interface
 function RunScriptProbe: Integer;
+function RunRealUtilsScriptProbe: Integer;
 implementation
-uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils;
+uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_ScriptingUtils;
 type
   TScriptFacade = class
     Bias: Integer;
@@ -47,6 +48,41 @@ begin
       Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
       if not Exec.LoadData(Data) then begin Result := -4; Exit end;
       Instance := TScriptFacade.Create; Instance.Bias := 7;
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
+      if not Exec.RunScript then begin Result := -5; Exit end;
+      Result := 42;
+    except on E: Exception do Result := -6 end;
+  finally Exec.Free; Importer.Free; Instance.Free; Compiler.Free end;
+end;
+
+function RegisterRealUtils(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
+var C: TPSCompileTimeClass;
+begin
+  Result := Name = 'SYSTEM';
+  if not Result then Exit;
+  C := Sender.AddClassN(nil, 'TKMScriptUtils');
+  if not C.RegisterMethod('function AbsI(aValue: Integer): Integer') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Utils', 'TKMScriptUtils');
+end;
+
+function RunRealUtilsScriptProbe: Integer;
+const Source = 'var n: Integer; begin n := Utils.AbsI(-42); if n <> 42 then n := 1 div (n-n); end.';
+var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
+    Instance: TKMScriptUtils; Data: AnsiString;
+begin
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  try
+    try
+      Compiler := TPSPascalCompiler.Create; Compiler.OnUses := @RegisterRealUtils;
+      if not Compiler.Compile(Source) then begin Result := -2; Exit end;
+      Compiler.GetOutput(Data);
+      if Compiler.Compile('begin this_identifier_does_not_exist := 1; end.') then begin Result := -3; Exit end;
+      FreeAndNil(Compiler);
+      Importer := TPSRuntimeClassImporter.Create;
+      with Importer.Add(TKMScriptUtils) do RegisterMethod(@TKMScriptUtils.AbsI, 'AbsI');
+      Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
+      if not Exec.LoadData(Data) then begin Result := -4; Exit end;
+      Instance := TKMScriptUtils.Create;
       SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
       if not Exec.RunScript then begin Result := -5; Exit end;
       Result := 42;
