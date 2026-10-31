@@ -1093,7 +1093,11 @@ begin
                                       gGame.AutoSaveAfterPT(DateTimeParam); //Timestamp is synchronised
         gicGameSaveReturnLobby:     if fReplayState = gipRecording then
                                     begin
+                                      {$IFDEF ANDROID}
+                                      KMHostPrepareReturnToLobby(DateTimeParam);
+                                      {$ELSE}
                                       gGameApp.PrepareReturnToLobby(DateTimeParam); //Timestamp is synchronised
+                                      {$ENDIF}
                                       Exit;
                                     end;
         gicGameLoadSave:            ; //Just a marker to know when game was loaded
