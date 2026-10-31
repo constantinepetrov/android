@@ -69,7 +69,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/png-codec"
           paths=()
           while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
-          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" "${paths[@]}" \
+          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" -Fi"$GITHUB_WORKSPACE/lazarus-source/components/lazutils" \
+            -Fu"$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" \
             -FU"$RUNNER_TEMP/png-codec" -FE"$RUNNER_TEMP/png-codec" android-port/tests/png_codec_smoke.pas
           "$RUNNER_TEMP/png-codec/png_codec_smoke"
       - name: Test real terrain type operations on Linux
