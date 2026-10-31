@@ -40,4 +40,8 @@ jobs:
           timeout 5 adb -s emulator-5554 shell getprop sys.boot_completed || true
           echo '--- emulator log ---'
           tail -200 /tmp/arm-boot.txt
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo 'ARM64 emulator exited before observation' >&2
+            exit 1
+          fi
           timeout 10 adb -s emulator-5554 emu kill || kill "$pid" || true
