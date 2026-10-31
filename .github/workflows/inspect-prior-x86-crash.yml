@@ -16,6 +16,18 @@ jobs:
           path: prior
           run-id: 41181499535
           github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: prior-apk
+          run-id: 41180964842
+          github-token: ${{ github.token }}
+      - name: Inspect actual ELF dependencies
+        run: |
+          unzip -p prior-apk/app-debug.apk lib/arm64-v8a/libkamprobe.so > /tmp/prior-kamprobe.so
+          readelf -dW /tmp/prior-kamprobe.so
+          readelf -Ws /tmp/prior-kamprobe.so | grep ' UND ' | sort -u
+          readelf -lW /tmp/prior-kamprobe.so
       - name: Show crash evidence (x86_64, not ARM64 verification)
         run: |
           ls -la prior
