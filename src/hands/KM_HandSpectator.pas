@@ -75,8 +75,8 @@ uses
   KM_HandsCollection, KM_HandTypes,
   KM_Units, KM_UnitGroup, KM_UnitWarrior, KM_Houses,
   KM_CommonUtils,
-  KM_GameTypes,
-  {$IFNDEF ANDROID} KM_Main {$ENDIF};
+  KM_GameTypes
+  {$IFNDEF ANDROID} , KM_Main {$ENDIF};
 
 
 { TKMSpectator }
