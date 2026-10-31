@@ -45,7 +45,10 @@ function Java_com_kamremake_androidprobe_NativeProbeService_nativeFfiScriptProbe
 begin Result := RunScriptProbe end;
 function Java_com_kamremake_androidprobe_NativeProbeService_nativeRealUtilsScriptProbe(env, cls: Pointer): LongInt; cdecl;
 begin Result := RunRealUtilsScriptProbe end;
+function Java_com_kamremake_androidprobe_NativeProbeService_nativeFogStateScriptProbe(env, cls: Pointer): LongInt; cdecl;
+begin Result := RunFogStateScriptProbe end;
 exports Java_com_kamremake_androidprobe_NativeProbeService_nativeFfiProbe,
         Java_com_kamremake_androidprobe_NativeProbeService_nativeFfiScriptProbe,
-        Java_com_kamremake_androidprobe_NativeProbeService_nativeRealUtilsScriptProbe;
+        Java_com_kamremake_androidprobe_NativeProbeService_nativeRealUtilsScriptProbe,
+        Java_com_kamremake_androidprobe_NativeProbeService_nativeFogStateScriptProbe;
 begin end.
