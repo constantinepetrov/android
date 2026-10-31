@@ -22,7 +22,8 @@ found=0
 for attempt in $(seq 1 45); do
   adb logcat -d -s KaMProbe:I '*:S' > "$results/stages.txt"
   if grep -q 'FFI_ABI_OK self integer single out TKMPoint' "$results/stages.txt" && grep -q 'FFI_SCRIPT_OK facade' "$results/stages.txt" && grep -q 'REAL_UTILS_SCRIPT_OK TKMScriptUtils.AbsI and KMPoint TKMPoint record result' "$results/stages.txt" && grep -q 'REAL_GAME_STATE_SCRIPT_OK TKMFogOfWar reveal + 10 updates: 255->243' "$results/stages.txt"; then found=1; break; fi
-  if grep -q 'FFI_ABI_FAILED\|FFI_SCRIPT_FAILED\|REAL_UTILS_SCRIPT_FAILED\|Native load or JNI failure' "$results/stages.txt"; then break; fi
+  if grep -q 'FFI_ABI_FAILED\|FFI_SCRIPT_FAILED\|REAL_UTILS_SCRIPT_FAILED\|FOG_STATE_SCRIPT_RUNTIME_ERROR\|REAL_GAME_STATE_SCRIPT_FAILED\|Native load or JNI failure' "$results/stages.txt"; then break; fi
+  if adb logcat -d -v brief | grep -q 'Fatal signal.*pascal-probe'; then break; fi
   sleep 2
 done
 [ "$found" = 1 ] || { echo 'ARM64_FFI_PROBE_FAILED' | tee "$results/failure.txt"; exit 1; }
