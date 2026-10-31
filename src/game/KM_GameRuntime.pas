@@ -11,6 +11,7 @@ type
   TKMGameHostCallbacks = record
     StopGame: procedure(aMsg: TKMGameResultMsg; const aText: UnicodeString) of object;
     StartReplay: procedure(const aSavePath: UnicodeString) of object;
+    PrepareReturnToLobby: procedure(aTimestamp: TDateTime) of object;
     CampaignSoundPath: function(const aSound: AnsiString; aFormat: TKMAudioFormat): UnicodeString of object;
     GameSpeedChanged: TSingleEvent;
     GlobalTickCount: function: Cardinal of object;
@@ -40,6 +41,7 @@ function KMHostLockGame: Boolean;
 procedure KMHostUnlockGame;
 procedure KMHostStopGame(aMsg: TKMGameResultMsg; const aText: UnicodeString);
 procedure KMHostStartReplay(const aSavePath: UnicodeString);
+procedure KMHostPrepareReturnToLobby(aTimestamp: TDateTime);
 function KMHostCampaignSoundPath(const aSound: AnsiString; aFormat: TKMAudioFormat): UnicodeString;
 function KMHostReplayMismatch(const aText: UnicodeString): TKMReplayMismatchDecision;
 procedure KMHostNewGameSingleSave(const aSaveName: UnicodeString);
@@ -104,6 +106,14 @@ begin
     raise Exception.Create('Android game host cannot restart a replay');
   KMGameHost.StartReplay(aSavePath);
 end;
+
+procedure KMHostPrepareReturnToLobby(aTimestamp: TDateTime);
+begin
+  if not Assigned(KMGameHost.PrepareReturnToLobby) then
+    raise Exception.Create('Android game host cannot prepare a return to lobby');
+  KMGameHost.PrepareReturnToLobby(aTimestamp);
+end;
+
 
 function KMHostCampaignSoundPath(const aSound: AnsiString; aFormat: TKMAudioFormat): UnicodeString;
 begin
