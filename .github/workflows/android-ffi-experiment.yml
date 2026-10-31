@@ -170,6 +170,7 @@ jobs:
           sdk="$RUNNER_TEMP/android-sdk"
           avd_home="$RUNNER_TEMP/android-avd"
           mkdir -p "$sdk/cmdline-tools" "$avd_home" "$RUNNER_TEMP/arm64-emulator-results"
+          echo "ARM64 runner bootstrap started" > "$RUNNER_TEMP/arm64-emulator-results/bootstrap.txt"
           printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\nANDROID_AVD_HOME=%s\n' "$sdk" "$sdk" "$avd_home" >> "$GITHUB_ENV"
           curl --fail --location --retry 3 -o "$RUNNER_TEMP/cmdline-tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
           mkdir -p "$sdk/cmdline-tools/latest"
@@ -178,6 +179,7 @@ jobs:
           echo "$sdk/platform-tools" >> "$GITHUB_PATH"
           echo "$sdk/emulator" >> "$GITHUB_PATH"
           echo "$sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          export PATH="$sdk/cmdline-tools/latest/bin:$PATH"
           (yes || true) | sdkmanager --sdk_root="$sdk" --licenses
           sdkmanager --sdk_root="$sdk" 'platform-tools' 'emulator' 'platforms;android-35' 'system-images;android-35;google_apis;arm64-v8a'
           file "$sdk/emulator/emulator" | tee "$RUNNER_TEMP/arm64-emulator-results/host-binary.txt"
