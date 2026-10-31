@@ -494,7 +494,12 @@ implementation
 uses
   Classes, SysUtils, StrUtils, TypInfo, Math,
   KM_Entity,
-  KM_GameApp, KM_Game, KM_GameParams, KM_GameSettings,
+  {$IFDEF ANDROID}
+  KM_GameRuntime,
+  {$ELSE}
+  KM_GameApp,
+  {$ENDIF}
+  KM_Game, KM_GameParams, KM_GameSettings,
   KM_HandsCollection, KM_HandEntity,
   KM_HouseMarket, KM_HouseBarracks, KM_HouseSchool, KM_HouseTownHall, KM_HouseStore, KM_HouseArmorWorkshop,
   KM_ScriptingEvents, KM_Alerts, KM_CommonUtils, KM_RenderUI,
@@ -509,6 +514,14 @@ const
 var
   GIC_COMMAND_TYPE_MAX_LENGTH: Byte;
 
+function GameGlobalTickCount: Cardinal; inline;
+begin
+  {$IFDEF ANDROID}
+  Result := KMHostGetGlobalTickCount;
+  {$ELSE}
+  Result := gGameApp.GlobalTickCount;
+  {$ENDIF}
+end;
 
 function IsSelectedObjectCommand(aGIC: TKMGameInputCommandType): Boolean;
 begin
@@ -1169,7 +1182,7 @@ begin
                                                       aCommand.SmallIntParams[1]/10),
                                                       handId,
                                                       (aCommand.IntParams[0] or $FF000000),
-                                                      gGameApp.GlobalTickCount + ALERT_DURATION[atBeacon]);
+                                                      GameGlobalTickCount + ALERT_DURATION[atBeacon]);
 end;
 
 
