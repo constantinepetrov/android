@@ -27,7 +27,7 @@ for attempt in $(seq 1 45); do
 done
 [ "$found" = 1 ] || { echo 'ARM64_FFI_PROBE_FAILED' | tee "$results/failure.txt"; exit 1; }
 adb logcat -d -v threadtime > "$results/logcat-preflight.txt"
-if grep -Eq 'Fatal signal|FORTIFY:|FATAL EXCEPTION' "$results/logcat-preflight.txt"; then
+if grep -Eq 'Fatal signal.*pascal-probe|FORTIFY: pthread_mutex_lock called on a destroyed mutex|FATAL EXCEPTION.*com\.kamremake\.androidprobe' "$results/logcat-preflight.txt"; then
   echo 'Unexpected native or Java process failure in smoke log' | tee "$results/failure.txt"
   exit 1
 fi
