@@ -2,7 +2,6 @@ unit KM_Resource;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
   Classes, SysUtils,
   KM_CommonTypes, KM_Defaults,
   KM_ResTypes,
