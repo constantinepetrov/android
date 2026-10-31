@@ -138,7 +138,9 @@ type
     procedure ScanWarriorSounds;
     function LoadWarriorSoundsFromFile(const aFile: string): Boolean;
     procedure SaveWarriorSoundsToFile(const aFile: string);
+    {$IFNDEF ANDROID}
     procedure ExportCSV(const aFilename: string);
+    {$ENDIF}
   public
     fWaves: array of TKMSoundData;
 
@@ -375,6 +377,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 procedure TKMResSounds.ExportCSV(const aFilename: string);
 var
   sw: TStreamWriter;
@@ -413,6 +416,7 @@ begin
     sw.Free;
   end;
 end;
+{$ENDIF}
 
 
 procedure TKMResSounds.ExportSounds;
