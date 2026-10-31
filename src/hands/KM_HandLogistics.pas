@@ -365,8 +365,8 @@ uses
   System.Classes, System.SysUtils, System.TypInfo,
   KM_Entity,
   KM_Terrain,
-  KM_FormLogistics, KM_UnitTaskDelivery,
-  KM_Main, KM_Game, KM_GameParams, KM_Hand, KM_HandsCollection, KM_HouseBarracks, KM_HouseStore,
+  {$IFNDEF ANDROID} KM_FormLogistics, {$ENDIF} KM_UnitTaskDelivery,
+  {$IFNDEF ANDROID} KM_Main, {$ENDIF} KM_Game, KM_GameParams, KM_Hand, KM_HandsCollection, KM_HouseBarracks, KM_HouseStore,
   KM_UnitWarrior,
   KM_Resource, KM_ResHouses, KM_ResUnits,
   KM_Log, KM_Utils, KM_CommonUtils, KM_DevPerfLog, KM_DevPerfLogTypes;
@@ -641,7 +641,12 @@ end;
 
 function TKMDeliveries.AllowFormLogisticsChange: Boolean;
 begin
+  {$IFDEF ANDROID}
+  // The desktop logistics inspector is a debug form, not part of game simulation.
+  Result := False;
+  {$ELSE}
   Result := gMain.IsDebugChangeAllowed and Assigned(FormLogistics) and FormLogistics.IsEnabled;
+  {$ENDIF}
 end;
 
 
