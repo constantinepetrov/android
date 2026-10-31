@@ -318,19 +318,20 @@ uses
   {$ENDIF}
   {$IFDEF FPC}
   Types,
-  {$IFDEF Unix}
+  {$IFDEF Unix}{$IFNDEF ANDROID}
   LCLType, Controls,
-  {$ENDIF}
+  {$ENDIF}{$ENDIF}
   {$ENDIF}
   {$IFDEF WDC} System.Types, {$ENDIF}
   Classes, SysUtils, Math, TypInfo,
-  Dialogs,
+  {$IFNDEF ANDROID} Dialogs, {$ENDIF}
   {$IFDEF WDC} UITypes, {$ENDIF}
   KromUtils,
   KM_Sound, KM_ScriptSound,
   KM_PathFindingAStarOld, KM_PathFindingAStarNew, KM_PathFindingJPS,
   KM_Projectiles, KM_AIFields, KM_NetTypes,
-  KM_Main, KM_System, KM_GameApp, KM_RenderPool, KM_GameInfo, KM_GameClasses,
+  {$IFDEF ANDROID} KM_GameRuntime, {$ELSE} KM_Main, KM_GameApp, {$ENDIF}
+  KM_System, KM_RenderPool, KM_GameInfo, KM_GameClasses,
   KM_Terrain, KM_TerrainTypes, KM_HandsCollection, KM_HandSpectator, KM_MapEdTypes,
   KM_MissionScript, KM_MissionScript_Info, KM_MissionScript_Standard,
   KM_GameInputProcess_Multi, KM_GameInputProcess_Single,
@@ -348,6 +349,86 @@ uses
 const
   LAST_SAVES_MAX_CNT = 5; // Max number of save names to collect for crashreport
 
+function HostGetGameTickInterval: Cardinal;
+begin
+  {$IFDEF ANDROID}
+  Result := KMHostGetGameTickInterval;
+  {$ELSE}
+  Result := gMain.GameTickInterval;
+  {$ENDIF}
+end;
+
+procedure HostSetGameTickInterval(aInterval: Cardinal);
+begin
+  {$IFDEF ANDROID}
+  KMHostSetGameTickInterval(aInterval);
+  {$ELSE}
+  gMain.SetGameTickInterval(aInterval);
+  {$ENDIF}
+end;
+
+function HostGetGlobalTickCount: Cardinal;
+begin
+  {$IFDEF ANDROID}
+  Result := KMHostGetGlobalTickCount;
+  {$ELSE}
+  Result := gGameApp.GlobalTickCount;
+  {$ENDIF}
+end;
+
+function HostLockGameMutex: Boolean;
+begin
+  {$IFDEF ANDROID}
+  Result := KMHostLockGame;
+  {$ELSE}
+  Result := gMain.LockMutex;
+  {$ENDIF}
+end;
+
+procedure HostUnlockGameMutex;
+begin
+  {$IFDEF ANDROID}
+  KMHostUnlockGame;
+  {$ELSE}
+  gMain.UnlockMutex;
+  {$ENDIF}
+end;
+
+procedure HostSetSuppressMenuAlt(aValue: Boolean);
+begin
+  {$IFNDEF ANDROID}
+  if gMain <> nil then gMain.FormMain.SuppressAltForMenu := aValue;
+  {$ENDIF}
+end;
+
+procedure HostStopGame(aMsg: TKMGameResultMsg; const aText: UnicodeString);
+begin
+  {$IFDEF ANDROID}
+  KMHostStopGame(aMsg, aText);
+  {$ELSE}
+  gGameApp.StopGame(aMsg, aText);
+  {$ENDIF}
+end;
+
+procedure HostStartReplay(const aSavePath: UnicodeString);
+begin
+  {$IFDEF ANDROID}
+  KMHostStartReplay(aSavePath);
+  {$ELSE}
+  gGameApp.NewGameReplay(aSavePath);
+  {$ENDIF}
+end;
+
+procedure HostNotifyGameSpeedActualChange(aSpeed: Single);
+begin
+  {$IFDEF ANDROID}
+  if Assigned(KMGameHost.GameSpeedChanged) then KMGameHost.GameSpeedChanged(aSpeed);
+  {$ELSE}
+  if Assigned(gGameApp.OnGameSpeedActualChange) then gGameApp.OnGameSpeedActualChange(aSpeed);
+  {$ENDIF}
+end;
+
+
 { TKMGame }
 // Create template for the Game
 // aRender - who will be rendering the Game session
@@ -364,7 +445,7 @@ begin
 
   // Suppress Alt key for menu while in the game. We can use Alt key as a modificator for some hotkeys (for School hotkeys, f.e.)
   if gMain <> nil then
-    gMain.FormMain.SuppressAltForMenu := True;
+    HostSetSuppressMenuAlt(True);
 
   fParams := TKMGameParams.Create(aGameMode, RecalcMapCRC, VisibleLayersWereSet, fSetGameTickEvent, fSetGameTickFracEvent,
                                   fSetGameModeEvent, fSetMissionFileSP, fSetBlockPointer);
@@ -471,12 +552,12 @@ end;
 destructor TKMGame.Destroy;
 begin
   if gMain <> nil then
-    gMain.FormMain.SuppressAltForMenu := False;
+    HostSetSuppressMenuAlt(False);
 
   // We might have crashed part way through .Create, so we can't assume ANYTHING exists here.
   // Doing so causes a 2nd exception which overrides 1st. Hence check <> nil on everything except Frees, TObject.Free does that already.
 
-  if fLockedMutex then gMain.UnlockMutex;
+  if fLockedMutex then HostUnlockGameMutex;
   fIsExiting := True;
 
   // if (fGameInputProcess <> nil) and (fGameInputProcess.ReplayState = gipRecording) then
@@ -1105,7 +1186,7 @@ begin
   else
   begin
     gNetworking.Disconnect;
-    gGameApp.StopGame(grDisconnect, gResTexts[TX_GAME_ERROR_NETWORK] + ' ' + aReason);
+    HostStopGame(grDisconnect, gResTexts[TX_GAME_ERROR_NETWORK] + ' ' + aReason);
   end;
 end;
 
@@ -1147,6 +1228,17 @@ begin
   begin
     // Stop game from executing while the user views the message
     fIsPaused := True;
+    {$IFDEF ANDROID}
+    case KMHostReplayMismatch(gResTexts[TX_REPLAY_FAILED]) of
+      rmdContinue: fIsPaused := False;
+      rmdContinueAlways: begin
+        fIgnoreConsistencyCheckErrors := True;
+        fIsPaused := False;
+      end;
+    else
+      HostStopGame(grError, gResTexts[TX_REPLAY_FAILED]);
+    end;
+    {$ELSE}
     case MessageDlg(gResTexts[TX_REPLAY_FAILED], mtWarning, [mbYes, mbYesToAll, mbNo], 0) of
       mrYes:      fIsPaused := False;
       mrYesToAll: begin
@@ -1154,8 +1246,9 @@ begin
                     fIsPaused := False;
                   end;
     else
-      gGameApp.StopGame(grError);
+      HostStopGame(grError, gResTexts[TX_REPLAY_FAILED]);
     end;
+    {$ENDIF}
   end;
 end;
 
@@ -1539,7 +1632,7 @@ begin
     // How far in the past should we render? (0.0=Current tick, 1.0=Previous tick)
     if gGameSettings.GFX.InterpolatedRender then
     begin
-      tickLag := TimeSince(fLastUpdateState) / gMain.GameTickInterval;
+      tickLag := TimeSince(fLastUpdateState) / HostGetGameTickInterval;
       tickLag := 1.0 - tickLag;
       tickLag := EnsureRange(tickLag, 0.0, 1.0);
     end
@@ -1570,7 +1663,7 @@ end;
 // Used to restart game / replay while debugging
 procedure TKMGame.RestartReplay;
 begin
-  gGameApp.NewGameReplay(ChangeFileExt(ExeDir + fLastSaveFileRel, EXT_SAVE_BASE_DOT));
+  HostStartReplay(ChangeFileExt(ExeDir + fLastSaveFileRel, EXT_SAVE_BASE_DOT));
 end;
 
 
@@ -1598,13 +1691,20 @@ begin
   Result := GetLocalizedFilePath(ExeDir + ChangeFileExt(fParams.MissionFileRel, '.' + string(aSound)),
                                  gResLocales.UserLocale, gResLocales.FallbackLocale, AUDIO_EXT[aAudioFormat]);
 
-  // Try to load Campaign specific audio file in the campaign Sounds folder (not mission specific)
-  if fParams.IsCampaign and (gGameApp.Campaigns.ActiveCampaign <> nil) and not FileExists(Result) then
+  // Campaign-specific audio remains resolved by the session host on Android.
+  if fParams.IsCampaign and not FileExists(Result) then
   begin
-    camp := gGameApp.Campaigns.ActiveCampaign;
-    // check for Campaigns\CampaignName\Sounds\CMP.SoundName.locale.ext
-    Result := GetLocalizedFilePath(camp.Path + CAMPAIGN_SOUNDS_FOLDER_NAME + PathDelim + camp.Spec.IdStr + '.' + UnicodeString(aSound),
-                                   gResLocales.UserLocale, gResLocales.FallbackLocale, AUDIO_EXT[aAudioFormat]);
+    {$IFDEF ANDROID}
+    Result := KMHostCampaignSoundPath(aSound, aAudioFormat);
+    {$ELSE}
+    if gGameApp.Campaigns.ActiveCampaign <> nil then
+    begin
+      camp := gGameApp.Campaigns.ActiveCampaign;
+      // check for Campaigns\CampaignName\Sounds\CMP.SoundName.locale.ext
+      Result := GetLocalizedFilePath(camp.Path + CAMPAIGN_SOUNDS_FOLDER_NAME + PathDelim + camp.Spec.IdStr + '.' + UnicodeString(aSound),
+                                     gResLocales.UserLocale, gResLocales.FallbackLocale, AUDIO_EXT[aAudioFormat]);
+    end;
+    {$ENDIF}
   end;
 end;
 
@@ -1888,8 +1988,7 @@ begin
   if fParams.IsMultiPlayerOrSpec and (fGameInputProcess <> nil) then
     TKMGameInputProcess_Multi(fGameInputProcess).AdjustDelay(fSpeedActual);
 
-  if Assigned(gGameApp.OnGameSpeedActualChange) then
-    gGameApp.OnGameSpeedActualChange(fSpeedActual);
+  HostNotifyGameSpeedActualChange(fSpeedActual);
 
   GameSpeedActualChanged(oldGameSpeed, fSpeedActual);
 end;
@@ -1904,12 +2003,12 @@ begin
   if fSpeedActual > 5 then
   begin
     fSpeedMultiplier := Round(fSpeedActual / 4);
-    gMain.SetGameTickInterval(Round(gGameSettings.SpeedPace / fSpeedActual * fSpeedMultiplier));
+    HostSetGameTickInterval(Round(gGameSettings.SpeedPace / fSpeedActual * fSpeedMultiplier));
   end
   else
   begin
     fSpeedMultiplier := 1;
-    gMain.SetGameTickInterval(Round(gGameSettings.SpeedPace / fSpeedActual));
+    HostSetGameTickInterval(Round(gGameSettings.SpeedPace / fSpeedActual));
   end;
 
   fGamePlayInterface.UpdateClockUI;
@@ -2532,7 +2631,7 @@ begin
     // If we're loading in multiplayer mode we have already locked the mutex when entering multiplayer menu,
     // which is better than aborting loading in a multiplayer game (spoils it for everyone else too)
     if saveIsMultiplayer and (fParams.Mode in [gmSingle, gmCampaign, gmReplaySingle, gmReplayMulti]) then
-      if gMain.LockMutex then
+      if HostLockGameMutex then
         fLockedMutex := True // Remember so we unlock it in Destroy
       else
         // Abort loading (exception will be caught in gGameApp and shown to the user)
@@ -3002,7 +3101,7 @@ function TKMGame.CheckPauseGameAtTick: Boolean;
     IsPaused := True;
     // Set replay UI to paused state, sync replay timer and other UI elements
     fGamePlayInterface.UpdateReplayButtons;
-    fGamePlayInterface.UpdateState(gGameApp.GlobalTickCount);
+    fGamePlayInterface.UpdateState(HostGetGlobalTickCount);
   end;
 
 begin
@@ -3274,7 +3373,7 @@ begin
         gmMapEd:          begin
                             fLastUpdateState := TimeGet;
                             {$IFDEF DBG_PERFLOG}
-                            gPerfLogs.TickBegin(gGameApp.GlobalTickCount);
+                            gPerfLogs.TickBegin(HostGetGlobalTickCount);
                             {$ENDIF}
                             gTerrain.IncAnimStep;
                             gHands.IncAnimStep;
