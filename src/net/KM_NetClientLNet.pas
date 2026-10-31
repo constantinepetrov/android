@@ -2,7 +2,7 @@ unit KM_NetClientLNet;
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Math, SysUtils, LNet, dialogs;
+  Classes, Math, SysUtils, LNet;
 
 
 { This unit knows nothing about KaM, it's just a puppet in hands of KM_ClientControl,
