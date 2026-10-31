@@ -63,7 +63,7 @@ type
 
   published
     function KMPoint(X,Y: Integer): TKMPoint;
-
+  public
     function Ln(const X: Extended): Extended;
     function Log2(const X: Extended): Extended;
     function Log10(const X: Extended): Extended;
