@@ -1,9 +1,11 @@
 program ps_game_probe;
 {$mode delphi}
+{$M+}
 uses SysUtils, uPSCompiler, uPSRuntime, uPSUtils, KM_Points;
 type
  TFacade=class
    bias:Integer;
+ published
    function Point(X,Y:Integer):TKMPoint;
    procedure OutValue(X:Integer; out V:Integer);
  end;
