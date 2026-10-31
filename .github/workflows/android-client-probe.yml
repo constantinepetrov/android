@@ -62,6 +62,12 @@ jobs:
           test "$status" -eq 0 || test "$status" -eq 2
       - name: Test platform-neutral font identifiers
         run: PORT_TEST_DIR="$RUNNER_TEMP/font-types" bash android-port/tests/test-font-types-linux.sh
+      - name: Test Android PNG codec round-trip
+        run: |
+          mkdir -p "$RUNNER_TEMP/png-codec"
+          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" -Fu"$GITHUB_WORKSPACE/src/common" -Fu"$GITHUB_WORKSPACE/src/utils/io" \
+            -FU"$RUNNER_TEMP/png-codec" -FE"$RUNNER_TEMP/png-codec" android-port/tests/png_codec_smoke.pas
+          "$RUNNER_TEMP/png-codec/png_codec_smoke"
       - name: Test real terrain type operations on Linux
         run: LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/terrain-types" bash android-port/tests/test-terrain-types-linux.sh
       - name: Test Android unit CSV exporter with synthetic data
