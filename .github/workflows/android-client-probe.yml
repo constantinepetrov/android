@@ -30,7 +30,7 @@ jobs:
       - name: Install bootstrap compiler and cross assembler
         run: |
           sudo apt-get update
-          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 fp-units-fcl-3.2.2 binutils-aarch64-linux-gnu
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 fp-units-fcl-3.2.2 libffi-dev binutils-aarch64-linux-gnu
       - name: Check Android-conditional KromUtils behavior on Linux
         run: |
           mkdir -p "$RUNNER_TEMP/krom-test"
@@ -59,6 +59,18 @@ jobs:
           set -e
           # Exit 2 records an unavailable call manager; do not claim RTTI support.
           test "$status" -eq 0 || test "$status" -eq 2
+      - name: Run Pascal Script game-type invocation on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/ps-game" \
+            bash android-port/tests/test-pascal-script-linux.sh 2>&1 | tee "$RUNNER_TEMP/ps-game-test.log"
+      - name: Compare FPC 3.2.2 libffi manager ABI on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          FPC_SOURCE="$GITHUB_WORKSPACE/fpc-source" LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/ffi-abi" \
+            bash android-port/tests/test-ffi-abi-linux.sh 2>&1 | tee "$RUNNER_TEMP/ffi-abi-test.log"
       - name: Cache FPC cross compiler
         id: fpc-cache
         uses: actions/cache@v4
@@ -92,6 +104,8 @@ jobs:
             ${{ runner.temp }}/cross-build.log
             ${{ runner.temp }}/client-build.log
             ${{ runner.temp }}/rtti-probe.log
+            ${{ runner.temp }}/ffi-abi-test.log
+            ${{ runner.temp }}/ps-game-test.log
             ${{ runner.temp }}/game-options-test.log
             ${{ runner.temp }}/map-header-build.log
             ${{ runner.temp }}/client-units/
