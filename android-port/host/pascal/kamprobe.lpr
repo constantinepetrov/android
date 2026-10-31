@@ -1,6 +1,6 @@
 library kamprobe;
 {$mode delphi}
-uses KM_Sort, KM_AndroidMap, KM_FogOfWar;
+uses KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario;
 
 type TIntArray = array[0..2] of LongInt;
 function CompareInt(const A, B): Integer;
@@ -53,6 +53,7 @@ begin
       for y := 0 to 1 do for x := 0 to 2 do fog.Revelation[y,x] := 100;
       for t := 1 to 10 do fog.UpdateState(True);
       for y := 0 to 1 do for x := 0 to 2 do if fog.Revelation[y,x] <> 88 then Exit;
+      if not RunFogScenario then begin Result := -3; Exit end;
       Result := fog.Revelation[0,0];
     finally fog.Free end;
   except Result := -2 end;

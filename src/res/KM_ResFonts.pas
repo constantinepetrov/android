@@ -3,7 +3,7 @@ unit KM_ResFonts;
 interface
 uses
   SysUtils, Graphics,
-  KM_CommonTypes, KM_RenderTypes,
+  KM_CommonTypes, KM_RenderTypes, KM_FontTypes,
   KM_Points, KM_ResPalettes;
 
 
@@ -11,17 +11,18 @@ const
   FONT_TAB_WIDTH = 30;
 
 type
-  //* Font type
-  TKMFont = (
-    fntAntiqua,
-    fntGame,
-    fntGrey,
-    fntMetal,
-    fntMini,
-    fntOutline,
-    fntArial, // Arial for MP chat
-    fntMonospaced // Debug overlay font (Consolas 8. Set WordSpacing to any Char.Width)
-  );
+  // Public aliases preserve existing KM_ResFonts-qualified call sites.
+  TKMFont = KM_FontTypes.TKMFont;
+
+const
+  fntAntiqua = KM_FontTypes.fntAntiqua;
+  fntGame = KM_FontTypes.fntGame;
+  fntGrey = KM_FontTypes.fntGrey;
+  fntMetal = KM_FontTypes.fntMetal;
+  fntMini = KM_FontTypes.fntMini;
+  fntOutline = KM_FontTypes.fntOutline;
+  fntArial = KM_FontTypes.fntArial;
+  fntMonospaced = KM_FontTypes.fntMonospaced;
 
 const
   FontTypeName: array [TKMFont] of string = (

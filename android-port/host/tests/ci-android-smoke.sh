@@ -85,6 +85,9 @@ if [ "$ui_ok" -ne 1 ]; then
   exit 1
 fi
 adb logcat -d -s KaMProbe:I '*:S' > "$results/probe-stages.txt"
+if ! grep -q 'FOG_FLOW_OK reveal cover save/load and 20 updates' "$results/probe-stages.txt"; then
+  echo 'FOG_FLOW_MISSING' | tee "$results/failure.txt"; exit 1
+fi
 if ! grep -q 'FOG_STATE_UPDATE_OK 3x2 ticks=10 from=100 to=88' "$results/probe-stages.txt"; then
   echo "FOG_STATE_UPDATE_MISSING" | tee "$results/failure.txt"; exit 1
 fi

@@ -59,6 +59,10 @@ jobs:
           set -e
           # Exit 2 records an unavailable call manager; do not claim RTTI support.
           test "$status" -eq 0 || test "$status" -eq 2
+      - name: Test platform-neutral font identifiers
+        run: PORT_TEST_DIR="$RUNNER_TEMP/font-types" bash android-port/tests/test-font-types-linux.sh
+      - name: Test real terrain type operations on Linux
+        run: LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/terrain-types" bash android-port/tests/test-terrain-types-linux.sh
       - name: Test real fog-of-war state update on Linux
         shell: bash
         run: |
@@ -77,6 +81,12 @@ jobs:
           set -o pipefail
           FPC_SOURCE="$GITHUB_WORKSPACE/fpc-source" LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/ffi-abi" \
             bash android-port/tests/test-ffi-abi-linux.sh 2>&1 | tee "$RUNNER_TEMP/ffi-abi-test.log"
+      - name: Probe Pascal Script FPC invocation adapter on Linux
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" FFI_FIXED_SOURCE="$RUNNER_TEMP/ffi-abi/fixed" PORT_TEST_DIR="$RUNNER_TEMP/ps-compat" \
+            bash android-port/tests/test-pascalscript-compat-linux.sh 2>&1 | tee "$RUNNER_TEMP/ps-compat-linux.log"
       - name: Cache FPC cross compiler
         id: fpc-cache
         uses: actions/cache@v4
@@ -92,6 +102,33 @@ jobs:
           make -C fpc-source crossall crossinstall CPU_TARGET=aarch64 OS_TARGET=android \
             BINUTILSPREFIX=aarch64-linux-gnu- INSTALL_PREFIX="$RUNNER_TEMP/fpc-android" \
             2>&1 | tee "$RUNNER_TEMP/cross-build.log"
+      - name: Compile diagnostic FPC-compatible Pascal Script overlay for Android
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          test -n "$compiler" && test -n "$units"
+          python3 android-port/experiments/prepare-pascalscript-fpc.py src/ext/pascalscript_submodule/Source "$RUNNER_TEMP/ps-android-overlay"
+          mkdir -p "$RUNNER_TEMP/ps-android-units"
+          for unit in uPSRuntime.pas uPSCompiler.pas; do
+            "$compiler" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -B -Cn -Fi"$GITHUB_WORKSPACE" \
+              "-Fu$units/*" "-Fu$RUNNER_TEMP/ps-android-overlay" "-Fi$RUNNER_TEMP/ps-android-overlay" \
+              "-FU$RUNNER_TEMP/ps-android-units" "$RUNNER_TEMP/ps-android-overlay/$unit"
+          done 2>&1 | tee "$RUNNER_TEMP/ps-android-overlay.log"
+      - name: Compile KM_Game with diagnostic overlay (expected blockers retained)
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          set +e
+          FPC_ANDROID="$compiler" FPC_ANDROID_UNITS="$units" LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" LCL_SOURCE="$GITHUB_WORKSPACE/lazarus-source/lcl" PS_OVERLAY="$RUNNER_TEMP/ps-android-overlay" PORT_BUILD_DIR="$RUNNER_TEMP/client-overlay-units" \
+            bash android-port/experiments/compile-game-android.sh 2>&1 | tee "$RUNNER_TEMP/client-overlay.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "Diagnostic overlay compiler exit: $status"
+          if [ "$status" -ne 0 ]; then echo "Known diagnostics captured; no production patch applied"; fi
       - name: Compile actual KM_Game client unit
         shell: bash
         run: |
@@ -113,6 +150,10 @@ jobs:
             ${{ runner.temp }}/ffi-abi-test.log
             ${{ runner.temp }}/ps-game-test.log
             ${{ runner.temp }}/fog-game-test.log
+            ${{ runner.temp }}/ps-compat-linux.log
+            ${{ runner.temp }}/ps-android-overlay.log
+            ${{ runner.temp }}/client-overlay.log
+            ${{ runner.temp }}/ps-android-units/
             ${{ runner.temp }}/game-options-test.log
             ${{ runner.temp }}/map-header-build.log
             ${{ runner.temp }}/client-units/
