@@ -27,7 +27,7 @@ s = s.replace('Invoke(Address,', 'InvokeCompat(Address,')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended')
 s = s.replace('Double(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended)', 'InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended')
 s = s.replace('    ResValue: TValue;\nbegin', '    ResValue: TValue;\n    RttiMethod: TRttiMethod;\nbegin')
-record_anchor = "      {$ENDIF}\\n      else\\n//          writeln(stderr, 'Result type not implemented!');"
+record_anchor = "      {$ENDIF}\n      else\n//          writeln(stderr, 'Result type not implemented!');"
 record_case = """      {$ENDIF}
       {$IFDEF FPC}
       btRecord:
