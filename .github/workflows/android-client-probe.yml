@@ -65,7 +65,7 @@ jobs:
       - name: Test Android PNG codec round-trip
         run: |
           mkdir -p "$RUNNER_TEMP/png-codec"
-          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" -Fu"$GITHUB_WORKSPACE/src/common" -Fu"$GITHUB_WORKSPACE/src/utils/io" \
+          fpc -Mdelphi -dANDROID -Fi"$GITHUB_WORKSPACE" -Fu"$GITHUB_WORKSPACE/src/common" -Fu"$GITHUB_WORKSPACE/src/utils" -Fu"$GITHUB_WORKSPACE/src/utils/io" \
             -FU"$RUNNER_TEMP/png-codec" -FE"$RUNNER_TEMP/png-codec" android-port/tests/png_codec_smoke.pas
           "$RUNNER_TEMP/png-codec/png_codec_smoke"
       - name: Test real terrain type operations on Linux
