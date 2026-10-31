@@ -38,6 +38,7 @@ type
   private
     function GetExceptionOutsideScript: Boolean;
     procedure SetExceptionOutsideScript(aValue: Boolean);
+  private
     fExec: TPSExec;
     fPreProcessor: TPSPreProcessor;
 
