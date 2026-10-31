@@ -27,7 +27,7 @@ begin
  c.GetOutput(data);c.Free;
  ci:=TPSRuntimeClassImporter.Create;with ci.Add(TFacade) do begin RegisterMethod(@TFacade.Point,'Point'); RegisterMethod(@TFacade.OutValue,'OutValue') end;
  e:=TPSExec.Create; RegisterClassLibraryRuntime(e,ci);if not e.LoadData(data) then begin WriteLn('load failed');Halt(2) end;
- o:=TFacade.Create;o.bias:=7;PSRegisterRecordReturnType(@TFacade.Point,TypeInfo(TKMPoint));SetVariantToClass(e.GetVarNo(e.GetVar('UTILS')),o);
+ o:=TFacade.Create;o.bias:=7;SetVariantToClass(e.GetVarNo(e.GetVar('UTILS')),o);
  if not e.RunScript then begin WriteLn('run failed ',e.ExceptionString);Halt(3) end;
  WriteLn('PASCAL_SCRIPT_POINT_AND_OUT_OK (test facade using real TKMPoint.New)');e.Free;ci.Free;o.Free;
 end.
