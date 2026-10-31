@@ -18,6 +18,16 @@ type
     function Mix(Value: Single): Single;
     procedure OutValue(Value: Integer; out Output: Integer);
   end;
+type
+  TFogScriptResult = class
+    LastValue: Integer;
+    procedure Capture(Value: Integer);
+  end;
+function TFogScriptResult.Capture(Value: Integer);
+begin
+  LastValue := Value;
+end;
+
 function TScriptFacade.Add(Value: Integer): Integer; begin Result := Bias + Value end;
 function TScriptFacade.Mix(Value: Single): Single; begin Result := Bias + Value end;
 procedure TScriptFacade.OutValue(Value: Integer; out Output: Integer); begin Output := Bias + Value end;
@@ -37,7 +47,7 @@ const Source = 'var n: Integer; f: Single; begin n := Utils.Add(35); if n <> 42 
 var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
     Instance: TScriptFacade; Data: AnsiString;
 begin
-  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil; FogProbe := nil;
   try
     try
       Compiler := TPSPascalCompiler.Create; Compiler.OnUses := @RegisterScriptTypes;
@@ -116,19 +126,23 @@ begin
   if not C.RegisterMethod('procedure RevealEverything') then Exit(False);
   if not C.RegisterMethod('procedure UpdateState(aDynamicFOW: Boolean)') then Exit(False);
   if not C.RegisterMethod('function CheckTileRevelation(X, Y: Word): Byte') then Exit(False);
-  Result := AddImportedClassVariable(Sender, 'Fog', 'TKMFogOfWar');
+  if not AddImportedClassVariable(Sender, 'Fog', 'TKMFogOfWar') then Exit(False);
+  C := Sender.AddClassN(nil, 'TFogScriptResult');
+  if not C.RegisterMethod('procedure Capture(Value: Integer)') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Probe', 'TFogScriptResult');
 end;
 
 function RunFogStateScriptProbe: Integer;
 const
   Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
     + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
-    + 'i := Fog.CheckTileRevelation(1,1); end.';
+    + 'i := Fog.CheckTileRevelation(1,1); Probe.Capture(i); '    + 'if i <> 255 then i := 1 div (i-i); end.';
 var
   Compiler: TPSPascalCompiler;
   Exec: TPSExec;
   Importer: TPSRuntimeClassImporter;
   Instance: TKMFogOfWar;
+  FogProbe: TFogScriptResult;
   Data: AnsiString;
   X, Y: Integer;
 begin
@@ -148,20 +162,25 @@ begin
         RegisterMethod(@TKMFogOfWar.UpdateState, 'UpdateState');
         RegisterMethod(@TKMFogOfWar.CheckTileRevelation, 'CheckTileRevelation');
       end;
+      with Importer.Add(TFogScriptResult) do
+        RegisterMethod(@TFogScriptResult.Capture, 'Capture');
       Exec := TPSExec.Create;
       RegisterClassLibraryRuntime(Exec, Importer);
       if not Exec.LoadData(Data) then begin Result := -4; Exit end;
       Instance := TKMFogOfWar.Create(3, 2, False);
+      FogProbe := TFogScriptResult.Create;
       SetVariantToClass(Exec.GetVarNo(Exec.GetVar('FOG')), Instance);
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('PROBE')), FogProbe);
       if not Exec.RunScript then
       begin
         AndroidLog(AnsiString('FOG_STATE_SCRIPT_RUNTIME_ERROR code='
-          + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
+          + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)
+          + ' observedTile=' + IntToStr(FogProbe.LastValue)));
         Result := -5;
         Exit
       end;
       AndroidLog(AnsiString('FOG_STATE_SCRIPT_RESULT scriptTile='
-        + IntToStr(VGetInt(Exec.GetVarNo(Exec.GetVar('I'))))
+        + IntToStr(FogProbe.LastValue)
         + ' checkTile=' + IntToStr(Instance.CheckTileRevelation(1,1))
         + ' raw00=' + IntToStr(Instance.Revelation[0,0])));
       for Y := 0 to 1 do
@@ -176,7 +195,7 @@ begin
       on E: Exception do Result := -6;
     end;
   finally
-    Exec.Free; Importer.Free; Instance.Free; Compiler.Free;
+    Exec.Free; Importer.Free; Instance.Free; FogProbe.Free; Compiler.Free;
   end;
 end;
 end.
