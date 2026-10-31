@@ -1,0 +1,25 @@
+name: Inspect ARM64 runner for Android emulation
+on:
+  push:
+    branches: [codex/android-native-port]
+    paths: ['.github/workflows/android-arm-runner-availability.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 8
+    steps:
+      - name: Inspect runner architecture and emulator availability
+        shell: bash
+        run: |
+          uname -a
+          printf 'Android SDK path: %s\n' "${ANDROID_HOME:-unset}"
+          command -v adb || true
+          command -v emulator || true
+          ls -l /dev/kvm || true
+          if [ -n "${ANDROID_HOME:-}" ] && [ -e "$ANDROID_HOME/emulator/emulator" ]; then
+            file "$ANDROID_HOME/emulator/emulator"
+            "$ANDROID_HOME/emulator/emulator" -version || true
+          fi
