@@ -26,9 +26,11 @@ begin
   S.WriteBuffer(B, 4);
 end;
 
-function CRC32(S: TStream; Count: Int64): Cardinal;
-var I, K: Int64; C: Cardinal; B: Byte;
+function CRC32(S: TStream; Start, Count: Int64): Cardinal;
+var I, K, RestorePosition: Int64; C: Cardinal; B: Byte;
 begin
+  RestorePosition := S.Position;
+  S.Position := Start;
   C := $FFFFFFFF;
   for I := 1 to Count do begin
     S.ReadBuffer(B, 1);
@@ -36,6 +38,7 @@ begin
     for K := 0 to 7 do
       if (C and 1) <> 0 then C := (C shr 1) xor $EDB88320 else C := C shr 1;
   end;
+  S.Position := RestorePosition;
   Result := not C;
 end;
 
@@ -65,7 +68,7 @@ begin
     Data.Position := 0;
     S.CopyFrom(Data, DataSize);
   end;
-  C := CRC32(S, S.Position - Start);
+  C := CRC32(S, Start, S.Position - Start);
   WriteBE32(S, C);
 end;
 
@@ -76,7 +79,8 @@ var
   Z: TDecompressionStream;
   Sig: array[0..7] of Byte;
   ChunkName: array[0..3] of AnsiChar;
-  ChunkLen, W, H: Cardinal;
+  ChunkLen, W, H, ExpectedCRC: Cardinal;
+  ChunkStart: Int64;
   BitDepth, ColorType, Interlace, Filter, Channels, Bpp: Byte;
   Palette, Transparency, IDAT, Row, Prev: TByteArray;
   I, J, X, Y, RowBytes, Sample: Integer;
@@ -99,6 +103,7 @@ begin
     while F.Position < F.Size do begin
       ChunkLen := ReadBE32(F);
       if ChunkLen > 67108864 then raise Exception.Create('PNG chunk exceeds 64 MiB');
+      ChunkStart := F.Position;
       F.ReadBuffer(ChunkName, 4);
       if string(ChunkName) = 'IHDR' then begin
         if ChunkLen <> 13 then raise Exception.Create('Invalid PNG IHDR length');
@@ -106,15 +111,13 @@ begin
         F.ReadBuffer(BitDepth, 1); F.ReadBuffer(ColorType, 1);
         F.Position := F.Position + 2; // compression and filter method
         F.ReadBuffer(Interlace, 1);
-        F.Position := F.Position + 4; // CRC; validated by the container/runtime
+        // CRC is consumed and checked below.
       end else if string(ChunkName) = 'IDAT' then begin
         I := Length(IDAT); SetLength(IDAT, I + ChunkLen);
         if ChunkLen > 0 then F.ReadBuffer(IDAT[I], ChunkLen);
-        F.Position := F.Position + 4;
       end else if string(ChunkName) = 'PLTE' then begin
         SetLength(Palette, ChunkLen);
         if ChunkLen > 0 then F.ReadBuffer(Palette[0], ChunkLen);
-        F.Position := F.Position + 4;
       end else if string(ChunkName) = 'tRNS' then begin
         SetLength(Transparency, ChunkLen);
         if ChunkLen > 0 then F.ReadBuffer(Transparency[0], ChunkLen);
@@ -125,10 +128,12 @@ begin
           TG := (Word(Transparency[2]) shl 8) or Transparency[3];
           TB := (Word(Transparency[4]) shl 8) or Transparency[5]; HaveRGB := True;
         end;
-        F.Position := F.Position + 4;
       end else begin
-        F.Position := F.Position + ChunkLen + 4;
+        F.Position := F.Position + ChunkLen;
       end;
+      ExpectedCRC := ReadBE32(F);
+      if CRC32(F, ChunkStart, 4 + ChunkLen) <> ExpectedCRC then
+        raise Exception.CreateFmt('PNG CRC mismatch in %.4s chunk', [string(ChunkName)]);
       if string(ChunkName) = 'IEND' then Break;
     end;
     if (W = 0) or (H = 0) or (W > 65535) or (H > 65535) then
@@ -148,6 +153,7 @@ begin
       raise Exception.Create('Indexed PNG has no valid palette');
     if (Int64(W) * H > 16777216) then raise Exception.Create('PNG image exceeds 16 megapixels');
     RowBytes := Integer(W) * Channels; Bpp := Channels;
+    if Length(IDAT) = 0 then raise Exception.Create('PNG contains no image data');
     Compressed.WriteBuffer(IDAT[0], Length(IDAT)); Compressed.Position := 0;
     Z := TDecompressionStream.Create(Compressed);
     try Raw.CopyFrom(Z, 0); finally Z.Free; end;
