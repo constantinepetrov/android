@@ -2,8 +2,6 @@ unit KM_Render;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF WDC} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, OpenGLContext, {$ENDIF}
   dglOpenGL,
   KM_RenderControl, KM_RenderQuery, KM_RenderTypes, KM_CommonTypes;
 
