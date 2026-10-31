@@ -417,7 +417,8 @@ uses
   {$IFNDEF ANDROID} Clipbrd, {$ENDIF}
   KromUtils,
   KM_System,
-  KM_ControlsBase, KM_ControlsDragger, KM_ControlsEdit, KM_ControlsSwitch, KM_ControlsTrackBar, KM_ControlsTypes,
+  KM_ControlsBase, KM_ControlsDragger, KM_ControlsEdit, KM_ControlsSwitch, KM_ControlsTrackBar,
+  {$IFNDEF ANDROID} KM_ControlsTypes, {$ENDIF}
   KM_ControlsWaresRow,
   KM_Resource, KM_ResSprites, KM_ResSound, KM_ResTexts, KM_ResKeys,
   KM_Render, KM_RenderTypes,
