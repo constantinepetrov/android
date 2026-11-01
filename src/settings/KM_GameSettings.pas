@@ -3,7 +3,7 @@ unit KM_GameSettings;
 interface
 uses
   Classes,
-  {$IFDEF FPC}Forms,{$ENDIF}   //Lazarus do not know UITypes
+  {$IF DEFINED(FPC) AND NOT DEFINED(ANDROID)}Forms,{$IFEND}   //Lazarus desktop UITypes
   {$IFDEF WDC}UITypes,{$ENDIF} //We use settings in console modules
   KM_WareDistribution, KM_MapTypes,
   KM_Defaults, KM_CommonTypes,

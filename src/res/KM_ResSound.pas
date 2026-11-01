@@ -2,7 +2,6 @@ unit KM_ResSound;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
   KM_Defaults;
 
 type
@@ -139,7 +138,9 @@ type
     procedure ScanWarriorSounds;
     function LoadWarriorSoundsFromFile(const aFile: string): Boolean;
     procedure SaveWarriorSoundsToFile(const aFile: string);
+    {$IFNDEF ANDROID}
     procedure ExportCSV(const aFilename: string);
+    {$ENDIF}
   public
     fWaves: array of TKMSoundData;
 
@@ -167,7 +168,7 @@ type
 
 implementation
 uses
-  System.Classes, System.SysUtils, System.TypInfo, System.Math, System.StrUtils,
+  Classes, SysUtils, TypInfo, Math, StrUtils,
   KromUtils,
   KM_CommonClasses;
 
@@ -315,10 +316,13 @@ var
   Head: record Size, Count: Word; end;
   soundFlag: array [1..200] of Integer;
   footerSize: array [1..200] of Integer;
+  memoryStream: TMemoryStream;
+  I, K: Integer;
+  numberOfEntries, t, entrySize: Integer;
 begin
   if not FileExists(ExeDir + 'data' + PathDelim + 'sfx' + PathDelim + 'sounds.dat') then Exit;
 
-  var memoryStream := TMemoryStream.Create;
+  memoryStream := TMemoryStream.Create;
   try
     memoryStream.LoadFromFile(ExeDir + 'data' + PathDelim + 'sfx' + PathDelim + 'sounds.dat');
     memoryStream.Read(Head, 4);
@@ -328,7 +332,7 @@ begin
     fWavesCount := Head.Count;
     SetLength(fWaves, fWavesCount+1);
 
-    for var I := 1 to Head.Count do
+    for I := 1 to Head.Count do
     begin
       footerSize[I] := 0;
 
@@ -344,7 +348,7 @@ begin
         memoryStream.Read(fWaves[I].Data[0], fWaves[I].Head.DataSize);
 
         // Footer contains optional LIST INFO chunks (start is aligned to 2-byte boundaries):
-        //  - ICOP - Copyright information about the file (e.g., "Copyright © Microsoft Corp. 1995")
+        //  - ICOP - Copyright information about the file (e.g., "Copyright Â© Microsoft Corp. 1995")
         //  - ICRD - The date the subject of the file was created (e.g., "1995-10-24.A")
         //  - ISFT - Name of the software package used to create the file (e.g. "GoldWave v2.10 (C) Chris Craig")
         // Since these chunks do not bear any functional load, we just ignore them
@@ -355,17 +359,14 @@ begin
       fWaves[I].IsLoaded := True;
     end;
 
-    var numberOfEntries: Integer;
     memoryStream.Read(numberOfEntries, 4); // 400
     SetLength(fWaveProps, numberOfEntries+1);
-    var t: Integer;
     memoryStream.Read(t, 4); // 78
     memoryStream.Read(t, 4); // 78
     memoryStream.Read(t, 4); // 77
-    var entrySize: Integer;
     memoryStream.Read(entrySize, 4); // 26
 
-    for var K := 1 to numberOfEntries do
+    for K := 1 to numberOfEntries do
       memoryStream.Read(fWaveProps[K], entrySize);
   finally
     memoryStream.Free;
@@ -376,14 +377,19 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 procedure TKMResSounds.ExportCSV(const aFilename: string);
+var
+  sw: TStreamWriter;
+  K, dur: Integer;
 begin
-  var sw := TStreamWriter.Create(aFilename);
+  sw := TStreamWriter.Create(aFilename);
+  try
   sw.WriteLine('Id,Name,WAVSize,Tab2,Rate,BPS,Length,|,Rate,Volume,E,F,G,H,I,J,K,L,Id');
-  for var K := 1 to fWavesCount do
+  for K := 1 to fWavesCount do
   if Length(fWaves[K].Data) > 0 then
   begin
-    var dur := Round(fWaves[K].Head.DataSize / Max(fWaves[K].Head.BytesPerSecond, 1) * 1000);
+    dur := Round(fWaves[K].Head.DataSize / Max(fWaves[K].Head.BytesPerSecond, 1) * 1000);
 
     sw.Write(IntToStr(K) + ',');
     sw.Write(SFX_NAME[TKMSoundEffectOriginal(K)] + ',');
@@ -406,8 +412,11 @@ begin
     sw.Write(IntToStr(fWaveProps[K].Id) + ',');
     sw.WriteLine;
   end;
-  sw.Free;
+  finally
+    sw.Free;
+  end;
 end;
+{$ENDIF}
 
 
 procedure TKMResSounds.ExportSounds;
@@ -507,13 +516,15 @@ end;
 
 
 function TKMResSounds.GetSoundSampleRate(aSFX: TKMSoundEffectOriginal): Integer;
+var
+  soundIndex, I: Integer;
 begin
   // Unfortunately WaveProps are stored slightly unordered
   // It would be better to reorder them to be in sync with Waves later on
-  var soundIndex := Ord(aSFX) - 1;
+  soundIndex := Ord(aSFX) - 1;
 
   Result := 0;
-  for var I := 1 to High(fWaveProps) do
+  for I := 1 to High(fWaveProps) do
   if fWaveProps[I].Id = soundIndex then
     Exit(fWaveProps[I].SampleRate);
 end;

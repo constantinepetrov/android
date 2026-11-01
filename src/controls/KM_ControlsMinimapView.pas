@@ -2,7 +2,7 @@
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Controls,
+  Classes, {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KromOGLUtils,
   KM_RenderUI, KM_Minimap, KM_Viewport,
   KM_ResFonts, KM_CommonTypes, KM_Points, KM_Defaults,

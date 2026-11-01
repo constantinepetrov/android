@@ -5,7 +5,7 @@ uses
   Classes,
   KM_Resolutions,
   KM_Defaults,
-  KM_WindowParams,
+  KM_WindowParams, KM_WindowTypes,
   KM_IoXML,
   KM_GameAppSettingsPart;
 
@@ -47,8 +47,7 @@ var
 
 implementation
 uses
-  SysUtils, Math,
-  Forms;
+  SysUtils, Math;
 
 const
   NO_RENDER_MAX_TIME_MIN = 10; //in ms
@@ -112,8 +111,8 @@ begin
     fWindowParams.Top       := nWindow.Attributes['Top'].AsInteger(-1);
     fWindowParams.Width     := nWindow.Attributes['Width'].AsInteger(Max(MENU_DESIGN_X, fScreenWidth));
     fWindowParams.Height    := nWindow.Attributes['Height'].AsInteger(Max(MENU_DESIGN_Y, fScreenHeight));
-    fWindowParams.State     := TWindowState(EnsureRange(nWindow.Attributes['State'].AsInteger(Integer(wsNormal)), 0, 2));
-    fWindowParams.Position  := TPosition(EnsureRange(nWindow.Attributes['Position'].AsInteger(Integer(poScreenCenter)), 0, 7));
+    fWindowParams.State     := WindowStateFromXMLCode(nWindow.Attributes['State'].AsInteger(KM_WINDOW_STATE_DEFAULT_CODE));
+    fWindowParams.Position  := WindowPositionFromXMLCode(nWindow.Attributes['Position'].AsInteger(KM_WINDOW_POSITION_DEFAULT_CODE));
     fWindowParams.FixedPosition  := nWindow.Attributes['FixedPosition'].AsBoolean(False);
   end else
     fWindowParams.NeedResetToDefaults := True;
@@ -125,8 +124,8 @@ begin
     fNoRenderMaxTime := NO_RENDER_MAX_TIME_UNDEF;
 
   // Reset wsMinimized state to wsNormal
-  if (fWindowParams.State = TWindowState.wsMinimized) then
-    fWindowParams.State := TWindowState.wsNormal;
+  if (fWindowParams.State = kwsMinimized) then
+    fWindowParams.State := kwsNormal;
 end;
 
 
@@ -159,8 +158,8 @@ begin
     nWindow.Attributes['Top']           := fWindowParams.Top;
     nWindow.Attributes['Width']         := fWindowParams.Width;
     nWindow.Attributes['Height']        := fWindowParams.Height;
-    nWindow.Attributes['State']         := Ord(fWindowParams.State);
-    nWindow.Attributes['Position']      := Ord(fWindowParams.Position);
+    nWindow.Attributes['State']         := WindowStateToXMLCode(fWindowParams.State);
+    nWindow.Attributes['Position']      := WindowPositionToXMLCode(fWindowParams.Position);
     nWindow.Attributes['FixedPosition'] := fWindowParams.FixedPosition;
 
   // Misc

@@ -3,7 +3,7 @@ unit KM_DevPerfLog;
 interface
 uses
   Classes, Math, StrUtils, SysUtils,
-  Forms, Controls,
+  {$IFNDEF ANDROID} Forms, Controls, {$ENDIF}
   KM_CommonTypes,
   KM_DevPerfLogSingle, KM_DevPerfLogStack, KM_DevPerfLogTypes;
 
@@ -13,7 +13,7 @@ type
   TKMPerfLogs = class
   private
     fTick: Integer;
-    fPerfLogForm: TForm;
+    {$IFNDEF ANDROID} fPerfLogForm: TForm; {$ENDIF}
     fItems: array [TPerfSectionDev] of TKMPerfLogSingle;
     fStackCPU: TKMPerfLogStackCPU;
     fStackGFX: TKMPerfLogStackGFX;
@@ -21,7 +21,7 @@ type
     function GetStackCPU: TKMPerfLogStackCPU;
     function GetStackGFX: TKMPerfLogStackGFX;
 
-    procedure SetOnFormChanged(const aValue: TKMEvent);
+    {$IFNDEF ANDROID} procedure SetOnFormChanged(const aValue: TKMEvent); {$ENDIF}
 
     procedure SectionEnter(aSection: TPerfSectionDev; aTick: Integer; aTag: Integer = 0); overload;
   public
@@ -50,9 +50,11 @@ type
     procedure Render(aLeft, aWidth, aHeight: Integer);
     procedure SaveToFile(const aFilename: string; aSaveThreshold: Integer = 10);
 
+    {$IFNDEF ANDROID}
     procedure ShowForm(aContainer: TWinControl);
     property OnFormChanged: TKMEvent write SetOnFormChanged;
     function FormHeight: Integer;
+    {$ENDIF}
 
     procedure TickBegin(aTick: Integer);
     procedure TickEnd;
@@ -67,7 +69,7 @@ var
 
 implementation
 uses
-  KM_DevPerfLogForm,
+  {$IFNDEF ANDROID} KM_DevPerfLogForm, {$ENDIF}
   TypInfo, KM_Defaults, KM_RenderUI, KM_RenderAux, KM_ResFonts;
 
 
@@ -200,10 +202,12 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 procedure TKMPerfLogs.SetOnFormChanged(const aValue: TKMEvent);
 begin
   TFormPerfLogs(fPerfLogForm).OnFormChanged := aValue;
 end;
+{$ENDIF}
 
 
 procedure TKMPerfLogs.GameCreated;
@@ -346,6 +350,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 function TKMPerfLogs.FormHeight: Integer;
 begin
   Result := TFormPerfLogs(fPerfLogForm).FormHeight;
@@ -368,6 +373,7 @@ begin
 
   TFormPerfLogs(fPerfLogForm).Show(Self);
 end;
+{$ENDIF}
 
 
 procedure TKMPerfLogs.TickBegin(aTick: Integer);

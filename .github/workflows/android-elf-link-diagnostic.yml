@@ -1,0 +1,56 @@
+name: Android ELF link diagnostic
+on:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install assembler and Android NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binutils-aarch64-linux-gnu
+          manager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          "$manager" 'ndk;27.2.12479018'
+      - name: Restore previously built FPC Android compiler
+        id: fpc-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/fpc-android
+          key: fpc-0d122c49-aarch64-android-ubuntu-24.04-v2
+          fail-on-cache-miss: true
+      - name: Link Pascal library against API-specific Android libc
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/linktest" "$RUNNER_TEMP/linktest-units"
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          ndk="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64"
+          sysroot="$ndk/sysroot"
+          "$compiler" -Tandroid -Paarch64 -Mdelphi -Cg -XPaarch64-linux-gnu- \
+            "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
+            "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" \
+            "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384 \
+            "-FU$RUNNER_TEMP/linktest-units" "-o$RUNNER_TEMP/linktest/libkamprobe.so" \
+            android-port/host/pascal/kamprobe.lpr 2>&1 | tee "$RUNNER_TEMP/linktest/compile.log"
+          readelf -dW "$RUNNER_TEMP/linktest/libkamprobe.so" | tee "$RUNNER_TEMP/linktest/dynamic.txt"
+          readelf -Ws "$RUNNER_TEMP/linktest/libkamprobe.so" | tee "$RUNNER_TEMP/linktest/symbols.txt"
+          grep -q 'Shared library: \[libc.so\]' "$RUNNER_TEMP/linktest/dynamic.txt"
+          if grep -E 'GLOBAL +DEFAULT +UND +__aarch64_' "$RUNNER_TEMP/linktest/symbols.txt"; then
+            echo 'Unresolved AArch64 atomic helper(s)' >&2
+            exit 1
+          fi
+      - name: Upload ELF and link evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-elf-link-diagnostic
+          path: ${{ runner.temp }}/linktest/
+          if-no-files-found: warn

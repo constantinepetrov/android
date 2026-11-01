@@ -3,7 +3,7 @@ unit KM_ControlsList;
 interface
 uses
   Classes,
-  Controls,
+  {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KromOGLUtils,
   KM_Controls, KM_ControlsScroll,
   KM_RenderUI,
@@ -368,9 +368,9 @@ type
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   SysUtils, StrUtils, Math,
-  KM_ControlsTypes, KM_ControlsUtils,
+  {$IFNDEF ANDROID} KM_ControlsTypes, {$ENDIF} KM_ControlsUtils,
   KM_Resource, KM_ResTypes,
   KM_CommonUtils;
 

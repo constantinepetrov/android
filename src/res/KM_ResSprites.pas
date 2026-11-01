@@ -2,9 +2,7 @@ unit KM_ResSprites;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
   Classes, Math, SysUtils, Generics.Collections,
-  Graphics,
   KM_CommonTypes, KM_Defaults,
   KM_Pics, KM_IoPNG, KM_RenderTypes,
   KM_ResTexts, KM_ResTileset, KM_ResHouses, KM_ResTypes, KM_ResTilesetTypes,
@@ -14,6 +12,12 @@ uses
 
 
 type
+  {$IFDEF FPC}
+  TKMStringProgressProc = procedure(const aText: string);
+  {$ELSE}
+  TKMStringProgressProc = TProc<string>;
+  {$ENDIF}
+
   // How do we want to soften the sprite
   TKMSpriteSoftening = (ssNone, ssOnlyShadow, ssWhole);
 
@@ -91,7 +95,7 @@ type
                                           aOnCheckTerminated: TBooleanFuncSimple = nil);
 
     procedure LoadFromRXXFile(const aFileName: string; aStartingIndex: Integer = 1);
-    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TKMStringProgressProc; aSoftenShadows: Boolean = True);
 
     function GetSoftenShadowType(aID: Integer): TKMSpriteSoftening;
 
@@ -109,10 +113,12 @@ type
 
     function IsEmpty: Boolean;
 
+    {$IFNDEF ANDROID}
     procedure ExportAllSpritesFromRXData(const aFolder: string);
     procedure ExportFullImageData(const aFolder: string; aIndex: Integer);
     procedure ExportImage(const aFile: string; aIndex: Integer);
     procedure ExportMask(const aFile: string; aIndex: Integer);
+    {$ENDIF}
 
     procedure ClearGameResGenTemp;
 
@@ -194,7 +200,7 @@ type
     function LoadSprites(aRT: TRXType; aAlphaShadows: Boolean): Boolean;
     function LoadRXASprites(aRT: TRXType): Boolean;
     function LoadRXASpritesAndGenTextures(aRT: TRXType): Boolean;
-    procedure ExportToPNG(aRT: TRXType);
+    {$IFNDEF ANDROID} procedure ExportToPNG(aRT: TRXType); {$ENDIF}
 
     property AlphaShadows: Boolean read fAlphaShadows;
     property FileName[aRX: TRXType]: string read GetRXFileName;
@@ -1020,7 +1026,7 @@ end;
 // Parse all valid files in Sprites folder:
 // - append or replace original sprites with new ones
 // - exclude original sprites if necessary as well
-procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TKMStringProgressProc; aSoftenShadows: Boolean = True);
   {$IFDEF WDC}
   // Append all PNGs including the subfolders
   // Pattern is X_nnnn.png, where nnnn is dynamic (1..n chars) for modders convenience
@@ -1105,6 +1111,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 // Export RX to Bitmaps without need to have GraphicsEditor, also this way we preserve image indexes
 procedure TKMSpritePack.ExportAllSpritesFromRXData(const aFolder: string);
 var
@@ -1230,6 +1237,8 @@ begin
   end;
 end;
 
+
+{$ENDIF}
 
 function TKMSpritePack.GetAverageSpriteColors(aCount: Integer): TKMColor3bArray;
 var
@@ -1470,9 +1479,11 @@ begin
 
     Inc(aTexCount);
 
+    {$IFNDEF ANDROID}
     if aFillGFXData and DBG_EXPORT_SPRITE_ATLASES and (fRT in EXPORT_SPRITE_ATLASES_LIST) then
       SaveToPng(aSpriteInfo[I].Width, aSpriteInfo[I].Height, atlasData,
         ExeDir + 'Export\GenTextures\' + RX_INFO[fRT].FileName + '_' + SPRITE_TYPE_EXPORT_NAME[aMode] + IntToStr(I) + '.png');
+    {$ENDIF}
   end;
 end;
 
@@ -1594,10 +1605,12 @@ begin
         //Now that we know texture IDs we can fill GFXData structure
         SetGFXData(texID, Container, SAT);
 
+        {$IFNDEF ANDROID}
         if ((not aIsRXA and DBG_EXPORT_SPRITE_ATLASES) or (aIsRXA and DBG_EXPORT_SPRITE_ATLASES_RXA))
         and (fRT in EXPORT_SPRITE_ATLASES_LIST) then
           SaveToPng(Container.Width, Container.Height, Data,
             ExeDir + 'Export\GenTextures\' + RX_INFO[fRT].FileName + IfThen(aIsRXA, '_rxa_', '_') + SPRITE_TYPE_EXPORT_NAME[SAT] + IntToStr(texID) + '.png');
+        {$ENDIF}
       end;
     end;
   {$ENDIF}
@@ -2162,6 +2175,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 procedure TKMResSprites.ExportToPNG(aRT: TRXType);
 begin
   if LoadSprites(aRT, False) then
@@ -2171,6 +2185,7 @@ begin
   end;
 end;
 
+{$ENDIF}
 
 {$IFDEF LOAD_GAME_RES_ASYNC}
 { TTGameResourceLoader }

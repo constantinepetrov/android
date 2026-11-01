@@ -123,9 +123,15 @@ type
 
     // Saved in .rxx
     fBackGroundPic: TKMPic;
+    {$IFDEF FPC}
+    fFirstSpriteIndex: Word;
+    {$ENDIF}
 
     procedure LoadFromPath(const aPath: UnicodeString);
     procedure LoadSprites;
+    {$IFDEF FPC}
+    procedure MakeSpritesGFX;
+    {$ENDIF}
     function GetSpec: TKMCampaignSpec;
   public
     constructor Create;
@@ -156,6 +162,12 @@ type
     fOnAdd: TKMCampaignEvent;
     fOnAddDone: TNotifyEvent;
     fOnComplete: TNotifyEvent;
+    {$IFDEF FPC}
+    fCampaignToAdd: TKMCampaign;
+    procedure SynchronizeOnAdd;
+    procedure SynchronizeOnAddDone;
+    procedure SynchronizeOnComplete;
+    {$ENDIF}
   public
     constructor Create(aOnAdd: TKMCampaignEvent; aOnAddDone, aOnTerminate, aOnComplete: TNotifyEvent);
     procedure Execute; override;
@@ -225,6 +237,26 @@ const
   CAMPAIGNS_DATA_XML_VERSION = '1.0';
 
   XML_ROOT_TAG = 'campaignData';
+
+{$IFDEF FPC}
+function KMCompareCampaigns(constref aLeft, aRight: TKMCampaign): Integer; stdcall;
+var
+  sLeft, sRight: string;
+begin
+  sLeft := aLeft.Spec.IdStr;
+  sRight := aRight.Spec.IdStr;
+
+  // Keep campaign categories in their established UI order.
+  if sLeft = 'TSK' then sLeft := '1' + sLeft else
+  if sLeft = 'TPR' then sLeft := '2' + sLeft else
+    sLeft := '3' + sLeft;
+  if sRight = 'TSK' then sRight := '1' + sRight else
+  if sRight = 'TPR' then sRight := '2' + sRight else
+    sRight := '3' + sRight;
+
+  Result := CompareStr(sLeft, sRight);
+end;
+{$ENDIF}
 
 
 { TKMCampaignsCollection }
@@ -340,24 +372,28 @@ begin
     fList.Add(aCampaign);
 
     // Keep the campaigns properly sorted
-    fList.Sort(TComparer<TKMCampaign>.Construct(
-      function (const aLeft, aRight: TKMCampaign): Integer
-      var
-        sLeft, sRight: string;
-      begin
-        sLeft := aLeft.Spec.IdStr;
-        sRight := aRight.Spec.IdStr;
-
-        // Add extra sorting key to get TSK and TPR on top
-        if sLeft = 'TSK' then sLeft := '1' + sLeft else
-        if sLeft = 'TPR' then sLeft := '2' + sLeft else
-          sLeft := '3' + sLeft;
-        if sRight = 'TSK' then sRight := '1' + sRight else
-        if sRight = 'TPR' then sRight := '2' + sRight else
-          sRight := '3' + sRight;
-
-        Result := CompareStr(sLeft, sRight);
-      end));
+    {$IFDEF FPC}
+    fList.Sort(TComparer<TKMCampaign>.Construct(KMCompareCampaigns));
+    {$ELSE}
+        fList.Sort(TComparer<TKMCampaign>.Construct(
+          function (const aLeft, aRight: TKMCampaign): Integer
+          var
+            sLeft, sRight: string;
+          begin
+            sLeft := aLeft.Spec.IdStr;
+            sRight := aRight.Spec.IdStr;
+    
+            // Add extra sorting key to get TSK and TPR on top
+            if sLeft = 'TSK' then sLeft := '1' + sLeft else
+            if sLeft = 'TPR' then sLeft := '2' + sLeft else
+              sLeft := '3' + sLeft;
+            if sRight = 'TSK' then sRight := '1' + sRight else
+            if sRight = 'TPR' then sRight := '2' + sRight else
+              sRight := '3' + sRight;
+    
+            Result := CompareStr(sLeft, sRight);
+          end));
+    {$ENDIF}
   finally
     Unlock;
   end;
@@ -466,10 +502,12 @@ end;
 
 { TKMCampaignSpec }
 destructor TKMCampaignSpec.Destroy;
+var
+  I: Integer;
 begin
   FreeAndNil(fTextLib);
 
-  for var I := 0 to High(fMapsInfo) do
+  for I := 0 to High(fMapsInfo) do
     FreeAndNil(fMapsInfo[I].TxtInfo);
 
   inherited;
@@ -494,6 +532,8 @@ procedure TKMCampaignSpec.LoadCMP(const filePath: UnicodeString);
 var
   M: TKMemoryStream;
   cmp: TBytes;
+  campIDStr: UnicodeString;
+  I, K: Integer;
 begin
   if not FileExists(filePath) then Exit;
 
@@ -504,18 +544,18 @@ begin
   M.ReadBytes(cmp);
   Assert(Length(cmp) = 3);
 
-  var campIDStr := WideChar(cmp[0]) + WideChar(cmp[1]) + WideChar(cmp[2]);
+  campIDStr := WideChar(cmp[0]) + WideChar(cmp[1]) + WideChar(cmp[2]);
 
   fCampaignId := TKMCampaignId.Create(AnsiString(campIDStr));
 
   M.Read(fMapCount);
   SetMapCount(fMapCount); //Update array's sizes
 
-  for var I := 0 to fMapCount - 1 do
+  for I := 0 to fMapCount - 1 do
   begin
     M.Read(Maps[I].Flag);
     M.Read(Maps[I].NodeCount);
-    for var K := 0 to Maps[I].NodeCount - 1 do
+    for K := 0 to Maps[I].NodeCount - 1 do
       M.Read(Maps[I].Nodes[K]);
     M.Read(Maps[I].TextPos, SizeOf(TKMBriefingCorner));
   end;
@@ -728,9 +768,13 @@ begin
     nCamp.SetAttribute('id', string(fCampaignSpec.CampaignId.ID));
     nCamp.SetAttribute('name', fCampaignSpec.GetCampaignTitle);
 
+    {$IFDEF FPC}
+    nCamp.SetAttribute('wasOpened', BoolToStr(fCampaignWasOpened, True));
+    nCamp.SetAttribute('unlockedMission', IntToStr(fUnlockedMission));
+    {$ELSE}
     nCamp.SetAttribute('wasOpened', fCampaignWasOpened);
-
     nCamp.SetAttribute('unlockedMission', fUnlockedMission);
+    {$ENDIF}
     nMissions := nCamp.AddOrFindChild('missions');
     nMissions.Attributes['count'] := fCampaignSpec.MissionsCount;
 
@@ -738,12 +782,21 @@ begin
     begin
       nMission := nMissions.AddOrFindChild('mission' + IntToStr(I));
       nMission.SetAttribute('title', fCampaignSpec.GetCampaignMissionTitle(I));
+      {$IFDEF FPC}
+      nMission.SetAttribute('completed', BoolToStr(fMapsProgressData[I].Completed, True));
+      nMission.SetAttribute('bestCompletedDifficulty', IntToStr(Ord(fMapsProgressData[I].BestCompletedDifficulty)));
+      {$ELSE}
       nMission.SetAttribute('completed', fMapsProgressData[I].Completed);
       nMission.SetAttribute('bestCompletedDifficulty', Ord(fMapsProgressData[I].BestCompletedDifficulty));
+      {$ENDIF}
     end;
 
     nScriptData := nCamp.AddOrFindChild('scriptData');
+    {$IFDEF FPC}
+    nScriptData.SetAttribute('compressed', BoolToStr(fIsScriptDataBase64Compressed, True));
+    {$ELSE}
     nScriptData.SetAttribute('compressed', fIsScriptDataBase64Compressed);
+    {$ENDIF}
 
     if fIsScriptDataBase64Compressed then
       nScriptData.Attributes['data'] := fScriptDataStream.ToBase64Compressed
@@ -772,6 +825,8 @@ var
   filePath: UnicodeString;
   campId: AnsiString;
   difficultyInt: Integer;
+  missionsCnt, I: Integer;
+  base64DataStr: string;
   newXML: TKMXMLDocument;
   nCamp, nMissions, nMission, nScriptData: TKMXmlNode;
 begin
@@ -816,8 +871,8 @@ begin
     UnlockedMission := nCamp.Attributes['unlockedMission'].AsInteger(0);
 
     nMissions := nCamp.AddOrFindChild('missions');
-    var missionsCnt := nMissions.Attributes['count'].AsInteger(0);
-    for var I := 0 to Min(missionsCnt - 1, fCampaignSpec.MissionsCount - 1) do
+    missionsCnt := nMissions.Attributes['count'].AsInteger(0);
+    for I := 0 to Min(missionsCnt - 1, fCampaignSpec.MissionsCount - 1) do
     begin
       nMission := nMissions.AddOrFindChild('mission' + IntToStr(I));
       fMapsProgressData[I].Completed := nMission.Attributes['completed'].AsBoolean(False);
@@ -832,7 +887,7 @@ begin
 
     fScriptDataStream.Clear;
 
-    var base64DataStr := nScriptData.Attributes['data'].AsString('');
+    base64DataStr := nScriptData.Attributes['data'].AsString('');
     try
       if fIsScriptDataBase64Compressed then
         fScriptDataStream.LoadFromBase64Compressed(base64DataStr)
@@ -916,6 +971,16 @@ begin
 end;
 
 
+{$IFDEF FPC}
+procedure TKMCampaign.MakeSpritesGFX;
+begin
+  {$IFNDEF NO_OGL}
+  gRes.Sprites[rxCustom].MakeGFX(False, fFirstSpriteIndex);
+  {$ENDIF}
+end;
+{$ENDIF}
+
+
 procedure TKMCampaign.LoadSprites;
 var
   SP: TKMSpritePack;
@@ -933,6 +998,10 @@ begin
   if firstSpriteIndex <= SP.RXData.Count then
   begin
     // Make campaign sprite GFX in the main thread only
+    {$IFDEF FPC}
+    fFirstSpriteIndex := firstSpriteIndex;
+    TThread.Synchronize(TThread.CurrentThread, Self.MakeSpritesGFX);
+    {$ELSE}
     TThread.Synchronize(TThread.CurrentThread, procedure
       begin
         //Images were successfully loaded
@@ -941,6 +1010,7 @@ begin
         {$ENDIF}
       end
     );
+    {$ENDIF}
 
     SP.ClearTemp;
     fBackGroundPic.RX := rxCustom;
@@ -956,14 +1026,16 @@ end;
 
 
 procedure TKMCampaign.LoadFromPath(const aPath: UnicodeString);
+var
+  t1, t2, t3: Int64;
 begin
   // Load times are about:
   // LoadMapsInfo - 20-80ms,  LoadLocale 0.5 ms, LoadSprites ~50ms
   fPath := aPath;
 
-  var t1 := TimeGetUsec;
+  t1 := TimeGetUsec;
   fSpec.LoadFromFile(fPath, 'info.cmp');
-  var t2 := TimeSinceUSec(t1);
+  t2 := TimeSinceUSec(t1);
   t1 := TimeGetUsec;
 
   fSavedData.SetMapsCount(fSpec.MissionsCount);
@@ -971,7 +1043,7 @@ begin
   // We load Sprites separately by scanner
 //  LoadSprites;
 
-  var t3 := TimeSinceUSec(t1);
+  t3 := TimeSinceUSec(t1);
 
   gLog.AddTime('Load from ' + aPath);
   gLog.AddTime('fSpec.LoadFromFile = ' + IntToStr(t2) + ' LoadSprites = ' + IntToStr(t3));
@@ -1084,18 +1156,40 @@ begin
 end;
 
 
+{$IFDEF FPC}
+procedure TKMCampaignsScanner.SynchronizeOnAdd;
+begin
+  fOnAdd(fCampaignToAdd);
+end;
+
+
+procedure TKMCampaignsScanner.SynchronizeOnAddDone;
+begin
+  fOnAddDone(Self);
+end;
+
+
+procedure TKMCampaignsScanner.SynchronizeOnComplete;
+begin
+  fOnComplete(Self);
+end;
+{$ENDIF}
+
+
 procedure TKMCampaignsScanner.Execute;
 var
   campaignPath: string;
   camp: TKMCampaign;
   searchRec: TSearchRec;
   campaigns: TObjectList<TKMCampaign>;
+  t1: Cardinal;
+  I: Integer;
 begin
   campaignPath := ExeDir + CAMPAIGNS_FOLDER_NAME + PathDelim;
 
   if not DirectoryExists(campaignPath) then Exit;
 
-  var t1 := TimeGet;
+  t1 := TimeGet;
   // Set OwnObjects to False, since we don't want to Free Campaign objects on the list destruction
   campaigns := TObjectList<TKMCampaign>.Create(False);
   try
@@ -1112,14 +1206,23 @@ begin
           camp := TKMCampaign.Create;
           camp.LoadFromPath(campaignPath + searchRec.Name + PathDelim);
 
+          {$IFDEF FPC}
+          fCampaignToAdd := camp;
+          TThread.Synchronize(nil, Self.SynchronizeOnAdd);
+          {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAdd(camp); end);
+          {$ENDIF}
 
           //todo -cPractical: Campaigns scan is very slow on first run - literaly 10-15 seconds for 9 stock campaigns (on SSD drive).
           // There's no real need to load all the campaign data (including sprites and etc) on scan. Just the localized name and optionally mission count.
           // Everything else (that takes literal seconds on first scan) should be loaded async by demand.
           camp.SavedData.LoadProgress;
 
+          {$IFDEF FPC}
+          TThread.Synchronize(nil, Self.SynchronizeOnAddDone);
+          {$ELSE}
           TThread.Synchronize(nil, procedure begin fOnAddDone(Self); end);
+          {$ENDIF}
 
           // Add campaign to the list to load sprites afterwards
           campaigns.Add(camp);
@@ -1130,12 +1233,18 @@ begin
     end;
 
     // Load sprites afterwards, to make load faster
-    for var I := 0 to campaigns.Count - 1 do
+    for I := 0 to campaigns.Count - 1 do
       campaigns[I].LoadSprites;
   finally
     campaigns.Free;
     if not Terminated and Assigned(fOnComplete) then
+    begin
+      {$IFDEF FPC}
+      TThread.Synchronize(nil, Self.SynchronizeOnComplete);
+      {$ELSE}
       TThread.Synchronize(nil, procedure begin fOnComplete(Self); end);
+      {$ENDIF}
+    end;
   end;
 
   gLog.AddTime('[Campaigns scanner] Campaigns were loaded in: ' + IntToStr(TimeSince(t1)) + 'ms');

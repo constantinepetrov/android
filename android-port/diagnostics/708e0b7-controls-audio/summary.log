@@ -1,0 +1,109 @@
+provenance.log
+Sun Nov  1 08:15:40 UTC 2026
+708e0b771abec73ec0c06fd1315ca0a1d102e43a
+de435ea9b73d4aaa3841fd05b4c24a97edda7219
+ce8590dd7b9cf48fd0e446731989603e09e239b8
+0d122c49534b480be9284c21bd60b53d99904346
+9d15c73c91a1545be50bee02b27bd3b43f9d90e8
+3.2.2 aarch64 android
+GNU assembler (GNU Binutils for Debian) 2.44
+javac 17.0.17
+22b61ecbc2c3da690438d053eb93e8a7b7a5c1348b0f9c6de1832944993a59c6  /workspace/kam-ci-current/android-port/experiments/prepare-pascalscript-fpc.py
+6e5a9be38121213dda42189a525db01aad4dc52194b577d7d73d659a5843ce6c  /workspace/kam-cross-tools/binutils.deb
+#!/bin/sh
+exec /workspace/kam-fpc-android/lib/fpc/3.2.2/ppcrossa64 -Sc "$@"
+#!/bin/sh
+exec /workspace/.local-tools/fpc/usr/lib/x86_64-linux-gnu/fpc/3.2.2/ppcx64 -n '-Fu/workspace/.local-tools/fpc/usr/lib/x86_64-linux-gnu/fpc/3.2.2/units/x86_64-linux/*' "$@"
+
+
+status.log
+src/controls/KM_ControlsTypes.pas_exit=0
+src/utils/KM_UtilsExt.pas_exit=0
+src/media/KM_AudioSession.pas_exit=0
+src/media/KM_OpenALBackend.pas_exit=0
+src/media/KM_Sound.pas_exit=1
+android-port/host/pascal/kamprobe.lpr_exit=0
+src/controls/KM_ControlsList.pas_exit=1
+src/controls/KM_ControlsBase.pas_exit=1
+src/controls/KM_ControlsEdit.pas_exit=1
+src/game/KM_Game.pas_exit=1
+unpatched_KM_Game_exit=1
+audio-session_exit=0
+controls-input_exit=0
+game-messages_exit=0
+fog-state_exit=0
+platform-services_exit=0
+pascal-script_exit=0
+game-options_exit=0
+game-presentation-port_exit=0
+map-header_exit=0
+font-types_exit=0
+terrain-types_exit=0
+jni-map_exit=0
+openal_linux_null_exit=0
+ffi_exit=0
+ps_compat_exit=0
+actionlint_exit=0
+javac_exit=0
+elf_headers_exit=0
+
+
+first-errors.log
+src/media/KM_AudioSession.pas: OK (-Cn, no link)
+src/controls/KM_ControlsBase.pas: lcltype.pp(51,3) Fatal: Can't find unit WSReferences used by LCLType
+src/controls/KM_ControlsEdit.pas: lcltype.pp(51,3) Fatal: Can't find unit WSReferences used by LCLType
+src/controls/KM_ControlsList.pas: lcltype.pp(51,3) Fatal: Can't find unit WSReferences used by LCLType
+src/controls/KM_ControlsTypes.pas: OK (-Cn, no link)
+src/game/KM_Game.pas: lcltype.pp(51,3) Fatal: Can't find unit WSReferences used by LCLType
+src/media/KM_OpenALBackend.pas: OK (-Cn, no link)
+src/media/KM_Sound.pas: lcltype.pp(51,3) Fatal: Can't find unit WSReferences used by LCLType
+src/utils/KM_UtilsExt.pas: OK (-Cn, no link)
+android-port/host/pascal/kamprobe.lpr: OK (-Cn, no link)
+
+
+dependency-chains.log
+src/controls/KM_ControlsBase.pas: KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_MAINSETTINGS -> KM_WINDOWPARAMS -> FORMS -> LCLTYPE -> WSREFERENCES
+src/controls/KM_ControlsEdit.pas: KM_CONTROLSEDIT -> KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_MAINSETTINGS -> KM_WINDOWPARAMS -> FORMS -> LCLTYPE -> WSREFERENCES
+src/controls/KM_ControlsList.pas: KM_CONTROLSLIST -> KM_CONTROLS -> KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_MAINSETTINGS -> KM_WINDOWPARAMS -> FORMS -> LCLTYPE -> WSREFERENCES
+src/game/KM_Game.pas: KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_MAINSETTINGS -> KM_WINDOWPARAMS -> FORMS -> LCLTYPE -> WSREFERENCES
+src/media/KM_Sound.pas: KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_MAINSETTINGS -> KM_WINDOWPARAMS -> FORMS -> LCLTYPE -> WSREFERENCES
+
+
+test-audio-session.log
+PASS success, context transfer, source-before-buffer cleanup, repeated stop
+PASS 12 intermediate failures including partial object allocation and detach failure
+PASS destruction during blocked initialization joins before releasing backend
+Audio resource ownership tests passed (controlled backend; NOT Android OpenAL runtime)
+Heap dump by heaptrc unit of /workspace/kam-audio-evidence/final/test-audio-session/audio_session_probe
+260 memory blocks allocated : 15502/15656
+260 memory blocks freed     : 15502/15656
+0 unfreed memory blocks : 0
+True heap size : 98304
+True free heap : 
+
+test-openal.log
+Handle bytes: THandle=4 OpenAL=8 pointer=8
+PASS real Linux OpenAL Soft null backend: init, context transfer, objects, teardown (NOT Android runtime)
+
+
+test-jni-map.log
+Native input configuration: host timeout preserved; invalid values rejected
+Synthetic JNI map 2x2, height sum 46; truncation rejected
+
+
+control-method-audit.log
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsChart.pas bfecd9b8c7145857d64a21c659d8f60f751ab7b4221a0d192154292dcccb8157
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsColor.pas 8269bac123e4d5089f5d83e12ceb477fcf4650cc3fc03ad885cf6f12673b222c
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsDragger.pas 81ee2a8b59b0807da23f29ebc7d6eadd5bab9a84f02b5e11eb8b36cf6a971cb3
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsDrop.pas f0cd508496f3c7620d4150186ff161fa476fa53a790aa69314e9e90b032789ad
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsForm.pas 8c9fa8f467df702ec3899d349e326396bbd6de2f3f9b636bb5f9c07e5ba0728c
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsList.pas 81320a87ffa9be9c11e796c18316bbb07381fc1f8bf0f5cf79d2b9dfc88c1d4e
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsMemo.pas 98497e9eafff5bc6ab36cb389da13d81197d99b9fa79b23fc0d964198b238096
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsMinimapView.pas 0d651a7aa4957f6b599fa570c1ffef063d83c15ea5cbd4fb9cc5f711bc3d831d
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsPopUp.pas 5b65cfd9ff316a1af43c61db2cd863d6b367506d95fc04f30ad0ef15be245ce4
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsProgressBar.pas 27b268d3cef4e478a63ad20da71463066c5d83173b1806398a83c94be34e56dc
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsScroll.pas 06582216f42e0dfb3543e605980211cd2d18d2e0f34c45b546f5b7fc1f7806ac
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsSwitch.pas 35999e87ee73bc8836736c41c1cc1b097e3f3d6cef03ef4fc23266b154e53569
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsTrackBar.pas 3b4caa37eefb46436b7fdf26e67c2af163f4d6bc8da181dca0772e762a11bde3
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsUtils.pas 767a636e1d497562aa090466a7966ea6cbff112a1463f833e1d2bed0090dc132
+UNCHANGED_CONTROL_METHODS src/controls/KM_ControlsWaresRow.pas 353e722b2c6f79fd0820d3957fb233cf6b6a5340c478f2bae219c6d75d4a61ed

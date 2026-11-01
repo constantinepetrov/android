@@ -4,7 +4,7 @@ interface
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
   {$IFDEF FPC}
-  {$IFDEF Unix} LCLIntF, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntF, LCLType, {$ENDIF}{$ENDIF}
   {$ENDIF}
   Classes, Controls,
   KM_Controls, KM_ControlsBase,
@@ -145,7 +145,7 @@ uses
   KM_Music,
   KM_Sound,
   KM_GameSettings,
-  KM_Main,
+  {$IFNDEF ANDROID} KM_Main, {$ENDIF}
   KM_CommonTypes;
 
 
@@ -236,8 +236,8 @@ end;
 
 procedure TKMUserInterfaceCommon.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  // Defocus debug controls on any inout in the player GUI
-  gMain.FormMain.Defocus;
+  // Defocus desktop form debug controls on player GUI input
+  {$IFNDEF ANDROID} gMain.FormMain.Defocus; {$ENDIF}
 end;
 
 

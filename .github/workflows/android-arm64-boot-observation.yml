@@ -1,0 +1,48 @@
+name: Observe ARM64 emulator startup
+on:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Install ARM64 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME"
+          printf 'ANDROID_USER_HOME=%s\nANDROID_AVD_HOME=%s\n' "$ANDROID_USER_HOME" "$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          manager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          (yes || true) | "$manager" --licenses > /dev/null
+          "$manager" 'platform-tools' 'emulator' 'system-images;android-35;google_apis;arm64-v8a'
+          echo no | "$(dirname "$manager")/avdmanager" create avd --force --name inspect_arm64 --package 'system-images;android-35;google_apis;arm64-v8a' --path "$ANDROID_AVD_HOME/inspect_arm64.avd"
+          ls -la "$ANDROID_AVD_HOME"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+          test -f "$ANDROID_AVD_HOME/inspect_arm64.ini"
+      - name: Observe unaccelerated ARM64 guest
+        shell: bash
+        run: |
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          emulator -avd inspect_arm64 -no-window -no-audio -no-snapshot -no-boot-anim -accel off -gpu swiftshader_indirect -memory 2048 > /tmp/arm-boot.txt 2>&1 &
+          pid=$!
+          sleep 90
+          echo '--- emulator process ---'
+          ps -p "$pid" -o pid,etime,pcpu,rss,args || true
+          echo '--- adb devices ---'
+          timeout 10 adb devices -l || true
+          echo '--- boot property ---'
+          timeout 5 adb -s emulator-5554 shell getprop sys.boot_completed || true
+          echo '--- emulator log ---'
+          tail -200 /tmp/arm-boot.txt
+          if ! kill -0 "$pid" 2>/dev/null; then
+            echo 'ARM64 emulator exited before observation' >&2
+            exit 1
+          fi
+          timeout 10 adb -s emulator-5554 emu kill || kill "$pid" || true

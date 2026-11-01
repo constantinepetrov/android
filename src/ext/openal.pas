@@ -71,9 +71,19 @@ const
   callibname='libopenal.so';
   calutlibname='libalut.so';
 {$ENDIF}
+{$IFDEF ANDROID}
+  callibname='libopenal.so';
+  calutlibname='libalut.so';
+{$ENDIF}
 
 
 type
+  // Unix THandle is a 32-bit file descriptor, not a dlopen pointer on ARM64/x64.
+  {$IF Defined(FPC) and not Defined(MSWINDOWS)}
+  TOpenALLibraryHandle = PtrUInt;
+  {$ELSE}
+  TOpenALLibraryHandle = THandle;
+  {$IFEND}
   // OpenAL boolean type.
   TALboolean = Boolean;
   PALboolean = ^TALboolean;
@@ -1742,7 +1752,7 @@ var
 
   //Context Support
   alcCreateContext: function(device: TALCdevice; attrlist: PALCint): TALCcontext; cdecl;
-  alcMakeContextCurrent: function(context: TALCcontext): TALCenum; cdecl;
+  alcMakeContextCurrent: function(context: TALCcontext): TALCboolean; cdecl;
   alcProcessContext: procedure(context: TALCcontext); cdecl;
   alcSuspendContext: procedure(context: TALCcontext); cdecl;
   alcDestroyContext: procedure(context: TALCcontext); cdecl;
@@ -1751,7 +1761,7 @@ var
 
   //Device Management
   alcOpenDevice: function(deviceName: PALCuByte): TALCdevice; cdecl;
-  alcCloseDevice: procedure(device: TALCdevice); cdecl;
+  alcCloseDevice: function(device: TALCdevice): TALCboolean; cdecl;
 
   //Error Support
   //Obtain the most recent Context error
@@ -1893,11 +1903,11 @@ var
 {$ENDIF}
 
 var
-  LibHandle          : THandle = 0;
+  LibHandle          : TOpenALLibraryHandle = 0;
 {$IFDEF ALUT}
-  AlutLibHandle      : THandle = 0;
+  AlutLibHandle      : TOpenALLibraryHandle = 0;
 {$ENDIF}
-  EFXUtilLibHandle       : THandle = 0;
+  EFXUtilLibHandle       : TOpenALLibraryHandle = 0;
 
 {$IFDEF ALUT}
 function InitOpenAL(LibName: String = callibname;AlutLibName: String = calutlibname): Boolean;
@@ -1945,17 +1955,17 @@ function LoadLibraryEx(Name : PChar; Flags : LongInt) : Pointer; cdecl; external
 function GetProcAddressEx(Lib : Pointer; Name : PChar) : Pointer; cdecl; external LibraryLib name 'dlsym';
 function FreeLibraryEx(Lib : Pointer) : LongInt; cdecl; external LibraryLib name 'dlclose';
 
-function LoadLibrary(Name : PChar) : THandle;
+function LoadLibrary(Name : PChar) : TOpenALLibraryHandle;
 begin
- Result := THandle(LoadLibraryEx(Name, RTLD_LAZY));
+ Result := TOpenALLibraryHandle(LoadLibraryEx(Name, RTLD_LAZY));
 end;
 
-function GetProcAddress(LibHandle : THandle; ProcName : PChar) : Pointer;
+function GetProcAddress(LibHandle : TOpenALLibraryHandle; ProcName : PChar) : Pointer;
 begin
  Result := GetProcAddressEx(Pointer(LibHandle), ProcName);
 end;
 
-function FreeLibrary(LibHandle : THandle) : Boolean;
+function FreeLibrary(LibHandle : TOpenALLibraryHandle) : Boolean;
 begin
  if LibHandle = 0 then
    Result := False

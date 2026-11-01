@@ -2,8 +2,6 @@ unit KM_Render;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF WDC} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, OpenGLContext, {$ENDIF}
   dglOpenGL,
   KM_RenderControl, KM_RenderQuery, KM_RenderTypes, KM_CommonTypes;
 
@@ -81,7 +79,8 @@ implementation
 uses
   SysUtils, Math,
   KromOGLUtils, KromUtils,
-  KM_Log, KM_Defaults, KM_IoPNG, KM_CommonClasses;
+  KM_Log, KM_Defaults
+  {$IFDEF WDC}, KM_CommonClasses{$ENDIF};
 
 const
   // We want to use off-screen FBO buffer to render full map to the file,

@@ -130,7 +130,7 @@ uses
   {$IFDEF WDC} System.Hash, {$ENDIF}
   KromUtils, KM_GameParams, KM_Resource, KM_ResUnits, KM_Log, KM_CommonUtils,
   KM_ScriptingConsoleCommands, KM_ScriptPreProcessorGame,
-  KM_ResTypes, KM_CampaignTypes;
+  KM_ResTypes, KM_CampaignTypes, KM_Points;
 
 var
   gScripting: TKMScripting;
@@ -230,7 +230,7 @@ begin
   gScriptEvents := TKMScriptEvents.Create(fExec, fPreProcessor.PSPreProcessor, fIDCache);
   fStates := TKMScriptStates.Create(fIDCache);
   fActions := TKMScriptActions.Create(fIDCache);
-  fUtils := TKMScriptUtils.Create(fIDCache);
+  fUtils := TKMScriptUtils.Create;
 
   fActions.OnSetLogLinesMaxCnt := fErrorHandler.SetLogLinesCntMax;
 
@@ -1452,6 +1452,15 @@ begin
       RegisterMethod(@TKMScriptStates.UnitMaxHunger, 'UnitMaxHunger');
       RegisterMethod(@TKMScriptStates.UnitOwner, 'UnitOwner');
       RegisterMethod(@TKMScriptStates.UnitPosition, 'UnitPosition');
+      {$IFDEF FPC}
+      {$IFDEF ANDROID}
+      // FPC 3.2.2 lacks Pascal Script's method RTTI enumeration for record results.
+      PSRegisterRecordReturnType(@TKMScriptStates.AIStartPosition, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.HouseFlagPoint, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.HousePosition, TypeInfo(TKMPoint));
+      PSRegisterRecordReturnType(@TKMScriptStates.UnitPosition, TypeInfo(TKMPoint));
+      {$ENDIF}
+      {$ENDIF}
       RegisterMethod(@TKMScriptStates.UnitPositionX, 'UnitPositionX');
       RegisterMethod(@TKMScriptStates.UnitPositionY, 'UnitPositionY');
       RegisterMethod(@TKMScriptStates.UnitsGroup, 'UnitsGroup');
@@ -1703,6 +1712,11 @@ begin
       RegisterMethod(@TKMScriptUtils.InRangeS, 'InRangeS');
       RegisterMethod(@TKMScriptUtils.InsertString, 'InsertString');
       RegisterMethod(@TKMScriptUtils.KMPoint, 'KMPoint');
+      {$IFDEF FPC}
+      {$IFDEF ANDROID}
+      PSRegisterRecordReturnType(@TKMScriptUtils.KMPoint, TypeInfo(TKMPoint));
+      {$ENDIF}
+      {$ENDIF}
       RegisterMethod(@TKMScriptUtils.Ln, 'Ln');
       RegisterMethod(@TKMScriptUtils.Log10, 'Log10');
       RegisterMethod(@TKMScriptUtils.Log2, 'Log2');

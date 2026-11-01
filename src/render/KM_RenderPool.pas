@@ -2,7 +2,7 @@ unit KM_RenderPool;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   KromOGLUtils, KromUtils,
   KM_Defaults, KM_CommonTypes, KM_CommonClasses, KM_Pics, KM_Points, KM_Render, KM_Viewport,
   KM_RenderTerrain, KM_Units, KM_HandEntity,

@@ -12,7 +12,7 @@ uses
   {$IFDEF USE_HASH}
   System.Generics.Collections, System.Generics.Defaults, System.Hash,
   {$ENDIF}
-  System.Math,
+  {$IFDEF FPC} Math, {$ELSE} System.Math, {$ENDIF}
   KM_Units, KM_Houses,
   KM_HandEntity, KM_HandTypes,
   KM_CommonClasses, KM_Defaults, KM_Points,
@@ -141,7 +141,9 @@ type
     procedure Add(const aKey: TKMDeliveryRouteBidKey; const aValue: Single; const aRouteStep: TKMDeliveryRouteStep); reintroduce; overload;
 //    procedure Add(const aKey: TKMDeliveryBidKey; const aBid: TKMDeliveryBid); reintroduce; overload;
   end;
+  {$ENDIF}
 
+  // These types are required by delivery bidding even when the route cache is disabled.
   TKMDeliveryCalcKind = (dckFast, dckAccurate);
 
   TKMDeliveryRouteCalcCost = record
@@ -178,8 +180,6 @@ type
   end;
 
   TKMDeliveryBidCalcEventType = (bceBid, bceBidBasic, bceSerfBid);
-
-  {$ENDIF}
 
   TKMDeliveryRouteEvaluator = class
   private
@@ -362,11 +362,11 @@ const
 
 implementation
 uses
-  System.Classes, System.SysUtils, System.TypInfo,
+  {$IFDEF FPC} Classes, SysUtils, TypInfo, {$ELSE} System.Classes, System.SysUtils, System.TypInfo, {$ENDIF}
   KM_Entity,
   KM_Terrain,
-  KM_FormLogistics, KM_UnitTaskDelivery,
-  KM_Main, KM_Game, KM_GameParams, KM_Hand, KM_HandsCollection, KM_HouseBarracks, KM_HouseStore,
+  {$IFNDEF ANDROID} KM_FormLogistics, {$ENDIF} KM_UnitTaskDelivery,
+  {$IFNDEF ANDROID} KM_Main, {$ENDIF} KM_Game, KM_GameParams, KM_Hand, KM_HandsCollection, KM_HouseBarracks, KM_HouseStore,
   KM_UnitWarrior,
   KM_Resource, KM_ResHouses, KM_ResUnits,
   KM_Log, KM_Utils, KM_CommonUtils, KM_DevPerfLog, KM_DevPerfLogTypes;
@@ -641,7 +641,12 @@ end;
 
 function TKMDeliveries.AllowFormLogisticsChange: Boolean;
 begin
+  {$IFDEF ANDROID}
+  // The desktop logistics inspector is a debug form, not part of game simulation.
+  Result := False;
+  {$ELSE}
   Result := gMain.IsDebugChangeAllowed and Assigned(FormLogistics) and FormLogistics.IsEnabled;
+  {$ENDIF}
 end;
 
 

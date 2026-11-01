@@ -467,7 +467,7 @@ interface
 uses
   SysUtils
   {$IFDEF DGL_WIN}, Windows{$ENDIF}
-  {$IFDEF DGL_LINUX}, X, XLib, XUtil, types {$ENDIF}
+  {$IFDEF DGL_LINUX}, X, XLib, XUtil, types {$ELSE}{$IFNDEF DGL_WIN}, Types{$ENDIF}{$ENDIF}
   ;
 
 type
@@ -676,6 +676,7 @@ type
   PVector4i = ^TVector4i;
 
 
+  {$IFDEF DGL_WIN}
   PGPU_DEVICE = ^GPU_DEVICE;
   GPU_DEVICE = record
     cb: DWORD;
@@ -684,6 +685,7 @@ type
     Flags: DWORD;
     rcVirtualScreen: TRect;
   end;
+  {$ENDIF}
   
 
 type

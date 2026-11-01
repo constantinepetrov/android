@@ -1,0 +1,176 @@
+name: Android native host
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+    paths:
+      - 'src/**'
+      - 'KaM_Remake.inc'
+      - 'android-port/host/**'
+      - 'android-port/ffi/**'
+      - 'android-port/experiments/*.py'
+      - '.github/workflows/android-native-host.yml'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/android-native-port' && github.event.label.name == 'android-runtime')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/FPCSource
+          ref: release_3_2_2
+          path: fpc-source
+      - uses: actions/checkout@v4
+        with:
+          repository: fpc/Lazarus
+          ref: lazarus_4_0
+          path: lazarus-source
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fp-compiler-3.2.2 fp-units-base-3.2.2 fp-units-fcl-3.2.2 binutils-aarch64-linux-gnu
+          sdkmanager=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          test -n "$sdkmanager"
+          "$sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018'
+      - name: Test Linux JNI map parsing and rejection
+        run: |
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" PORT_TEST_DIR="$RUNNER_TEMP/linux-jni-map" bash android-port/host/tests/linux-jni-map.sh
+      - name: Cache FPC cross compiler
+        id: fpc-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/fpc-android
+          key: fpc-0d122c49-aarch64-android-ubuntu-24.04-v2
+      - name: Build FPC cross compiler and Android RTL
+        if: steps.fpc-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/fpc-android"
+          make -C fpc-source crossall crossinstall CPU_TARGET=aarch64 OS_TARGET=android \
+            BINUTILSPREFIX=aarch64-linux-gnu- INSTALL_PREFIX="$RUNNER_TEMP/fpc-android" \
+            2>&1 | tee "$RUNNER_TEMP/host-fpc-build.log"
+      - name: Build Pascal Android library
+        shell: bash
+        run: |
+          set -o pipefail
+          compiler=$(find "$RUNNER_TEMP/fpc-android" -type f \( -name ppcrossa64 -o -name ppca64 \) -print -quit)
+          units=$(find "$RUNNER_TEMP/fpc-android" -type d -path '*/units/aarch64-android' -print -quit)
+          test -n "$compiler" && test -n "$units"
+          ndk="$ANDROID_HOME/ndk/27.2.12479018"
+          sysroot="$ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          out="$GITHUB_WORKSPACE/android-port/host/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$out" "$RUNNER_TEMP/host-units"
+          paths=()
+          while IFS= read -r -d '' dir; do
+            # FPC 3.2.2 writes single-quoted search paths into the GNU ld
+            # Android response script; paths containing spaces break ld.bfd.
+            [[ "$dir" == *" "* ]] && continue
+            paths+=("-Fu$dir" "-Fi$dir")
+          done < <(find "$GITHUB_WORKSPACE/src" -type d -print0)
+          "$compiler" -Tandroid -Paarch64 -Mdelphi -Sc -Cg -XPaarch64-linux-gnu- \
+            "-Fu$units/*" "-Fi$GITHUB_WORKSPACE" "-Fu$GITHUB_WORKSPACE/lazarus-source/components/lazutils" "${paths[@]}" "-Fu$GITHUB_WORKSPACE/src/utils/algorithms" \
+            "-Fl$sysroot/usr/lib/aarch64-linux-android/24" "-Fl$sysroot/usr/lib/aarch64-linux-android" \
+            "-k--sysroot=$sysroot" -k-z -kmax-page-size=16384 -k-z -kcommon-page-size=16384 \
+            "-FU$RUNNER_TEMP/host-units" \
+            "-o$out/libkamprobe.so" "$GITHUB_WORKSPACE/android-port/host/pascal/kamprobe.lpr" \
+            2>&1 | tee "$RUNNER_TEMP/host-pascal.log"
+          aarch64-linux-gnu-readelf -h "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-elf.log"
+          aarch64-linux-gnu-readelf -dW "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-dynamic.log"
+          grep -q 'Shared library: \[libc.so\]' "$RUNNER_TEMP/host-dynamic.log"
+          if aarch64-linux-gnu-readelf -Ws "$out/libkamprobe.so" | grep -E 'GLOBAL +DEFAULT +UND +__aarch64_'; then
+            echo 'Unresolved AArch64 atomic helpers' >&2; exit 1
+          fi
+          aarch64-linux-gnu-readelf -Ws "$out/libkamprobe.so" | grep Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe
+          # On 16 KiB Android devices every ELF PT_LOAD segment must be 16 KiB aligned.
+          aarch64-linux-gnu-readelf -lW "$out/libkamprobe.so" | tee "$RUNNER_TEMP/host-segments.log"
+          python3 - "$out/libkamprobe.so" <<'PY'
+          import subprocess, sys
+          result = subprocess.check_output(
+              ["aarch64-linux-gnu-readelf", "-lW", sys.argv[1]], text=True
+          )
+          aligns = [int(line.split()[-1], 16) for line in result.splitlines()
+                    if line.strip().startswith("LOAD ")]
+          print("ELF PT_LOAD alignment:", [hex(value) for value in aligns])
+          if not aligns or any(value < 0x4000 for value in aligns):
+              sys.exit("ELF PT_LOAD segment alignment is below 16 KiB")
+          PY
+      - name: Build debug APK
+        shell: bash
+        working-directory: android-port/host
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace assembleDebug assembleDebugAndroidTest 2>&1 | tee "$RUNNER_TEMP/host-gradle.log"
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep 'lib/arm64-v8a/libkamprobe.so'
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: |
+            android-port/host/app/build/outputs/apk/debug/app-debug.apk
+            android-port/host/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-native-host-build-logs
+          path: |
+            ${{ runner.temp }}/host-fpc-build.log
+            ${{ runner.temp }}/host-pascal.log
+            ${{ runner.temp }}/host-elf.log
+            ${{ runner.temp }}/host-dynamic.log
+            ${{ runner.temp }}/host-segments.log
+            ${{ runner.temp }}/host-gradle.log
+          if-no-files-found: warn
+
+  runtime-smoke:
+    name: Launch APK in Android 15 emulator
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download APK from this build
+        uses: actions/download-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: ${{ runner.temp }}/kam-apk
+      - name: Enable KVM on GitHub runner
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot emulator and test native APK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          emulator-options: -no-snapshot -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: bash android-port/host/tests/ci-android-smoke.sh "${{ runner.temp }}/kam-apk/debug/app-debug.apk" "${{ runner.temp }}/kam-apk/androidTest/debug/app-debug-androidTest.apk"
+      - name: Upload runtime diagnostics (even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kam-android-emulator-runtime
+          path: android-runtime-results/
+          if-no-files-found: warn

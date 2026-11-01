@@ -2,8 +2,9 @@ unit KM_ResFonts;
 {$I KaM_Remake.inc}
 interface
 uses
-  SysUtils, Graphics,
-  KM_CommonTypes, KM_RenderTypes,
+  SysUtils,
+  {$IFNDEF ANDROID} Graphics, {$ENDIF}
+  KM_CommonTypes, KM_RenderTypes, KM_FontTypes,
   KM_Points, KM_ResPalettes;
 
 
@@ -11,17 +12,18 @@ const
   FONT_TAB_WIDTH = 30;
 
 type
-  //* Font type
-  TKMFont = (
-    fntAntiqua,
-    fntGame,
-    fntGrey,
-    fntMetal,
-    fntMini,
-    fntOutline,
-    fntArial, // Arial for MP chat
-    fntMonospaced // Debug overlay font (Consolas 8. Set WordSpacing to any Char.Width)
-  );
+  // Public aliases preserve existing KM_ResFonts-qualified call sites.
+  TKMFont = KM_FontTypes.TKMFont;
+
+const
+  fntAntiqua = KM_FontTypes.fntAntiqua;
+  fntGame = KM_FontTypes.fntGame;
+  fntGrey = KM_FontTypes.fntGrey;
+  fntMetal = KM_FontTypes.fntMetal;
+  fntMini = KM_FontTypes.fntMini;
+  fntOutline = KM_FontTypes.fntOutline;
+  fntArial = KM_FontTypes.fntArial;
+  fntMonospaced = KM_FontTypes.fntMonospaced;
 
 const
   FontTypeName: array [TKMFont] of string = (
@@ -105,9 +107,11 @@ type
     procedure LoadFontX(const aFileName: string; aLoadLevel: TKMFontLoadLevel = fllFull);
     procedure GenerateTextures(aTexMode: TKMTexFormat);
     procedure Compact;
+    {$IFNDEF ANDROID}
     procedure ExportAtlasBmp(aBitmap: TBitmap; aIndex: Integer; aShowCells: Boolean); overload;
     procedure ExportAtlasBmp(const aPath: string; aIndex: Integer); overload;
     procedure ExportAtlasPng(const aFilename: string; aIndex: Integer); overload;
+    {$ENDIF}
 
     function GetLetter(aChar: WideChar): TKMLetter;
     property AtlasCount: Byte read fAtlasCount;
@@ -148,7 +152,7 @@ type
     class function GuessPalette(const aFileName: string): TKMPal;
 
     procedure LoadFonts(aLoadLevel: TKMFontLoadLevel = fllFull);
-    procedure ExportFonts;
+    {$IFNDEF ANDROID} procedure ExportFonts; {$ENDIF}
   end;
 
 
@@ -160,7 +164,7 @@ uses
   Classes, Math, StrUtils,
   {$IFDEF FPC} zstream, {$ENDIF}
   {$IFDEF WDC} ZLib, {$ENDIF}
-  KM_Defaults, KM_IoPNG,
+  KM_Defaults, {$IFNDEF ANDROID} KM_IoPNG, {$ENDIF}
   {$IFNDEF NO_OGL}
   KM_Render,
   {$ENDIF}
@@ -407,6 +411,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 // Export texture atlas into bitmap (just for looks)
 procedure TKMFontSpec.ExportAtlasBmp(aBitmap: TBitmap; aIndex: Integer; aShowCells: Boolean);
 const
@@ -500,6 +505,8 @@ begin
 end;
 
 
+{$ENDIF}
+
 { TKMResFonts }
 constructor TKMResFonts.Create;
 var
@@ -571,6 +578,7 @@ begin
 end;
 
 
+{$IFNDEF ANDROID}
 procedure TKMResFonts.ExportFonts;
 var
   F: TKMFont;
@@ -588,6 +596,7 @@ begin
     fFontData[F].Compact;
   end;
 end;
+{$ENDIF}
 
 
 function TKMFontSpec.GetLineHeight: SmallInt;

@@ -2,7 +2,7 @@
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Controls,
+  Classes, {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KM_Controls, KM_ControlsScroll,
   KM_RenderUI, KM_ResFonts,
   KM_CommonTypes, KM_Points;
@@ -99,7 +99,7 @@ implementation
 uses
   KM_Defaults,
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   SysUtils, StrUtils, Math,
   Clipbrd,
   KromUtils,

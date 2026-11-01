@@ -19,7 +19,9 @@ interface
 
 uses
   Types
-  {$IFDEF USEBASS}     , Bass {$ENDIF}
+  {$IFDEF USEBASS}
+    {$IFDEF ANDROID}, KM_BassAndroid {$ELSE}, Bass {$ENDIF}
+  {$ENDIF}
   {$IFDEF USELIBZPLAY} , libZPlay {$ENDIF}
   ;
 
@@ -110,12 +112,26 @@ const
   FADE_TIME = 2000; //Time that a fade takes to occur in ms
 
 
+{$IFDEF USEBASS}
+function OpenMusicStream(const aPath: UnicodeString): Cardinal;
+{$IFDEF ANDROID} var bytes: UTF8String; {$ENDIF}
+begin
+  {$IFDEF ANDROID}
+  bytes := UTF8Encode(aPath);
+  Result := BASS_StreamCreateFile(False, PAnsiChar(bytes), 0, 0, BASS_STREAM_AUTOFREE);
+  {$ELSE}
+  Result := BASS_StreamCreateFile(False, PChar(aPath), 0, 0, BASS_STREAM_AUTOFREE {$IFDEF UNICODE} or BASS_UNICODE{$ENDIF});
+  {$ENDIF}
+end;
+{$ENDIF}
+
 { TKMMusicLib }
 constructor TKMMusicLib.Create(aVolume: Single);
 var
   I: Integer;
 begin
   inherited Create;
+  {$IFDEF ANDROID}{$IFDEF USEBASS} RequireAndroidBass; {$ENDIF}{$ENDIF}
   fIsInitialized := True;
   fEnabled := True;
 
@@ -133,7 +149,7 @@ begin
   {$IFDEF USEBASS}
   // Setup output - default device, 44100hz, stereo, 16 bits
   BASS_SetConfig(BASS_CONFIG_DEV_DEFAULT, 1);
-  if not BASS_Init(-1, 44100, 0, 0, nil) then
+  if not BASS_Init(-1, 44100, 0, {$IFDEF ANDROID}nil{$ELSE}0{$ENDIF}, nil) then
   begin
     gLog.AddTime('Failed to initialize the music playback device');
     fIsInitialized := False;
@@ -158,11 +174,13 @@ begin
   {$ENDIF}
 
   {$IFDEF USEBASS}
+  {$IFDEF ANDROID} if AndroidBassAvailable then begin {$ENDIF}
   BASS_Stop; //Stop all Bass output
   //Free the streams we may have used (will just return False if the stream is invalid)
   BASS_StreamFree(fBassStream);
   BASS_StreamFree(fBassOtherStream);
   BASS_Free; //Frees this usage of BASS, allowing it to be recreated successfully
+  {$IFDEF ANDROID} end; {$ENDIF}
   {$ENDIF}
 
   inherited;
@@ -192,7 +210,7 @@ begin
   {$ENDIF}
   {$IFDEF USEBASS}
   BASS_StreamFree(fBassStream); //Free the existing stream (will just return False if the stream is invalid)
-  fBassStream := BASS_StreamCreateFile(FALSE, PChar(FileName), 0, 0, BASS_STREAM_AUTOFREE {$IFDEF UNICODE} or BASS_UNICODE{$ENDIF});
+  fBassStream := OpenMusicStream(FileName);
 
   BASS_ChannelPlay(fBassStream, True); //Start playback from the beggining
 
@@ -226,7 +244,7 @@ begin
   {$ENDIF}
   {$IFDEF USEBASS}
   BASS_StreamFree(fBassOtherStream); //Free the existing stream (will just return False if the stream is invalid)
-  fBassOtherStream := BASS_StreamCreateFile(FALSE, PChar(FileName), 0, 0, BASS_STREAM_AUTOFREE {$IFDEF UNICODE} or BASS_UNICODE{$ENDIF});
+  fBassOtherStream := OpenMusicStream(FileName);
 
   BASS_ChannelPlay(fBassOtherStream, True); //Start playback from the beggining
 

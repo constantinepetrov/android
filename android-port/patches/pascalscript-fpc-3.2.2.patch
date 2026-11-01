@@ -1,0 +1,226 @@
+diff --git a/InvokeCall.inc b/InvokeCall.inc
+index 0c0c931..d8e6d29 100644
+--- a/InvokeCall.inc
++++ b/InvokeCall.inc
+@@ -1,3 +1,12 @@
++{$IFDEF FPC}
++// Experimental signature adapter only. It requires a compatible call manager.
++function InvokeCompat(Address: Pointer; const Args: TArray<TValue>;
++  CallConv: TCallConv; ReturnType: PTypeInfo; IsStatic: Boolean = True;
++  IsConstructor: Boolean = False): TValue;
++begin
++  Result := Rtti.Invoke(Address, Args, CallConv, ReturnType, IsStatic, IsConstructor);
++end;
++{$ENDIF}
+ function TPSExec.InnerfuseCall(_Self, Address: Pointer; CallingConv: TPSCallingConvention; Params: TPSList; res: PPSVariantIFC): Boolean;
+ var SysCalConv : TCallConv;
+     Args: TArray<TValue>;
+@@ -9,6 +18,7 @@ var SysCalConv : TCallConv;
+     ctx: TRTTIContext;
+     RttiType : TRttiType;
+     ResValue : TValue;
++    RecordTypeInfo : Pointer;
+ begin
+   Result := False;
+   IsStatic := _Self = nil;
+@@ -113,37 +123,37 @@ begin
+   IsConstr := (Integer(CallingConv) and 64) <> 0;
+   if not assigned(res) then
+   begin
+-    Invoke(Address, Args, SysCalConv, nil);  { ignore return }
++    InvokeCompat(Address, Args, SysCalConv, nil, IsStatic, IsConstr);  { ignore return }
+   end
+   else begin
+     case res.atype.basetype of
+       { add result types here }
+-      btString:                tbtstring(res.dta^) := tbtstring(Invoke(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString);
++      btString:                tbtstring(res.dta^) := tbtstring(InvokeCompat(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString);
+       {$IFNDEF PS_NOWIDESTRING}
+-      btUnicodeString:         tbtunicodestring(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString;
+-      btWideString:            tbtWideString(res.dta^) := Invoke(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString;
++      btUnicodeString:         tbtunicodestring(res.dta^) := InvokeCompat(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString;
++      btWideString:            tbtWideString(res.dta^) := InvokeCompat(Address,Args,SysCalConv,TypeInfo(String),IsStatic).AsString;
+       {$ENDIF}
+-      btU8, btS8:              pbyte(res.dta)^ := Byte(Invoke(Address,Args,SysCalConv,TypeInfo(Byte),IsStatic).AsInteger);
+-      btU16, btS16:            pword(res.dta)^ := word(Invoke(Address,Args,SysCalConv,TypeInfo(Word),IsStatic).AsInteger);
+-      btU32, btS32:            pCardinal(res.dta)^ := Cardinal(Invoke(Address,Args,SysCalConv,TypeInfo(Cardinal),IsStatic).AsInteger);
+-      {$IFNDEF PS_NOINT64}bts64:{$ENDIF}   pInt64(res.dta)^ := Int64(Invoke(Address,Args,SysCalConv,TypeInfo(Int64),IsStatic).AsInt64);
+-      btSingle:                psingle(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended);
+-      btDouble:                pdouble(res.dta)^ := Double(Invoke(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended);
+-      btExtended:              pextended(res.dta)^ := Extended(Invoke(Address,Args,SysCalConv,TypeInfo(Extended),IsStatic).AsExtended);
++      btU8, btS8:              pbyte(res.dta)^ := Byte(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Byte),IsStatic).AsInteger);
++      btU16, btS16:            pword(res.dta)^ := word(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Word),IsStatic).AsInteger);
++      btU32, btS32:            pCardinal(res.dta)^ := Cardinal(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Cardinal),IsStatic).AsInteger);
++      {$IFNDEF PS_NOINT64}bts64:{$ENDIF}   pInt64(res.dta)^ := Int64(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Int64),IsStatic).AsInt64);
++      btSingle:                psingle(res.dta)^ := InvokeCompat(Address,Args,SysCalConv,TypeInfo(Single),IsStatic).AsExtended;
++      btDouble:                pdouble(res.dta)^ := InvokeCompat(Address,Args,SysCalConv,TypeInfo(Double),IsStatic).AsExtended;
++      btExtended:              pextended(res.dta)^ := Extended(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Extended),IsStatic).AsExtended);
+       {$IFDEF FPC}
+-      btPChar:                 ppchar(res.dta)^ := pchar(Invoke(Address,Args,SysCalConv,TypeInfo(PChar),IsStatic).AsOrdinal);
+-      btChar:                  pchar(res.dta)^ := Char(Invoke(Address,Args,SysCalConv,TypeInfo(Char),IsStatic).AsChar);
++      btPChar:                 ppchar(res.dta)^ := pchar(InvokeCompat(Address,Args,SysCalConv,TypeInfo(PChar),IsStatic).AsOrdinal);
++      btChar:                  pchar(res.dta)^ := Char(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Char),IsStatic).AsChar);
+       {$ELSE}
+-      btPChar:                 ppchar(res.dta)^ := pchar(Invoke(Address,Args,SysCalConv,TypeInfo(PChar),IsStatic).AsType<PChar>());
+-      btChar:                  pchar(res.dta)^ := Char(Invoke(Address,Args,SysCalConv,TypeInfo(Char),IsStatic).AsType<Char>());
++      btPChar:                 ppchar(res.dta)^ := pchar(InvokeCompat(Address,Args,SysCalConv,TypeInfo(PChar),IsStatic).AsType<PChar>());
++      btChar:                  pchar(res.dta)^ := Char(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Char),IsStatic).AsType<Char>());
+       {$ENDIF}
+       btSet:
+         begin
+           case TPSTypeRec_Set(res.aType).aByteSize  of
+-            1: byte(res.Dta^) := Byte(Invoke(Address,Args,SysCalConv,TypeInfo(Byte),IsStatic).AsInteger);
+-            2: word(res.Dta^) := word(Invoke(Address,Args,SysCalConv,TypeInfo(Word),IsStatic).AsInteger);
++            1: byte(res.Dta^) := Byte(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Byte),IsStatic).AsInteger);
++            2: word(res.Dta^) := word(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Word),IsStatic).AsInteger);
+             3,
+-            4: Longint(res.Dta^) := Cardinal(Invoke(Address,Args,SysCalConv,TypeInfo(Cardinal),IsStatic).AsInteger);
++            4: Longint(res.Dta^) := Cardinal(InvokeCompat(Address,Args,SysCalConv,TypeInfo(Cardinal),IsStatic).AsInteger);
+             {$IFNDEF FPC}
+             else
+             begin
+@@ -151,7 +161,7 @@ begin
+                 if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkSet)
+                   and (RttiType.TypeSize = TPSTypeRec_Set(res.aType).aByteSize) then
+                 begin
+-                  Invoke(Address,Args,SysCalConv,RttiType.Handle,IsStatic).ExtractRawData(res.dta);
++                  InvokeCompat(Address,Args,SysCalConv,RttiType.Handle,IsStatic).ExtractRawData(res.dta);
+                   Break;
+                 end;
+             end;
+@@ -163,7 +173,7 @@ begin
+         {$IFNDEF FPC}for RttiType in ctx.GetTypes do
+           if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkClass) then{$ENDIF}
+           begin
+-            TObject(res.dta^) := Invoke(Address,Args,SysCalConv,{$IFDEF FPC}TypeInfo(TObject){$ELSE}RttiType.Handle{$ENDIF},IsStatic, IsConstr).AsObject;
++            TObject(res.dta^) := InvokeCompat(Address,Args,SysCalConv,{$IFDEF FPC}TypeInfo(TObject){$ELSE}RttiType.Handle{$ENDIF},IsStatic, IsConstr).AsObject;
+             {$IFNDEF FPC}Break;{$ENDIF}
+           end;
+       end;
+@@ -173,7 +183,7 @@ begin
+         for RttiType in ctx.GetTypes do
+           if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkArray) then
+           begin
+-            CopyArrayContents(res.dta, Invoke(Address,Args,SysCalConv,RttiType.Handle,IsStatic).GetReferenceToRawData, TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType);
++            CopyArrayContents(res.dta, InvokeCompat(Address,Args,SysCalConv,RttiType.Handle,IsStatic).GetReferenceToRawData, TPSTypeRec_StaticArray(res.aType).Size, TPSTypeRec_StaticArray(res.aType).ArrayType);
+             Break;
+           end;
+       end;
+@@ -182,7 +192,7 @@ begin
+         for RttiType in ctx.GetTypes do
+           if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkRecord) then
+           begin
+-            CopyArrayContents(res.dta, (Invoke(Address,Args,SysCalConv,RttiType.Handle,IsStatic).GetReferenceToRawData), 1, res.aType);
++            CopyArrayContents(res.dta, (InvokeCompat(Address,Args,SysCalConv,RttiType.Handle,IsStatic).GetReferenceToRawData), 1, res.aType);
+             Break;
+           end;
+       end;
+@@ -191,7 +201,7 @@ begin
+         for RttiType in ctx.GetTypes do
+           if (RttiType.Name.ToUpper.EndsWith(String(res.aType.FExportName))) and (RttiType.TypeKind = tkDynArray) then
+           begin
+-            ResValue := Invoke(Address,Args,SysCalConv,RttiType.Handle,IsStatic);
++            ResValue := InvokeCompat(Address,Args,SysCalConv,RttiType.Handle,IsStatic);
+             if ResValue.GetArrayLength > 0 then
+               CopyArrayContents(res.dta, ResValue.GetReferenceToRawData, 1, res.aType)
+             else
+@@ -201,9 +211,26 @@ begin
+       end;
+       btVariant:
+         begin
+-          PVariant(res.dta)^ := Invoke(Address, Args, SysCalConv, TypeInfo(Variant), IsStatic).AsVariant;
++          PVariant(res.dta)^ := InvokeCompat(Address, Args, SysCalConv, TypeInfo(Variant), IsStatic).AsVariant;
+         end;
+       {$ENDIF}
++      {$IFDEF FPC}
++      btRecord:
++      begin
++        // FPC 3.2.2 does not implement TRttiContext.GetDeclaredMethods.
++        // The game registers exact method result metadata before running scripts.
++        if _Self = nil then
++          Exit(False);
++        RecordTypeInfo := PSFindRecordReturnType(Address);
++        if not Assigned(RecordTypeInfo) then
++          Exit(False);
++        ResValue := InvokeCompat(Address, Args, SysCalConv,
++          PTypeInfo(RecordTypeInfo), IsStatic);
++        Result := CopyArrayContents(res.dta,
++          ResValue.GetReferenceToRawData, 1, res.aType);
++        Exit;
++      end;
++      {$ENDIF}
+       else
+ //          writeln(stderr, 'Result type not implemented!');
+         Exit;
+diff --git a/uPSCompiler.pas b/uPSCompiler.pas
+index 4d0dde2..b95ca8c 100644
+--- a/uPSCompiler.pas
++++ b/uPSCompiler.pas
+@@ -6841,8 +6841,7 @@ function TPSPascalCompiler.ProcessSub(BlockInfo: TPSBlockInfo): Boolean;
+               x := nil;
+               exit;
+             end;
+-            var bType := GetTypeNo(BlockInfo, tmp).BaseType;
+-            if not IsIntType(bType) and not (bType = btEnum) then
++            if not IsIntType(GetTypeNo(BlockInfo, tmp).BaseType) and not (GetTypeNo(BlockInfo, tmp).BaseType = btEnum) then
+             begin
+               MakeError('', ecTypeMismatch, '');
+               tmp.Free;
+diff --git a/uPSRuntime.pas b/uPSRuntime.pas
+index b961d15..e2a6b8f 100644
+--- a/uPSRuntime.pas
++++ b/uPSRuntime.pas
+@@ -861,6 +861,9 @@ type
+ 
+ 
+ function PSErrorToString(x: TPSError; const Param: tbtstring): tbtstring;
++{$IFDEF FPC}
++procedure PSRegisterRecordReturnType(Address, ATypeInfo: Pointer);
++{$ENDIF}
+ function TIFErrorToString(x: TPSError; const Param: tbtstring): tbtstring;
+ function CreateHeapVariant(aType: TPSTypeRec): PPSVariant;
+ procedure DestroyHeapVariant(v: PPSVariant);
+@@ -1109,6 +1112,43 @@ uses
+   {$IFDEF PS_FPC_HAS_COM}, ComObj{$ENDIF}
+   {$IF NOT DEFINED (NEXTGEN) AND NOT DEFINED (MACOS) AND  DEFINED (DELPHI_TOKYO_UP)}, AnsiStrings{$IFEND};
+ 
++{$IFDEF FPC}
++type
++  TPSRecordReturnInfo = record
++    Address: Pointer;
++    ATypeInfo: Pointer;
++  end;
++var
++  PSRecordReturnInfos: array of TPSRecordReturnInfo;
++
++procedure PSRegisterRecordReturnType(Address, ATypeInfo: Pointer);
++var
++  i: Integer;
++begin
++  if (Address = nil) or (ATypeInfo = nil) then
++    Exit;
++  for i := 0 to High(PSRecordReturnInfos) do
++    if PSRecordReturnInfos[i].Address = Address then
++    begin
++      PSRecordReturnInfos[i].ATypeInfo := ATypeInfo;
++      Exit;
++    end;
++  SetLength(PSRecordReturnInfos, Length(PSRecordReturnInfos) + 1);
++  PSRecordReturnInfos[High(PSRecordReturnInfos)].Address := Address;
++  PSRecordReturnInfos[High(PSRecordReturnInfos)].ATypeInfo := ATypeInfo;
++end;
++
++function PSFindRecordReturnType(Address: Pointer): Pointer;
++var
++  i: Integer;
++begin
++  for i := 0 to High(PSRecordReturnInfos) do
++    if PSRecordReturnInfos[i].Address = Address then
++      Exit(PSRecordReturnInfos[i].ATypeInfo);
++  Result := nil;
++end;
++{$ENDIF}
++
+ {$UNDEF LOG}
+ {$IFDEF uPSRuntime_DEBUG}{$DEFINE LOG}{$ENDIF}
+ {$IFDEF LOG}

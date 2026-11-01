@@ -14,7 +14,7 @@ uses
 
 implementation
 uses
-  Classes,
+  Classes, KM_MapLegacyTile,
   KM_Resource, KM_ResSprites,
   KM_HandTypes, KM_ResTypes, KM_ResTilesetTypes;
 
@@ -128,7 +128,8 @@ procedure ReadTileFromStream(aStream: TKMemoryStream; var aTileBasic: TKMTerrain
 
 var
   I: Integer;
-  terrainB, objectB, rot, corners: Byte;
+  rot, corners: Byte;
+  legacyTile: TKMLegacyMapTile;
   layersCorners: array[0..3] of Byte;
   useKaMFormat: Boolean;
   terIdentInfo: Word;
@@ -138,15 +139,11 @@ begin
 
   if useKaMFormat then
   begin
-    aStream.Read(terrainB);           //1
-    aTileBasic.BaseLayer.Terrain := terrainB;
-    aStream.Seek(1, soFromCurrent);
-    aStream.Read(aTileBasic.Height);  //3
-    aStream.Read(rot);                //4
-    aTileBasic.BaseLayer.Rotation := rot mod 4; //Some original KaM maps have Rot > 3, mod 4 gives right result
-    aStream.Seek(1, soFromCurrent);
-    aStream.Read(objectB);     //6
-    aTileBasic.Obj := objectB;
+    ReadLegacyMapTile(aStream, legacyTile);
+    aTileBasic.BaseLayer.Terrain := legacyTile.Terrain;
+    aTileBasic.Height := legacyTile.Height;
+    aTileBasic.BaseLayer.Rotation := legacyTile.Rotation;
+    aTileBasic.Obj := legacyTile.Obj;
     aTileBasic.BaseLayer.SetAllCorners;
     aTileBasic.LayersCnt := 0;
     aTileBasic.IsCustom := False;
@@ -223,8 +220,6 @@ begin
     end;
   end;
 
-  if useKaMFormat then
-    aStream.Seek(17, soFromCurrent);
 end;
 
 

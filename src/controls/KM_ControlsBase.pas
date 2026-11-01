@@ -2,7 +2,8 @@
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Controls,
+  Classes,
+  {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KromOGLUtils,
   KM_Controls,
   KM_RenderUI,
@@ -232,9 +233,9 @@ type
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   StrUtils, Math,
-  KM_ControlsTypes,
+  {$IFNDEF ANDROID} KM_ControlsTypes, {$ENDIF}
   KM_Sound,
   KM_Resource, KM_ResSound, KM_ResSprites,
   KM_Defaults, KM_CommonUtils,
@@ -455,7 +456,7 @@ var
   col: Cardinal;
 begin
   TKMRenderUI.SetupClipY(AbsTop, AbsTop + Height);
-  newTop := EnsureRange(AbsTop + Height - TimeSince(SmoothScrollToTop) div 50, -MINSHORT, MAXSHORT); //Compute delta and shift by it upwards (Credits page)
+  newTop := EnsureRange(AbsTop + Height - TimeSince(SmoothScrollToTop) div 50, Low(SmallInt), High(SmallInt)); //Compute delta and shift by it upwards (Credits page)
 
   if Enabled then
     col := FontColor

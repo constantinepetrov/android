@@ -1,0 +1,37 @@
+name: Inspect existing translated-x86 log
+on:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: kam-android-emulator-runtime
+          path: prior
+          run-id: 41182400304
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: kam-native-integration-probe-arm64
+          path: prior-apk
+          run-id: 41180964842
+          github-token: ${{ github.token }}
+      - name: Inspect actual ELF dependencies
+        run: |
+          unzip -p prior-apk/app-debug.apk lib/arm64-v8a/libkamprobe.so > /tmp/prior-kamprobe.so
+          readelf -dW /tmp/prior-kamprobe.so
+          readelf -Ws /tmp/prior-kamprobe.so | grep ' UND ' | sort -u
+          readelf -lW /tmp/prior-kamprobe.so
+      - name: Show crash evidence (x86_64, not ARM64 verification)
+        run: |
+          ls -la prior
+          cat prior/install.txt prior/start.txt prior/failure.txt prior/smoke-window.xml
+          grep -i -C 5 -E 'KaMProbe|nativeprobe|FATAL EXCEPTION|Fatal signal|UnsatisfiedLinkError' prior/logcat.txt | tail -300 || true
+          grep -i -C 18 -E 'FATAL EXCEPTION|Fatal signal|DEBUG.*pid:|linker.*kamprobe|UnsatisfiedLinkError|kamremake.androidprobe.*died' prior/logcat.txt | tail -500 || true

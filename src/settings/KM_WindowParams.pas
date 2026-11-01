@@ -2,22 +2,21 @@ unit KM_WindowParams;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF WDC}UITypes,{$ENDIF} //We use settings in console modules
-  Forms,
+  KM_WindowTypes,
   KM_Points;
 
 type
   TKMWindowParamsRecord = record
     Width, Height, Left, Top: SmallInt;
-    State: TWindowState;
-    Position: TPosition;
+    State: TKMWindowState;
+    Position: TKMWindowPosition;
   end;
 
   TKMWindowParams = class
   private
     fWidth, fHeight, fLeft, fTop: SmallInt; // Window size/position on the screen
-    fState: TWindowState;                   // Window state (wsNormal/wsMaximized)
-    fPosition: TPosition;                   // Window position (poDesigned/poCenterScreen)
+    fState: TKMWindowState;                   // Window state (wsNormal/wsMaximized)
+    fPosition: TKMWindowPosition;                   // Window position (poDesigned/poCenterScreen)
     fFixedPosition: Boolean;                // Set if user can fix position style in case other styles do not work properly
                                             // There was bugreport when game window appeared only with poCenterScreen position on Linux
     fLockParams: Boolean;                   // Lock updating window params, used when Fullscreen turned On
@@ -31,8 +30,8 @@ type
     property Height: SmallInt read fHeight write SetHeight;
     property Left: SmallInt read fLeft write fLeft;
     property Top: SmallInt read fTop write fTop;
-    property State: TWindowState read fState write fState;
-    property Position: TPosition read fPosition write fPosition;
+    property State: TKMWindowState read fState write fState;
+    property Position: TKMWindowPosition read fPosition write fPosition;
     property FixedPosition: Boolean read fFixedPosition write fFixedPosition;
     property IsChanged: Boolean read fIsChanged;
     property NeedResetToDefaults: Boolean read fNeedResetToDefaults write fNeedResetToDefaults;
@@ -115,7 +114,7 @@ begin
         and (fHeight >= RESOLUTION_HEIGHT_MIN)
         and (fHeight <= ScreenMaxHeight)
         and (fTop    <= ScreenMaxHeight - WINDOW_AT_EDGE_GAP)
-        and (fState in [TWindowState.wsNormal, TWindowState.wsMaximized]);
+        and (fState in [kwsNormal, kwsMaximized]);
         // it seems there is no need to test Position property
 end;
 
@@ -124,8 +123,8 @@ function TKMWindowParams.ObjToString: String;
 begin
   Result := Format('Left = %d Top = %d Width = %d Height = %d State = %s Position = %s FixedPosition = %s',
                    [fLeft, fTop, fWidth, fHeight,
-                    GetEnumName(TypeInfo(TWindowState), Integer(fState)),
-                    GetEnumName(TypeInfo(TPosition), Integer(fPosition)),
+                    GetEnumName(TypeInfo(TKMWindowState), Integer(fState)),
+                    GetEnumName(TypeInfo(TKMWindowPosition), Integer(fPosition)),
                     BoolToStr(fFixedPosition, True)]);
 end;
 

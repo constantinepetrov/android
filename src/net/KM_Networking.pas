@@ -2,7 +2,7 @@ unit KM_Networking;
 {$I KaM_Remake.inc}
 interface
 uses
-  {$IFDEF Unix} LCLIntf, {$ENDIF}
+  {$IF Defined(Unix) and not Defined(ANDROID)} LCLIntf, {$IFEND}
   Classes, SysUtils, TypInfo, Generics.Collections,
   KromUtils,
   KM_Console,
@@ -243,7 +243,7 @@ implementation
 uses
   Math, StrUtils,
   KM_NetConsts, KM_Sound, KM_Log, KM_CommonUtils, KM_HandsCollection, KM_Hand,
-  KM_System, KM_GameApp, KM_GameSettings,
+  KM_System, {$IFNDEF ANDROID} KM_GameApp, {$ENDIF} KM_GameSettings,
   KM_Resource, KM_ResSound, KM_ResTexts, KM_NetworkUtils;
 
 
@@ -1200,9 +1200,11 @@ const
 begin
   if Assigned(OnTextMessage) then
   begin
+    {$IFNDEF ANDROID}
     if (gSystem <> nil) and (gGameApp <> nil) and (gGameSettings <> nil) then
       if gGameSettings.FlashOnMessage then
         gSystem.FlashingStart;
+    {$ENDIF}
 
     OnTextMessage(aText);
 

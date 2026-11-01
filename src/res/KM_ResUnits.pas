@@ -609,9 +609,29 @@ end;
 
 procedure TKMResUnits.ExportCSV(const aPath: UnicodeString);
 var
-  sw: TStreamWriter;
+  {$IFDEF ANDROID}lines: TStringList; row: string;{$ELSE}sw: TStreamWriter;{$ENDIF}
   UT: TKMUnitType;
 begin
+  {$IFDEF ANDROID}
+  // FPC Android has no TStreamWriter. Preserve CSV export using real file I/O.
+  lines := TStringList.Create;
+  try
+    lines.Add('Name,HitPoints,Attack,AttackHorse,x4,Defence,Speed,x7,Sight,x9,x10,CanWalkOut,x11');
+    for UT := Low(TKMUnitType) to High(TKMUnitType) do
+      if Items[UT].IsValid then
+      begin
+        row := GetEnumName(TypeInfo(TKMUnitType), Ord(UT)) + ',' +
+          IntToStr(Items[UT].HitPoints) + ',' + IntToStr(Items[UT].Attack) + ',' +
+          IntToStr(Items[UT].AttackHorse) + ',' + IntToStr(Items[UT].fUnitDat.x4) + ',' +
+          IntToStr(Items[UT].Defence) + ',' + IntToStr(Items[UT].fUnitDat.Speed) + ',' +
+          IntToStr(Items[UT].fUnitDat.x7) + ',' + IntToStr(Items[UT].Sight) + ',' +
+          IntToStr(Items[UT].fUnitDat.x9) + ',' + IntToStr(Items[UT].fUnitDat.x10) + ',' +
+          IntToStr(Items[UT].fUnitDat.CanWalkOut) + ',' + IntToStr(Items[UT].fUnitDat.x11) + ',';
+        lines.Add(row);
+      end;
+    lines.SaveToFile(aPath);
+  finally lines.Free end;
+  {$ELSE}
   sw := TStreamWriter.Create(aPath);
   sw.WriteLine('Name,HitPoints,Attack,AttackHorse,x4,Defence,Speed,x7,Sight,x9,x10,CanWalkOut,x11');
   for UT := Low(TKMUnitType) to High(TKMUnitType) do
@@ -635,6 +655,7 @@ begin
     sw.WriteLine;
   end;
   sw.Free;
+  {$ENDIF}
 
   {AssignFile(ft,ExeDir+'Units.txt'); rewrite(ft);
   for ii:=Low(TKMUnitType) to High(TKMUnitType) do

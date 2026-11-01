@@ -3,7 +3,7 @@ unit KM_ControlsDrop;
 interface
 uses
   Classes,
-  Controls,
+  {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KromOGLUtils,
   KM_Controls, KM_ControlsBase, KM_ControlsList,
   KM_ResTypes, KM_ResFonts,
@@ -155,7 +155,7 @@ type
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   Math,
   KM_Defaults;
 

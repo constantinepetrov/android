@@ -1,0 +1,202 @@
+unit KM_AndroidScriptProbe;
+{$mode delphi}
+interface
+function RunScriptProbe: Integer;
+function RunRealUtilsScriptProbe: Integer;
+function RunFogStateScriptProbe: Integer;
+implementation
+uses SysUtils, TypInfo, uPSCompiler, uPSRuntime, uPSUtils, KM_Points, KM_ScriptingUtils, KM_FogOfWar;
+function __android_log_write(priority: LongInt; tag, text: PChar): LongInt; cdecl; external 'log' name '__android_log_write';
+procedure AndroidLog(const aText: AnsiString);
+begin
+  __android_log_write(6, 'KaMProbe', PChar(aText));
+end;
+type
+  TScriptFacade = class
+    Bias: Integer;
+    function Add(Value: Integer): Integer;
+    function Mix(Value: Single): Single;
+    procedure OutValue(Value: Integer; out Output: Integer);
+  end;
+type
+  TFogScriptResult = class
+    LastValue: Integer;
+    procedure Capture(Value: Integer);
+  end;
+procedure TFogScriptResult.Capture(Value: Integer);
+begin
+  LastValue := Value;
+end;
+
+function TScriptFacade.Add(Value: Integer): Integer; begin Result := Bias + Value end;
+function TScriptFacade.Mix(Value: Single): Single; begin Result := Bias + Value end;
+procedure TScriptFacade.OutValue(Value: Integer; out Output: Integer); begin Output := Bias + Value end;
+function RegisterScriptTypes(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
+var C: TPSCompileTimeClass;
+begin
+  Result := Name = 'SYSTEM'; if not Result then Exit;
+  C := Sender.AddClassN(nil, 'TScriptFacade');
+  if not C.RegisterMethod('function Add(Value: Integer): Integer') then Exit(False);
+  if not C.RegisterMethod('function Mix(Value: Single): Single') then Exit(False);
+  if not C.RegisterMethod('procedure OutValue(Value: Integer; var Output: Integer)') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Utils', 'TScriptFacade');
+end;
+function RunScriptProbe: Integer;
+const Source = 'var n: Integer; f: Single; begin n := Utils.Add(35); if n <> 42 then n := 1 div (n-n); f := Utils.Mix(2.5); '
+  + 'Utils.OutValue(8,n); if (n <> 15) or (f < 9.49) or (f > 9.51) then n := 1 div (n-n); end.';
+var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
+    Instance: TScriptFacade; Data: AnsiString;
+begin
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  try
+    try
+      Compiler := TPSPascalCompiler.Create; Compiler.OnUses := @RegisterScriptTypes;
+      if not Compiler.Compile(Source) then begin Result := -2; Exit end;
+      Compiler.GetOutput(Data);
+      // Negative test must reject an invalid script, rather than accept a no-op.
+      if Compiler.Compile('begin this_identifier_does_not_exist := 1; end.') then begin Result := -3; Exit end;
+      FreeAndNil(Compiler);
+      Importer := TPSRuntimeClassImporter.Create;
+      with Importer.Add(TScriptFacade) do begin
+        RegisterMethod(@TScriptFacade.Add, 'Add'); RegisterMethod(@TScriptFacade.Mix, 'Mix');
+        RegisterMethod(@TScriptFacade.OutValue, 'OutValue');
+      end;
+      Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
+      if not Exec.LoadData(Data) then begin Result := -4; Exit end;
+      Instance := TScriptFacade.Create; Instance.Bias := 7;
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
+      if not Exec.RunScript then begin
+        AndroidLog(AnsiString('REAL_UTILS_SCRIPT_RUNTIME_ERROR code=' + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
+        Result := -5; Exit
+      end;
+      Result := 42;
+    except on E: Exception do Result := -6 end;
+  finally Exec.Free; Importer.Free; Instance.Free; Compiler.Free end;
+end;
+
+function RegisterRealUtils(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
+var C: TPSCompileTimeClass;
+begin
+  Result := Name = 'SYSTEM';
+  if not Result then Exit;
+  Sender.AddTypeS('TKMPoint', 'record X, Y: Integer; end');
+  C := Sender.AddClassN(nil, 'TKMScriptUtils');
+  if not C.RegisterMethod('function AbsI(aValue: Integer): Integer') then Exit(False);
+  if not C.RegisterMethod('function KMPoint(X, Y: Integer): TKMPoint') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Utils', 'TKMScriptUtils');
+end;
+
+function RunRealUtilsScriptProbe: Integer;
+const Source = 'var n: Integer; p: TKMPoint; begin n := Utils.AbsI(-42); p := Utils.KMPoint(13,17); if (n <> 42) or (p.X <> 13) or (p.Y <> 17) then n := 1 div (n-n); end.';
+var Compiler: TPSPascalCompiler; Exec: TPSExec; Importer: TPSRuntimeClassImporter;
+    Instance: TKMScriptUtils; Data: AnsiString;
+begin
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil;
+  try
+    try
+      Compiler := TPSPascalCompiler.Create; Compiler.OnUses := @RegisterRealUtils;
+      if not Compiler.Compile(Source) then begin Result := -2; Exit end;
+      Compiler.GetOutput(Data);
+      if Compiler.Compile('begin this_identifier_does_not_exist := 1; end.') then begin Result := -3; Exit end;
+      FreeAndNil(Compiler);
+      Importer := TPSRuntimeClassImporter.Create;
+      with Importer.Add(TKMScriptUtils) do begin
+        RegisterMethod(@TKMScriptUtils.AbsI, 'AbsI');
+        RegisterMethod(@TKMScriptUtils.KMPoint, 'KMPoint');
+      end;
+      Exec := TPSExec.Create; RegisterClassLibraryRuntime(Exec, Importer);
+      if not Exec.LoadData(Data) then begin Result := -4; Exit end;
+      Instance := TKMScriptUtils.Create;
+      PSRegisterRecordReturnType(@TKMScriptUtils.KMPoint, TypeInfo(TKMPoint));
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('UTILS')), Instance);
+      if not Exec.RunScript then begin
+        AndroidLog(AnsiString('REAL_UTILS_SCRIPT_RUNTIME_ERROR code=' + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)));
+        Result := -5; Exit
+      end;
+      Result := 42;
+    except on E: Exception do Result := -6 end;
+  finally Exec.Free; Importer.Free; Instance.Free; Compiler.Free end;
+end;
+function RegisterFogState(Sender: TPSPascalCompiler; const Name: AnsiString): Boolean;
+var C: TPSCompileTimeClass;
+begin
+  Result := Name = 'SYSTEM';
+  if not Result then Exit;
+  C := Sender.AddClassN(nil, 'TKMFogOfWar');
+  if not C.RegisterMethod('procedure RevealEverything') then Exit(False);
+  if not C.RegisterMethod('procedure UpdateState(aDynamicFOW: Boolean)') then Exit(False);
+  if not C.RegisterMethod('function CheckTileRevelation(X, Y: Word): Byte') then Exit(False);
+  if not AddImportedClassVariable(Sender, 'Fog', 'TKMFogOfWar') then Exit(False);
+  C := Sender.AddClassN(nil, 'TFogScriptResult');
+  if not C.RegisterMethod('procedure Capture(Value: Integer)') then Exit(False);
+  Result := AddImportedClassVariable(Sender, 'Probe', 'TFogScriptResult');
+end;
+
+function RunFogStateScriptProbe: Integer;
+const
+  Source = 'var i: Integer; begin Fog.RevealEverything; i := 0; '
+    + 'while i < 10 do begin Fog.UpdateState(True); i := i + 1; end; '
+    + 'i := Fog.CheckTileRevelation(1,1); Probe.Capture(i); '
+    + 'if i <> 255 then i := 1 div (i-i); end.';
+var
+  Compiler: TPSPascalCompiler;
+  Exec: TPSExec;
+  Importer: TPSRuntimeClassImporter;
+  Instance: TKMFogOfWar;
+  FogProbe: TFogScriptResult;
+  Data: AnsiString;
+  X, Y: Integer;
+begin
+  Result := -1; Compiler := nil; Exec := nil; Importer := nil; Instance := nil; FogProbe := nil;
+  try
+    try
+      Compiler := TPSPascalCompiler.Create;
+      Compiler.OnUses := @RegisterFogState;
+      if not Compiler.Compile(Source) then begin Result := -2; Exit end;
+      Compiler.GetOutput(Data);
+      FreeAndNil(Compiler);
+
+      Importer := TPSRuntimeClassImporter.Create;
+      with Importer.Add(TKMFogOfWar) do
+      begin
+        RegisterMethod(@TKMFogOfWar.RevealEverything, 'RevealEverything');
+        RegisterMethod(@TKMFogOfWar.UpdateState, 'UpdateState');
+        RegisterMethod(@TKMFogOfWar.CheckTileRevelation, 'CheckTileRevelation');
+      end;
+      with Importer.Add(TFogScriptResult) do
+        RegisterMethod(@TFogScriptResult.Capture, 'Capture');
+      Exec := TPSExec.Create;
+      RegisterClassLibraryRuntime(Exec, Importer);
+      if not Exec.LoadData(Data) then begin Result := -4; Exit end;
+      Instance := TKMFogOfWar.Create(3, 2, False);
+      FogProbe := TFogScriptResult.Create;
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('FOG')), Instance);
+      SetVariantToClass(Exec.GetVarNo(Exec.GetVar('PROBE')), FogProbe);
+      if not Exec.RunScript then
+      begin
+        AndroidLog(AnsiString('FOG_STATE_SCRIPT_RUNTIME_ERROR code='
+          + IntToStr(Ord(Exec.ExceptionCode)) + ' text=' + string(Exec.ExceptionString)
+          + ' observedTile=' + IntToStr(FogProbe.LastValue)));
+        Result := -5;
+        Exit
+      end;
+      AndroidLog(AnsiString('FOG_STATE_SCRIPT_RESULT scriptTile='
+        + IntToStr(FogProbe.LastValue)
+        + ' checkTile=' + IntToStr(Instance.CheckTileRevelation(1,1))
+        + ' raw00=' + IntToStr(Instance.Revelation[0,0])));
+      for Y := 0 to 1 do
+        for X := 0 to 2 do
+          if Instance.Revelation[Y, X] <> 243 then
+          begin
+            Result := -7;
+            Exit
+          end;
+      Result := 42;
+    except
+      on E: Exception do Result := -6;
+    end;
+  finally
+    Exec.Free; Importer.Free; Instance.Free; FogProbe.Free; Compiler.Free;
+  end;
+end;
+end.

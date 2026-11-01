@@ -36,6 +36,9 @@ type
 
   TKMScriptEvents = class(TKMScriptEntity)
   private
+    function GetExceptionOutsideScript: Boolean;
+    procedure SetExceptionOutsideScript(aValue: Boolean);
+  private
     fExec: TPSExec;
     fPreProcessor: TPSPreProcessor;
 
@@ -70,7 +73,7 @@ type
     procedure ProcUnitAfterDiedEx(aUnitType: TKMUnitType; aOwner: TKMHandID; aX, aY: Integer);
   public
     //todo -cPractical: This could be replaced with ENonScriptException = class(Exception)
-    ExceptionOutsideScript: Boolean; //Flag that the exception occurred in a State or Action call not script
+    property ExceptionOutsideScript: Boolean read GetExceptionOutsideScript write SetExceptionOutsideScript; //Exception occurred outside script
 
     constructor Create(aExec: TPSExec; aPreProcessor: TPSPreProcessor; aIDCache: TKMScriptingIdCache);
     destructor Destroy; override;
@@ -163,7 +166,7 @@ uses
   KM_ResTexts, KM_ResUnits,
   KM_Resource,
   KM_DevPerfLog, KM_DevPerfLogTypes,
-  KM_CommonUtils;
+  KM_CommonUtils, KM_ScriptExceptionState;
 
 
 type
@@ -192,9 +195,20 @@ end;
 
 
 { TKMScriptEvents }
+function TKMScriptEvents.GetExceptionOutsideScript: Boolean;
+begin
+  Result := GetScriptExceptionOutsideScript;
+end;
+
+procedure TKMScriptEvents.SetExceptionOutsideScript(aValue: Boolean);
+begin
+  SetScriptExceptionOutsideScript(aValue);
+end;
+
 constructor TKMScriptEvents.Create(aExec: TPSExec; aPreProcessor: TPSPreProcessor; aIDCache: TKMScriptingIdCache);
 begin
   inherited Create(aIDCache);
+  SetScriptExceptionOutsideScript(False);
 
   fExec := aExec;
   fPreProcessor := aPreProcessor;

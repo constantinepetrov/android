@@ -249,7 +249,7 @@ type
 
 implementation
 uses
-  IOUtils, TypInfo,
+  {$IFNDEF FPC} IOUtils, {$ENDIF} TypInfo,
   KM_Entity,
   KM_AI, KM_AIDefensePos,
   KM_Game, KM_GameParams, KM_GameTypes, KM_FogOfWar,
@@ -261,6 +261,24 @@ uses
   KM_PathFindingRoad,
   KM_Terrain, KM_Units, KM_UnitGroup, KM_ResHouses, KM_HouseCollection, KM_ResWares,
   KM_CommonUtils, KM_CommonClasses, KM_CommonClassesExt;
+
+{$IFDEF FPC}
+// The script tile file format is ASCII numeric data; read its bytes without
+// depending on Delphi's System.IOUtils unit.
+function ReadScriptTextFile(const aFileName: string): string;
+var
+  stream: TFileStream;
+begin
+  stream := TFileStream.Create(aFileName, fmOpenRead or fmShareDenyNone);
+  try
+    SetLength(Result, stream.Size);
+    if Result <> '' then
+      stream.ReadBuffer(Result[1], Length(Result));
+  finally
+    stream.Free;
+  end;
+end;
+{$ENDIF}
 
 const
   MIN_SOUND_AT_LOC_RADIUS = 28;
@@ -4017,7 +4035,11 @@ var
 begin
   try
     filePath := gGame.GetMapFilePath(aFileName, '.tiles');
+    {$IFDEF FPC}
+    fileContent := ReadScriptTextFile(filePath);
+    {$ELSE}
     fileContent := TFile.ReadAllText(filePath);
+    {$ENDIF}
     tilesStringArray := StrSplitA(fileContent, ';');
 
     parserSuccess := _MapTileStringToType(tilesStringArray, tiles, aOffsetX, aOffsetY);

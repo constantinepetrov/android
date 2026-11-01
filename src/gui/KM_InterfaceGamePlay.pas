@@ -3,7 +3,7 @@ unit KM_InterfaceGamePlay;
 interface
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   Controls, StrUtils, SysUtils, Math, Classes, TypInfo, Generics.Collections,
   KM_Controls, KM_ControlsBase, KM_ControlsDrop, KM_ControlsEdit, KM_ControlsList,  KM_ControlsMinimapView,
   KM_ControlsProgressBar, KM_ControlsSwitch,
@@ -383,11 +383,11 @@ implementation
 uses
   KromUtils,
   KM_Pics, KM_Terrain, KM_UnitWarrior, KM_ResFonts,
-  KM_Main, KM_System,
+  {$IFDEF ANDROID} KM_GameRuntime, {$ELSE} KM_Main, {$ENDIF} KM_System,
   KM_Entity,
   KM_GameInputProcess, KM_GameInputProcess_Multi, KM_AI, KM_RenderUI, KM_Cursor, KM_Maps,
   KM_HandsCollection, KM_Hand,
-  KM_RenderPool, KM_ResTexts, KM_Game, KM_GameApp, KM_HouseBarracks, KM_HouseTownHall,
+  KM_RenderPool, KM_ResTexts, KM_Game, {$IFDEF ANDROID} KM_GameRuntime, {$ELSE} KM_GameApp, {$ENDIF} KM_HouseBarracks, KM_HouseTownHall,
   KM_ScriptingEvents, KM_AIFields, KM_GameAppSettings, KM_GameSettings,
   KM_ControlsDragger,
   KM_CommonUtils, KM_ResLocales, KM_ResSound, KM_Resource, KM_Log, KM_ResKeys,
@@ -528,7 +528,7 @@ begin
   if not InRange(ListBox_Load.ItemIndex, 0, fSaves.Count - 1) then Exit;
 
   fSaves.TerminateScan; // Stop scan as it is no longer needed
-  gGameApp.NewGameSingleSave(fSaves[ListBox_Load.ItemIndex].FileName);
+  KMHostNewGameSingleSave(fSaves[ListBox_Load.ItemIndex].FileName);
 end;
 
 
@@ -728,7 +728,7 @@ begin
 
       Panel_Main.Childs[I].Show;
 
-      gGameApp.PrintScreen(exportPath + 'Panel' + int2fix(I, 3) + '.jpeg');
+      KMHostPrintScreen(exportPath + 'Panel' + int2fix(I, 3) + '.jpeg');
     end;
 end;
 
@@ -1725,7 +1725,7 @@ begin
     grDefeat,
     grCancel,
     grReplayEnd:     begin
-                        gGameApp.PrepageStopGame(gGame.GameResult);
+                        KMHostPrepageStopGame(gGame.GameResult);
                         showStats := True;
                         reinitStatsLastTime := True;
                       end;
@@ -1787,7 +1787,7 @@ begin
   missionFullPath := gGameParams.MissionFullFilePath;
   FreeThenNil(gGame);
   // current TKMGamePlayInterface object is destroyed, use only local variables here
-  gGameApp.NewGameMapEditor(missionFullPath, 0, 0, mapFullCRC, mapSimpleCRC, isMultiplayer);
+  KMHostNewGameMapEditor(missionFullPath, 0, 0, mapFullCRC, mapSimpleCRC, isMultiplayer);
 end;
 
 
@@ -2258,7 +2258,7 @@ begin
     fLastBeaconTime := TimeGet;
     // In replays we show the beacon directly without GIP. In spectator we use -1 for hand index
     case fUIMode of
-      umReplay:   Alerts.AddBeacon(aLoc, gMySpectator.HandID, gMySpectator.Hand.FlagColor, gGameApp.GlobalTickCount + ALERT_DURATION[atBeacon]);
+      umReplay:   Alerts.AddBeacon(aLoc, gMySpectator.HandID, gMySpectator.Hand.FlagColor, KMHostGetGlobalTickCount + ALERT_DURATION[atBeacon]);
       umSpectate: gGame.GameInputProcess.CmdGameBeacon(aLoc, HAND_NONE, gNetworking.MyRoomSlot.FlagColor);
       else        gGame.GameInputProcess.CmdGameBeacon(aLoc, gMySpectator.HandID, gMySpectator.Hand.FlagColor);
     end;
@@ -2314,7 +2314,7 @@ begin
   showPlayerFOW := Checkbox_ReplayFOW.Checked;
   playersColorMode := Radio_PlayersColorMode.ItemIndex;
 
-  if not gGameApp.TryLoadSavePoint( aTick ) then
+  if not KMHostTryLoadSavePoint( aTick ) then
     Exit;
 
   if gGame.SavePoints = nil then
@@ -2345,7 +2345,7 @@ begin
   begin
     gGame.IsPaused := True;
     UpdateReplayButtons; //Update buttons
-    UpdateState(gGameApp.GlobalTickCount);
+    UpdateState(KMHostGetGlobalTickCount);
   end;
 
   UpdateReplayMarks;
@@ -2839,8 +2839,10 @@ begin
   if fSelectingTroopDirection then
   begin
     // Reset the cursor position as it will have moved during direction selection
+    {$IFNDEF ANDROID}
     SetCursorPos(gMain.ClientToScreen(fSelectingDirPosition).X, gMain.ClientToScreen(fSelectingDirPosition).Y);
     gMain.ApplyCursorRestriction; // Reset the cursor restrictions from selecting direction
+    {$ENDIF}
     fSelectingTroopDirection := False;
     gSystem.Cursor := kmcDefault; // Reset direction selection cursor when mouse released
     DirectionCursorHide;
@@ -3258,7 +3260,7 @@ end;
 
 procedure TKMGamePlayInterface.GameStarted;
 begin
-  if gGameParams.IsMultiPlayerOrSpec and (gGameApp.Chat.Text <> '') then
+  if gGameParams.IsMultiPlayerOrSpec and (KMHostGetChatText <> '') then
     fGuiGameChat.Show;
 end;
 
@@ -3638,7 +3640,7 @@ begin
 
   if fSelectingTroopDirection then
   begin
-    gMain.ApplyCursorRestriction; // Reset the cursor restrictions from selecting direction
+    {$IFNDEF ANDROID} gMain.ApplyCursorRestriction; {$ENDIF} // Reset the cursor restrictions from selecting direction
     fSelectingTroopDirection := False;
     DirectionCursorHide;
   end;
@@ -3771,10 +3773,12 @@ begin
     begin
       deltaX := Round(deltaX / Sqrt(deltaDistanceSqr) * DIR_CURSOR_CIRCLE_RAD);
       deltaY := Round(deltaY / Sqrt(deltaDistanceSqr) * DIR_CURSOR_CIRCLE_RAD);
+      {$IFNDEF ANDROID}
       newPoint := gMain.ClientToScreen(fSelectingDirPosition);
       newPoint.X := newPoint.X + deltaX;
       newPoint.Y := newPoint.Y + deltaY;
       SetCursorPos(newPoint.X, newPoint.Y);
+      {$ENDIF}
     end;
 
     // Compare cursor position and decide which direction it is
@@ -4627,7 +4631,7 @@ end;
 
 procedure TKMGamePlayInterface.StopGame(const aText: UnicodeString = '');
 begin
-  gGameApp.StopGame(gGame.GameResult, aText);
+  KMHostStopGame(gGame.GameResult, aText);
 end;
 
 

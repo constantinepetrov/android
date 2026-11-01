@@ -7,7 +7,8 @@ uses
     LazFileUtils,{ windirs,} {$ENDIF}
   {$IFDEF WDC} System.IOUtils, {$ENDIF}
   {$IFDEF MSWindows} Windows, ShellAPI, {$ENDIF}
-  {$IFDEF Unix} LCLType, {$ENDIF}
+  // Android needs no LCL types here; Windows-only handle code uses Windows.
+  {$IF Defined(Unix) and not Defined(ANDROID)} LCLType, {$IFEND}
   Classes, SysUtils
   {$IFDEF WDC}, KM_WorkerThread{$ENDIF}
   , KM_CommonTypes;
