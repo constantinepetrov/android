@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "existing_output",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "{\"status\": \"failed\", \"error\": \"Output already exists: /workspace/scratch/8cb483b3f365/kam-reconstruction-negative-93cx9u1t/existing.apk\", \"elapsed_seconds\": 0.726}\n"
+    },
+    {
+      "case": "missing_sources",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "{\"status\": \"failed\", \"error\": \"[Errno 2] No such file or directory: '/workspace/scratch/8cb483b3f365/kam-reconstruction-negative-93cx9u1t/empty/Campaigns'\", \"elapsed_seconds\": 0.198}\n"
+    },
+    {
+      "case": "wrong_template",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "{\"status\": \"failed\", \"error\": \"Compressed template size mismatch\", \"elapsed_seconds\": 0.169}\n"
+    }
+  ],
+  "existing_output_preserved": true,
+  "failed_outputs_absent": true,
+  "android_runtime_tested": false
+}

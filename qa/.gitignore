@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# Reassembled from the independently hashed parts during input preparation.
+reconstruction/template.gz

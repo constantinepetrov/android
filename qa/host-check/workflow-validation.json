@@ -1,0 +1,29 @@
+{
+  "utc": "2026-11-01T15:27:41.893325+00:00",
+  "scope": "Local static checks only; no Android or Actions execution",
+  "checks": [
+    {
+      "name": "actionlint",
+      "argv": [
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa-tools/actionlint",
+        "-shellcheck=",
+        ".github/workflows/kam-cloud-qa.yml"
+      ],
+      "returncode": 0
+    },
+    {
+      "name": "input-help",
+      "argv": [
+        "python3",
+        "qa/prepare_inputs.py",
+        "--help"
+      ],
+      "returncode": 0
+    }
+  ],
+  "prepare_inputs_syntax": "PASS",
+  "files": {
+    ".github/workflows/kam-cloud-qa.yml": "b0c4e5f5fc4dd16a053f36b6a6337943d14f9139ee8cf183092d9550771d13a7",
+    "qa/prepare_inputs.py": "741ccf3726250f3b96765682d0b046757d9bbeeb955b895817405fef4f148e5f"
+  }
+}

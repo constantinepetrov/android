@@ -1,0 +1,196 @@
+name: KaM cloud Android QA
+
+# Changing this one request file on this one branch is the explicit run trigger.
+on:
+  push:
+    branches:
+      - codex/kam-cloud-qa
+    paths:
+      - qa/run-request.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kam-cloud-qa
+  cancel-in-progress: false
+
+jobs:
+  android-qa:
+    name: Android API 35 with ARM64 translation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Check out the requested QA revision
+        timeout-minutes: 3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prepare isolated paths and evidence directory
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kam-input" "$GITHUB_WORKSPACE/qa-artifacts"
+          {
+            printf 'KAM_APK_PATH=%s\n' "$RUNNER_TEMP/kam-input/app.apk"
+            printf 'KAM_QA_OUTPUT=%s\n' "$GITHUB_WORKSPACE/qa-artifacts"
+            printf 'KAM_AIRTEST_PYTHON=%s\n' "$RUNNER_TEMP/kam-airtest/bin/python"
+          } >> "$GITHUB_ENV"
+          cp qa/run-request.json qa-artifacts/run-request.json
+          uname -a > qa-artifacts/host.txt
+          df -h > qa-artifacts/disk-before-setup.txt
+          printf '%s\n' "$GITHUB_SHA" > qa-artifacts/qa-commit.txt
+
+      - name: Select Python 3.12
+        timeout-minutes: 3
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Enable and verify KVM access
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' |
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm > "$KAM_QA_OUTPUT/kvm.txt"
+
+      - name: Install the isolated Airtest environment
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/kam-airtest"
+          "$KAM_AIRTEST_PYTHON" -m pip install -r qa/requirements-airtest-lock.txt
+          "$KAM_AIRTEST_PYTHON" -m pip check
+          "$KAM_AIRTEST_PYTHON" -m pip freeze > "$KAM_QA_OUTPUT/installed-python-packages.txt"
+          "$KAM_AIRTEST_PYTHON" - <<'PY'
+          import importlib.metadata
+          import json
+          import os
+          import sys
+          from pathlib import Path
+          import airtest.core.api
+          import cv2
+
+          version = importlib.metadata.version("airtest")
+          if version != "1.4.3":
+              raise SystemExit(f"Unexpected Airtest version: {version}")
+          receipt = {
+              "scope": "Host imports only; no Android or game test has run",
+              "python": sys.version,
+              "airtest": version,
+              "opencv": cv2.__version__,
+          }
+          (Path(os.environ["KAM_QA_OUTPUT"]) / "airtest-host.json").write_text(
+              json.dumps(receipt, indent=2) + "\n"
+          )
+          PY
+
+      - name: Restore the exact signed APK from the official game data
+        timeout-minutes: 14
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y innoextract
+          innoextract --version > "$KAM_QA_OUTPUT/innoextract-version.txt"
+          python qa/prepare_inputs.py \
+            --work-dir "$RUNNER_TEMP/kam-input" \
+            --output-apk "$KAM_APK_PATH" \
+            --evidence "$KAM_QA_OUTPUT"
+
+      - name: Require the prepared APK and adequate host disk
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          apk = Path(os.environ["KAM_APK_PATH"])
+          output = Path(os.environ["KAM_QA_OUTPUT"])
+          free = shutil.disk_usage(apk.parent).free
+          result = {
+              "apk_path": str(apk),
+              "apk_exists": apk.is_file(),
+              "host_free_bytes": free,
+              "required_free_bytes": 8 * 1024**3,
+              "gameplay_pass": False,
+          }
+          (output / "host-preflight.json").write_text(json.dumps(result, indent=2) + "\n")
+          if not apk.is_file():
+              raise SystemExit("Prepared APK is missing: the reconstruction step must create KAM_APK_PATH")
+          if free < result["required_free_bytes"]:
+              raise SystemExit("Insufficient host disk before Android setup (8 GiB required)")
+          PY
+
+      - name: Run the bounded Android and game checks
+        timeout-minutes: 32
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          disk-size: 6G
+          avd-name: kam-cloud-qa
+          force-avd-creation: true
+          emulator-port: 5554
+          emulator-boot-timeout: 480
+          disable-linux-hw-accel: false
+          disable-animations: true
+          channel: stable
+          emulator-options: >-
+            -no-window -no-snapshot -no-audio -no-boot-anim
+            -accel on -gpu swiftshader
+            -camera-back none -camera-front none
+          pre-emulator-launch-script: |
+            "$ANDROID_HOME/emulator/emulator" -accel-check > "$KAM_QA_OUTPUT/accel-check.txt" 2>&1
+            "$ANDROID_HOME/emulator/emulator" -version > "$KAM_QA_OUTPUT/emulator-version.txt" 2>&1
+            cat "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties" > "$KAM_QA_OUTPUT/system-image-properties.txt"
+            df -h > "$KAM_QA_OUTPUT/disk-before-boot.txt"
+          # The Python runner owns readiness, ABI, APK identity and game gates,
+          # and captures its diagnostics in finally before this action stops AVD.
+          script: >-
+            "$KAM_AIRTEST_PYTHON" qa/android_cloud_qa.py
+            --apk "$KAM_APK_PATH" --output "$KAM_QA_OUTPUT/runtime"
+            --serial emulator-5554
+
+      - name: Upload bounded QA evidence
+        if: ${{ always() }}
+        timeout-minutes: 3
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kam-cloud-qa-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            qa-artifacts/**/*.json
+            qa-artifacts/**/*.jsonl
+            qa-artifacts/**/*.log
+            qa-artifacts/**/*.txt
+            qa-artifacts/**/*.stdout
+            qa-artifacts/**/*.stderr
+            qa-artifacts/**/*.gz
+            qa-artifacts/**/*.png
+            qa-artifacts/**/*.html
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: false

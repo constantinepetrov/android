@@ -1,0 +1,28 @@
+usage: android_cloud_qa.py [-h] --apk APK --output OUTPUT [--adb ADB]
+                           [--serial SERIAL]
+                           [--expected-sha256 EXPECTED_SHA256]
+                           [--readiness-timeout READINESS_TIMEOUT]
+                           [--install-timeout INSTALL_TIMEOUT]
+                           [--data-timeout DATA_TIMEOUT]
+                           [--engine-timeout ENGINE_TIMEOUT]
+                           [--selftest-timeout SELFTEST_TIMEOUT]
+
+Check an existing disposable Android runner against one pinned KaM APK. Does
+not boot/stop an emulator or provision a cloud device. Clears only KaM app
+data on the selected test device. Success means AUTOMATED_CONTENT_SMOKE_PASS;
+menu/controls/gameplay still require review. All ADB work is inside main().
+
+options:
+  -h, --help            show this help message and exit
+  --apk APK
+  --output OUTPUT       New evidence directory; must not exist
+  --adb ADB             ADB executable; default: adb from PATH
+  --serial SERIAL       Explicit ADB serial; otherwise exactly one device is
+                        required
+  --expected-sha256 EXPECTED_SHA256
+                        Expected APK SHA256, pinned to the workflow artifact
+  --readiness-timeout READINESS_TIMEOUT
+  --install-timeout INSTALL_TIMEOUT
+  --data-timeout DATA_TIMEOUT
+  --engine-timeout ENGINE_TIMEOUT
+  --selftest-timeout SELFTEST_TIMEOUT

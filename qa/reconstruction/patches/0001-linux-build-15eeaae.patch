@@ -1,0 +1,226 @@
+From 15eeaae06b7f8c3bdbd9c4e5d2f5d6088f3ad39d Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Sun, 1 Nov 2026 16:02:21 +0500
+Subject: [PATCH 1/2] build(android): support isolated Linux x86_64
+ reproduction
+
+---
+ android/build_apk.sh                 |  5 +++--
+ android/build_lazutils.sh            |  3 +--
+ android/build_native.sh              |  6 +++---
+ android/native/build_bass.sh         |  4 ++--
+ android/run_test.sh                  |  9 +++++++--
+ android/selftest.sh                  |  3 ++-
+ android/toolchain/host_env.sh        | 30 ++++++++++++++++++++++++++++
+ android/toolchain/setup_toolchain.sh | 18 +++++++++--------
+ 8 files changed, 58 insertions(+), 20 deletions(-)
+ create mode 100644 android/toolchain/host_env.sh
+
+diff --git a/android/build_apk.sh b/android/build_apk.sh
+index 046826e33382c2db15f970403b752cf9d33d63f7..a9bc5f30bc6eaa2ade084ba33e64b503c9235387 100755
+--- a/android/build_apk.sh
++++ b/android/build_apk.sh
+@@ -3,8 +3,9 @@
+ set -euo pipefail
+ ANDROID_DIR="$(cd "$(dirname "$0")" && pwd)"
+ TC="${KAM_TOOLCHAIN:-$(cd "$ANDROID_DIR/.." && pwd)/toolchain}"
++source "$ANDROID_DIR/toolchain/host_env.sh" || exit 1
+ JNI="$ANDROID_DIR/app/src/main/jniLibs/arm64-v8a"
+-mkdir -p "$JNI"
++mkdir -p "$JNI" "$ANDROID_DIR/build"
+ "$ANDROID_DIR/native/build_bass.sh"
+ # Always build the engine from scratch: incremental FPC 3.2.2 builds hit "Internal error 200611031" with generics
+ rm -rf "$ANDROID_DIR/build/units_main"
+@@ -23,6 +24,6 @@ if [ "${KAM_BUNDLE_DATA:-0}" = 1 ]; then
+ fi
+ cd "$ANDROID_DIR"
+ # Gradle needs the SDK location
+-[ -f local.properties ] || echo "sdk.dir=${ANDROID_HOME:-$HOME/Library/Android/sdk}" > local.properties
++[ -f local.properties ] || echo "sdk.dir=$KAM_SDK" > local.properties
+ "${GRADLE:-./gradlew}" -q assemble${KAM_BUILD_TYPE:-Debug} ${GRADLE_ARGS[@]+"${GRADLE_ARGS[@]}"}
+ ls -la "$ANDROID_DIR"/app/build/outputs/apk/*/*.apk
+diff --git a/android/build_lazutils.sh b/android/build_lazutils.sh
+index 59b68c2519878e421fb3df7a20698774013bedde..a33d6a54f194475c5d891062ad91c3dac8c9cce0 100755
+--- a/android/build_lazutils.sh
++++ b/android/build_lazutils.sh
+@@ -3,8 +3,7 @@
+ set -euo pipefail
+ ANDROID_DIR="$(cd "$(dirname "$0")" && pwd)"
+ TC="${KAM_TOOLCHAIN:-$(cd "$ANDROID_DIR/.." && pwd)/toolchain}"
+-NDK="${ANDROID_NDK_HOME:-${ANDROID_HOME:-$HOME/Library/Android/sdk}/ndk/29.0.13599879}"
+-export KAM_NDK="$NDK"
++source "$ANDROID_DIR/toolchain/host_env.sh" || exit 1
+ FPC_SRC="$TC/fpc-3.2.2"
+ LAZ="$TC/lazarus/components/lazutils"
+ OUT="$ANDROID_DIR/build/lazutils"
+diff --git a/android/build_native.sh b/android/build_native.sh
+index 75e5abf8a10aa7529a9c9d4d56f60ba334b9f0da..f27077ddef4c6ffa8c87c7f8034d9b35133947db 100755
+--- a/android/build_native.sh
++++ b/android/build_native.sh
+@@ -4,8 +4,8 @@ set -euo pipefail
+ ANDROID_DIR="$(cd "$(dirname "$0")" && pwd)"
+ REPO="$(cd "$ANDROID_DIR/.." && pwd)"
+ TC="${KAM_TOOLCHAIN:-$REPO/toolchain}"
+-NDK="${ANDROID_NDK_HOME:-${ANDROID_HOME:-$HOME/Library/Android/sdk}/ndk/29.0.13599879}"
+-export KAM_NDK="$NDK"
++source "$ANDROID_DIR/toolchain/host_env.sh" || exit 1
++NDK="$KAM_NDK"
+ FPC_SRC="$TC/fpc-3.2.2"
+ LAZ="$TC/lazarus"
+ UNITS="${KAM_UNITS:-$ANDROID_DIR/build/units_main}"
+@@ -39,7 +39,7 @@ done
+   -Fu"$FPC_SRC/rtl/units/aarch64-android" \
+   -Fi"$REPO" "${FU[@]}" \
+   -FU"$UNITS" -FE"$OUT" -o"$OUT/libkamcore.so" \
+-  -Fl"$NDK/toolchains/llvm/prebuilt/darwin-x86_64/sysroot/usr/lib/aarch64-linux-android/26" \
++  -Fl"$NDK/toolchains/llvm/prebuilt/$KAM_NDK_HOST_TAG/sysroot/usr/lib/aarch64-linux-android/26" \
+   -Fl"$TC/android-libs/lib" \
+   -k-z -kmax-page-size=16384 \
+   -O2 -g -gl -vewn -vm5023,5024,5025,5026,5027,5028,5057,5058,5059,5060,5089,5090,5091,5092,5093,6058,3123,3124,4055,4056,4079,4080,4081,4082,5036,5037,4035,4105,4104 \
+diff --git a/android/native/build_bass.sh b/android/native/build_bass.sh
+index 36f9e93ee58d3247fe165fef1ff864df3311266a..49c356a7d59374f1566bb82a563a01c08e6d1edc 100755
+--- a/android/native/build_bass.sh
++++ b/android/native/build_bass.sh
+@@ -3,9 +3,9 @@
+ set -euo pipefail
+ DIR="$(cd "$(dirname "$0")" && pwd)"
+ TC="${KAM_TOOLCHAIN:-$(cd "$DIR/../.." && pwd)/toolchain}"
+-NDK="${ANDROID_NDK_HOME:-${ANDROID_HOME:-$HOME/Library/Android/sdk}/ndk/29.0.13599879}"
++source "$DIR/../toolchain/host_env.sh" || exit 1
+ LIBS="$TC/android-libs"
+-"$NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang" --target=aarch64-linux-android26 -O2 -fPIC -shared -fvisibility=hidden \
++"$KAM_NDK_BIN/clang" --target=aarch64-linux-android26 -O2 -fPIC -shared -fvisibility=hidden \
+   -Wall -Wno-unused-function \
+   -I"$TC/minimp3" -I"$LIBS/include" \
+   -o "$LIBS/lib/libbass.so" "$DIR/bass_android.c" \
+diff --git a/android/run_test.sh b/android/run_test.sh
+index 288ebb211e42c6ccb946a31ccdd83c4863ac3bf9..222cc8f664a356d1e0b7e6b71a3401545e791db9 100755
+--- a/android/run_test.sh
++++ b/android/run_test.sh
+@@ -2,8 +2,9 @@
+ # Build (unless NOBUILD=1), install, launch and collect engine logs; symbolizes KaMCrash stacks
+ set -uo pipefail
+ ANDROID_DIR="$(cd "$(dirname "$0")" && pwd)"
++source "$ANDROID_DIR/toolchain/host_env.sh" || exit 1
+ export ANDROID_SERIAL="${ANDROID_SERIAL:-R58R74Z20BJ}"
+-B=$HOME/Library/Android/sdk/ndk/29.0.13599879/toolchains/llvm/prebuilt/darwin-x86_64/bin
++B="$KAM_NDK_BIN"
+ if [ "${NOBUILD:-0}" != 1 ]; then
+   "$ANDROID_DIR/build_apk.sh" > "$ANDROID_DIR/build/apk.log" 2>&1 || { grep -E "Error|error:|FAIL" "$ANDROID_DIR/build/apk.log" | head -20; exit 1; }
+   adb install -r "$ANDROID_DIR/app/build/outputs/apk/debug/app-debug.apk" | tail -1
+@@ -15,7 +16,11 @@ sleep "${WAIT:-20}"
+ # TAPS="x,y x,y ..." taps (phone pixels) with TAP_DELAY seconds between them, then AFTER seconds
+ for t in ${TAPS:-}; do adb shell input tap ${t%,*} ${t#*,}; sleep "${TAP_DELAY:-3}"; done
+ [ -n "${TAPS:-}" ] && sleep "${AFTER:-10}"
+-adb exec-out screencap -p > "$ANDROID_DIR/build/shot.png" && sips -Z 900 "$ANDROID_DIR/build/shot.png" --out "$ANDROID_DIR/build/shot_s.png" > /dev/null
++adb exec-out screencap -p > "$ANDROID_DIR/build/shot.png"
++# macOS can create the donor's small preview; the original screenshot is portable.
++if command -v sips >/dev/null; then
++  sips -Z 900 "$ANDROID_DIR/build/shot.png" --out "$ANDROID_DIR/build/shot_s.png" > /dev/null
++fi
+ adb logcat -d > "$ANDROID_DIR/build/logcat.txt"
+ grep -E " (KaM|KaMHost|KaMBass|KaMCrash|KaMStdout)\s*:" "$ANDROID_DIR/build/logcat.txt" | sed -E 's/^.{19}//' | tail -${LINES_SHOWN:-40}
+ grep "KaMCrash" "$ANDROID_DIR/build/logcat.txt" | grep -oE "(libkamcore|libGL|libbass|libopenal).so\+0x[0-9a-f]+" | awk '!s[$0]++' | while IFS=+ read lib a; do
+diff --git a/android/selftest.sh b/android/selftest.sh
+index 384f694340c4a7eb52a7bf742b9b267d0e282279..1043ccf8b152b5424630b5aca798105dd0ed749d 100755
+--- a/android/selftest.sh
++++ b/android/selftest.sh
+@@ -3,8 +3,9 @@
+ # Usage: ANDROID_SERIAL=<id> ./selftest.sh [campaigns|campaigns-all|maps|all]
+ set -uo pipefail
+ ANDROID_DIR="$(cd "$(dirname "$0")" && pwd)"
++source "$ANDROID_DIR/toolchain/host_env.sh" || exit 1
+ MODE="${1:-campaigns}"
+-B=$HOME/Library/Android/sdk/ndk/29.0.13599879/toolchains/llvm/prebuilt/darwin-x86_64/bin
++B="$KAM_NDK_BIN"
+ LOG="$ANDROID_DIR/build/selftest_logcat.txt"
+ mkdir -p "$ANDROID_DIR/build"
+ adb shell am force-stop org.kamremake.android
+diff --git a/android/toolchain/host_env.sh b/android/toolchain/host_env.sh
+new file mode 100644
+index 0000000000000000000000000000000000000000..27766b09d8f90d29cd16dec51fe4ba73ef7d0a08
+--- /dev/null
++++ b/android/toolchain/host_env.sh
+@@ -0,0 +1,30 @@
++#!/bin/bash
++# Shared host paths for the Android build and device-test scripts. Source this file.
++# Keep the donor's NDK version and target ABI; only select the host tool binaries.
++
++case "$(uname -s):$(uname -m)" in
++  Linux:x86_64|Linux:amd64)
++    KAM_NDK_HOST_TAG=linux-x86_64
++    KAM_DEFAULT_SDK="$HOME/Android/Sdk"
++    ;;
++  Darwin:x86_64|Darwin:arm64)
++    # The NDK macOS tools use this directory name on both supported host CPUs.
++    KAM_NDK_HOST_TAG=darwin-x86_64
++    KAM_DEFAULT_SDK="$HOME/Library/Android/sdk"
++    ;;
++  *)
++    echo "Unsupported Android build host: $(uname -s) $(uname -m)" >&2
++    return 1
++    ;;
++esac
++
++KAM_SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$KAM_DEFAULT_SDK}}"
++KAM_NDK="${ANDROID_NDK_HOME:-$KAM_SDK/ndk/29.0.13599879}"
++KAM_NDK_BIN="$KAM_NDK/toolchains/llvm/prebuilt/$KAM_NDK_HOST_TAG/bin"
++if [ ! -d "$KAM_NDK_BIN" ]; then
++  echo "Android NDK host tools not found at $KAM_NDK_BIN" >&2
++  return 1
++fi
++
++# The generated FPC assembler wrapper uses these paths in child processes.
++export KAM_NDK KAM_NDK_BIN
+diff --git a/android/toolchain/setup_toolchain.sh b/android/toolchain/setup_toolchain.sh
+index e536302250feb46e42a1799e911903db3c398005..610d80aa744019ff3cde55cb2c5493d58f89c06e 100755
+--- a/android/toolchain/setup_toolchain.sh
++++ b/android/toolchain/setup_toolchain.sh
+@@ -1,5 +1,5 @@
+ #!/bin/bash
+-# Downloads and builds everything needed to build the Android port (macOS arm64/x86_64 host).
++# Downloads and builds everything needed to build the Android port (Linux x86_64 or macOS host).
+ # Result goes to $KAM_TOOLCHAIN (default: <repo>/toolchain, ignored by git).
+ #
+ # Prerequisites:
+@@ -11,10 +11,12 @@ set -euo pipefail
+ HERE="$(cd "$(dirname "$0")" && pwd)"
+ REPO="$(cd "$HERE/../.." && pwd)"
+ TC="${KAM_TOOLCHAIN:-$REPO/toolchain}"
+-SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+-NDK="${ANDROID_NDK_HOME:-$SDK/ndk/29.0.13599879}"
+-CM_BIN="$(ls -d "$SDK"/cmake/*/bin | sort -V | tail -1)"
+-HOST_TAG=darwin-x86_64 # NDK ships universal binaries under this name on macOS
++source "$HERE/host_env.sh" || exit 1
++SDK="$KAM_SDK"
++NDK="$KAM_NDK"
++# Set KAM_CMAKE_BIN to pin the SDK CMake installation for a reproducible build.
++CM_BIN="${KAM_CMAKE_BIN:-$(ls -d "$SDK"/cmake/*/bin | sort -V | tail -1)}"
++HOST_TAG="$KAM_NDK_HOST_TAG"
+ PATCHES="$HERE/patches"
+ JOBS="$(sysctl -n hw.ncpu 2>/dev/null || nproc)"
+ 
+@@ -26,8 +28,9 @@ OPENAL_TAG=1.24.3
+ OGG_TAG=v1.3.5
+ VORBIS_TAG=v1.3.7
+ 
+-command -v fpc >/dev/null || { echo "Host Free Pascal (fpc 3.2.2) is required: brew install fpc"; exit 1; }
++command -v fpc >/dev/null || { echo "Host Free Pascal (fpc 3.2.2) is required"; exit 1; }
+ [ -d "$NDK" ] || { echo "Android NDK not found at $NDK"; exit 1; }
++[ -x "$CM_BIN/cmake" ] && [ -x "$CM_BIN/ninja" ] || { echo "SDK CMake and Ninja not found at $CM_BIN"; exit 1; }
+ mkdir -p "$TC" "$TC/bin"
+ echo "Toolchain dir: $TC"
+ 
+@@ -38,8 +41,7 @@ cat > "$TC/bin/aarch64-linux-android-as" <<'PY'
+ #!/usr/bin/env python3
+ # GNU as compatible front-end for FPC: assembles with the NDK clang
+ import os, sys
+-ndk = os.environ['KAM_NDK']
+-cmd = [ndk + '/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang', '--target=aarch64-linux-android26', '-c', '-x', 'assembler']
++cmd = [os.environ['KAM_NDK_BIN'] + '/clang', '--target=aarch64-linux-android26', '-c', '-x', 'assembler']
+ a = iter(sys.argv[1:])
+ for x in a:
+     if x == '--defsym': cmd.append('-Wa,-defsym,' + next(a))
+-- 
+2.51.1
+

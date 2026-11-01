@@ -1,0 +1,75 @@
+{
+  "repository": "https://github.com/Vadim170/kam-remake-android",
+  "base_commit": "e81c3b765a13d730140c26159eab4506499d44e6",
+  "main_commit": "c9214fd1451ac264d9bfc1b851b7b9360ab9eb52",
+  "main_tree": "a73e9b44d647b74cd174d6541a12b79ce3b6bece",
+  "additional_main_commits": [
+    "15eeaae06b7f8c3bdbd9c4e5d2f5d6088f3ad39d",
+    "c9214fd1451ac264d9bfc1b851b7b9360ab9eb52"
+  ],
+  "patches": [
+    {
+      "path": "patches/0001-linux-build-15eeaae.patch",
+      "size": 10942,
+      "sha256": "05b93c6dc0403214c4b05194243861fde82680199249a68152b95117a9f45f1e",
+      "apply_in": "repository root"
+    },
+    {
+      "path": "patches/0002-bundled-data-c9214fd.patch",
+      "size": 43639,
+      "sha256": "abe774da69dbb28ddc619998779ae684e72eac33b0a9ed3be1aa6a2a281d7204",
+      "apply_in": "repository root"
+    },
+    {
+      "path": "patches/0003-pascalscript-working-tree.patch",
+      "size": 32676,
+      "sha256": "0c553e4cf044f185e11ae3e6f899d3f93fc102ab92a1f9633dd1f02c59778656",
+      "apply_in": "src/ext/pascalscript_submodule",
+      "includes_untracked_paths": [
+        "Source/aarch64.inc",
+        "Source/aarch64methods.inc"
+      ]
+    }
+  ],
+  "submodule": {
+    "path": "src/ext/pascalscript_submodule",
+    "base_commit": "ce8590dd7b9cf48fd0e446731989603e09e239b8",
+    "working_tree_diff": "patches/0003-pascalscript-working-tree.patch",
+    "working_tree_status": " M Source/PascalScript.inc\n M Source/PascalScriptFPC.inc\n M Source/uPSCompiler.pas\n M Source/uPSRuntime.pas\n?? Source/aarch64.inc\n?? Source/aarch64methods.inc\n"
+  },
+  "main_status_at_capture": " M src/ext/pascalscript_submodule\n",
+  "dependency_source_commits": {
+    "lazarus": "f771d54e4a3a6e35697e662aa2e0b954762b56cb",
+    "gl4es": "a025615bc79ac43ec911dced8fe5b8eb45a0b72d",
+    "openal": "dc7d7054a5b4f3bec1dc23a42fd616a0847af948",
+    "ogg": "e1774cd77f471443541596e09078e78fdc342e4f",
+    "vorbis": "0657aee69dec8508a0011f47f3b69d7538e9d262",
+    "minimp3": "ea99364f61c14656440e8d77e9c233ccf3124633"
+  },
+  "toolchain_patch_sha256": {
+    "gl4es-android-host-context.patch": "67827685ecf15fac7ee8db224e735f6f731b0da490580235e5dff700bd0c7003",
+    "fpc-3.2.2-android-lld.patch": "542fb1b8deeb753c193c32bb458094a03fabeba0bd608645f91ab4c2100c8750",
+    "pascalscript-aarch64.patch": "45f3c000b735d36381169f850982ebbdd6895c40df00c612a5bddcbefbc56523"
+  },
+  "build_versions": {
+    "host_fpc": "3.2.2",
+    "target_fpc": "3.2.2",
+    "lazarus": "3.0",
+    "ndk": "29.0.13599879",
+    "cmake": "3.22.1",
+    "gradle": "8.13",
+    "android_gradle_plugin": "8.13.2",
+    "jdk_major": 17,
+    "libvlc_all": "3.7.7",
+    "androidx_core": "1.13.1"
+  },
+  "build_command": "KAM_BUILD_TYPE=Debug KAM_BUNDLE_DATA=1 bash android/build_apk.sh",
+  "toolchain_setup": "android/toolchain/setup_toolchain.sh (applies the donor FPC, gl4es and PascalScript patches)",
+  "license_file": {
+    "path": "LICENSE.txt",
+    "size": 35181,
+    "sha256": "282751b8c98ee9e445346eb57a992c9ecbe25ed8dd554df046777313e19b10f9"
+  },
+  "signing_key_included": false,
+  "game_payloads_included": false
+}

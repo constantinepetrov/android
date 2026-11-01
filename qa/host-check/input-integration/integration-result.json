@@ -1,0 +1,23 @@
+{
+  "started_utc": "2026-11-01T15:29:44.076017+00:00",
+  "argv": [
+    "/workspace/scratch/8cb483b3f365/kam-qa-tools/airtest-env/bin/python",
+    "/workspace/scratch/8cb483b3f365/kam-cloud-qa/qa/prepare_inputs.py",
+    "--work-dir",
+    "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check",
+    "--output-apk",
+    "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/app.apk",
+    "--evidence",
+    "/workspace/scratch/8cb483b3f365/kam-cloud-qa/qa/host-check/input-integration",
+    "--installer",
+    "/workspace/scratch/8cb483b3f365/kam-donor-reproduction/downloads/KaM-Remake-Beta-r16397.exe",
+    "--innoextract",
+    "/workspace/scratch/8cb483b3f365/kam-donor-reproduction/host-tools/usr/bin/innoextract"
+  ],
+  "returncode": 0,
+  "scope": "Offline integration of real template parts + official installer extraction + exact APK reconstruction; no Android",
+  "independent_apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "apk_bytes": 856629249,
+  "duplicate_apk_removed_after_validation": true,
+  "finished_utc": "2026-11-01T15:30:22.601517+00:00"
+}

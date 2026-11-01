@@ -1,0 +1,8 @@
+test_negative_fixtures (test_validate_selftest.StrictParserTests.test_negative_fixtures) ... ok
+test_pid_identity_mismatch_is_not_accepted (test_validate_selftest.StrictParserTests.test_pid_identity_mismatch_is_not_accepted) ... ok
+test_synthetic_grammar_positive_control_has_limited_scope (test_validate_selftest.StrictParserTests.test_synthetic_grammar_positive_control_has_limited_scope) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+OK

@@ -1,0 +1,11 @@
+usage: airtest_snapshot.py [-h] --adb ADB --serial SERIAL --output OUTPUT
+
+Take one Airtest ADBCAP snapshot of an explicitly selected existing device.
+This is a bounded child of android_cloud_qa.py, not a guest/emulator launcher.
+Imports are lazy so --help and syntax validation never contact ADB.
+
+options:
+  -h, --help       show this help message and exit
+  --adb ADB
+  --serial SERIAL
+  --output OUTPUT

@@ -1,0 +1,57 @@
+{
+  "started_utc": "2026-11-01T15:29:44.121520+00:00",
+  "status": "INPUT_APK_VERIFIED",
+  "scope": "Input preparation only",
+  "apk_sha256_expected": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "android_started": false,
+  "game_executed": false,
+  "template_parts": 58,
+  "template_sha256": "3f9a8ab6628dc28ad959a912d40c7504a9b81aa3902a351ca023031a0732e0a4",
+  "installer": {
+    "source": "existing pinned installer",
+    "path": "/workspace/scratch/8cb483b3f365/kam-donor-reproduction/downloads/KaM-Remake-Beta-r16397.exe",
+    "bytes": 711493971,
+    "sha256": "9980a414f4adbe3806c322de5a74068861857968b3b5ddd4ec1d84987208cd9e"
+  },
+  "commands": [
+    {
+      "name": "extract-installer",
+      "argv": [
+        "/workspace/scratch/8cb483b3f365/kam-donor-reproduction/host-tools/usr/bin/innoextract",
+        "--silent",
+        "--output-dir",
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/prepare-inputs/extracted",
+        "/workspace/scratch/8cb483b3f365/kam-donor-reproduction/downloads/KaM-Remake-Beta-r16397.exe"
+      ],
+      "returncode": 0,
+      "timeout_seconds": 180,
+      "elapsed_seconds": 29.706,
+      "stdout": "extract-installer.stdout",
+      "stderr": "extract-installer.stderr"
+    },
+    {
+      "name": "reconstruct-apk",
+      "argv": [
+        "/workspace/scratch/8cb483b3f365/kam-qa-tools/airtest-env/bin/python",
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa/qa/reconstruct_apk.py",
+        "--data-root",
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/prepare-inputs/extracted/app",
+        "--template",
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/prepare-inputs/template.gz",
+        "--output",
+        "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/app.apk"
+      ],
+      "returncode": 0,
+      "timeout_seconds": 180,
+      "elapsed_seconds": 6.694,
+      "stdout": "reconstruct-apk.stdout",
+      "stderr": "reconstruct-apk.stderr"
+    }
+  ],
+  "apk_path": "/workspace/scratch/8cb483b3f365/kam-cloud-qa-input-check/app.apk",
+  "apk_bytes": 856629249,
+  "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "temporary_installer_and_extracted_data_removed": true,
+  "finished_utc": "2026-11-01T15:30:21.935264+00:00",
+  "host_free_bytes": 9407176704
+}

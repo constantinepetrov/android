@@ -1,0 +1,20 @@
+usage: prepare_inputs.py [-h] --work-dir WORK_DIR --output-apk OUTPUT_APK
+                         --evidence EVIDENCE [--installer INSTALLER]
+                         [--innoextract INNOEXTRACT]
+                         [--download-timeout DOWNLOAD_TIMEOUT]
+
+Prepare the exact signed KaM APK using official data and a code-only template.
+Downloads the public installer (never executes it), extracts files with
+innoextract, and invokes the hash-checked reconstruction. No Android is
+started.
+
+options:
+  -h, --help            show this help message and exit
+  --work-dir WORK_DIR
+  --output-apk OUTPUT_APK
+  --evidence EVIDENCE
+  --installer INSTALLER
+                        Existing pinned official installer, for an offline
+                        repeat
+  --innoextract INNOEXTRACT
+  --download-timeout DOWNLOAD_TIMEOUT

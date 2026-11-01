@@ -1,0 +1,12 @@
+usage: validate_selftest.py [-h] [--expected-pid EXPECTED_PID] logcat
+
+Strictly validate one fresh Battle Tutorial logcat capture; never run Android.
+The native counter measures DoGameTick calls, not Params.Tick advancement. A
+passing parser result is content-smoke evidence, not a playable-game verdict.
+
+positional arguments:
+  logcat
+
+options:
+  -h, --help            show this help message and exit
+  --expected-pid EXPECTED_PID

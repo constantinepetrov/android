@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "request_id": "kam-cloud-qa-20261101T152741Z",
+  "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
+  "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "apk_bytes": 856629249,
+  "package": "org.kamremake.android",
+  "scenario": "only:tutorials/battle tutorial",
+  "mode": "fresh-install-and-automated-content-smoke",
+  "ui_review_required": true,
+  "playable_preapproved": false
+}

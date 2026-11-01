@@ -1,0 +1,89 @@
+{
+  "scope": "Host syntax, CLI help and synthetic log parser only; no ADB/emulator/Android/game execution",
+  "started_utc": "2026-11-01T15:25:00.742749+00:00",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "checks": [
+    {
+      "name": "syntax",
+      "status": "PASS",
+      "files": [
+        {
+          "path": "qa/android_cloud_qa.py",
+          "sha256": "817e357055f4d3653a1e6a61b5c810fbae4efb703ae4f7272e1c92a2d0db41db"
+        },
+        {
+          "path": "qa/airtest_snapshot.py",
+          "sha256": "c78c1287b6a5fdfd410dcf69f11c85d53a1eea9578a6ac7247faf8d28c3d6ca5"
+        },
+        {
+          "path": "qa/validate_selftest.py",
+          "sha256": "d6360ccef8b2823a2c613bfb3dc162deb5915a5d10175eec49d08b012d369467"
+        },
+        {
+          "path": "qa/test_validate_selftest.py",
+          "sha256": "5e6d8078d36259527c38ae80857e584aefffd81445f7d2694c9ca9ddb5b274e6"
+        }
+      ]
+    },
+    {
+      "name": "parser-fixtures",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "qa",
+        "-p",
+        "test_validate_selftest.py",
+        "-v"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "stdout_file": "parser-fixtures.stdout",
+      "stderr_file": "parser-fixtures.stderr"
+    },
+    {
+      "name": "runner-help",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "qa/android_cloud_qa.py",
+        "--help"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "stdout_file": "runner-help.stdout",
+      "stderr_file": "runner-help.stderr"
+    },
+    {
+      "name": "validator-help",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "qa/validate_selftest.py",
+        "--help"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "stdout_file": "validator-help.stdout",
+      "stderr_file": "validator-help.stderr"
+    },
+    {
+      "name": "snapshot-help",
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+        "-B",
+        "qa/airtest_snapshot.py",
+        "--help"
+      ],
+      "returncode": 0,
+      "status": "PASS",
+      "stdout_file": "snapshot-help.stdout",
+      "stderr_file": "snapshot-help.stderr"
+    }
+  ],
+  "status": "PASS",
+  "finished_utc": "2026-11-01T15:25:00.970651+00:00"
+}
