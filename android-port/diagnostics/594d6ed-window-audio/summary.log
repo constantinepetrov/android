@@ -1,0 +1,172 @@
+provenance.log
+Sun Nov  1 08:36:47 UTC 2026
+594d6ed36a57af2e9a104376abcf4e31c3c1f9fa
+c315807b5393ac30e219caf4351ba17783655496
+ce8590dd7b9cf48fd0e446731989603e09e239b8
+0d122c49534b480be9284c21bd60b53d99904346
+9d15c73c91a1545be50bee02b27bd3b43f9d90e8
+3.2.2 aarch64 android
+GNU assembler (GNU Binutils for Debian) 2.44
+javac 17.0.17
+22b61ecbc2c3da690438d053eb93e8a7b7a5c1348b0f9c6de1832944993a59c6  /workspace/kam-ci-current/android-port/experiments/prepare-pascalscript-fpc.py
+6e5a9be38121213dda42189a525db01aad4dc52194b577d7d73d659a5843ce6c  /workspace/kam-cross-tools/binutils.deb
+#!/bin/sh
+exec /workspace/kam-fpc-android/lib/fpc/3.2.2/ppcrossa64 -Sc "$@"
+#!/bin/sh
+exec /workspace/.local-tools/fpc/usr/lib/x86_64-linux-gnu/fpc/3.2.2/ppcx64 -n '-Fu/workspace/.local-tools/fpc/usr/lib/x86_64-linux-gnu/fpc/3.2.2/units/x86_64-linux/*' "$@"
+
+
+desktop-definitions.log
+970869e818ad97e72bc922d7ab0bc59d4ac75f6adc7294bb49377da7005cd9f0  /workspace/kam-lazarus-source/lcl/forms.pp
+type
+  TProcedure = procedure;
+  TProcedureOfObject = procedure of object;
+
+  // form position policies:
+  TPosition = (
+    poDesigned,        // use bounds from the designer (read from stream)
+    poDefault,         // LCL decision (normally window manager decides)
+    poDefaultPosOnly,  // designed size and LCL position
+    poDefaultSizeOnly, // designed position and LCL size
+    poScreenCenter,    // center form on screen (depends on DefaultMonitor)
+    poDesktopCenter,   // center form on desktop (total of all screens)
+    poMainFormCenter,  // center form on main form (depends on DefaultMonitor)
+    poOwnerFormCenter, // center form on owner form (depends on DefaultMonitor)
+    poWorkAreaCenter   // center form on working area (depends on DefaultMonitor)
+    );
+
+  TWindowState = (wsNormal, wsMinimized, wsMaximized, wsFullScreen);
+  {$IF FPC_FULLVERSION >= 30300}
+  TCloseAction = System.UITypes.TCloseAction;
+  {$ELSE}
+
+
+status.log
+src/settings/KM_WindowTypes.pas_exit=0
+src/settings/KM_WindowParams.pas_exit=0
+src/settings/KM_MainSettings.pas_exit=0
+src/controls/KM_ControlsTypes.pas_exit=0
+src/utils/KM_UtilsExt.pas_exit=0
+src/media/KM_AudioSession.pas_exit=0
+src/media/KM_OpenALBackend.pas_exit=0
+src/media/KM_Sound.pas_exit=1
+android-port/host/pascal/kamprobe.lpr_exit=0
+src/controls/KM_ControlsList.pas_exit=1
+src/controls/KM_ControlsBase.pas_exit=1
+src/controls/KM_ControlsEdit.pas_exit=1
+src/game/KM_Game.pas_exit=1
+unpatched_KM_Game_exit=1
+window-settings_exit=0
+audio-session_exit=0
+controls-input_exit=0
+game-messages_exit=0
+fog-state_exit=0
+platform-services_exit=0
+pascal-script_exit=0
+game-options_exit=0
+game-presentation-port_exit=0
+map-header_exit=0
+font-types_exit=0
+terrain-types_exit=0
+jni-map_exit=0
+openal_linux_null_exit=0
+ffi_exit=0
+ps_compat_exit=0
+fpcres_build_exit=0
+desktop_types_exit=0
+old_audio_build_exit=0
+old_audio_negative_exit=217 (expected 217, ready after failed Stop)
+actionlint_exit=0
+javac_exit=0
+elf_headers_exit=0
+
+
+first-errors.log
+src/media/KM_AudioSession.pas: OK (-Cn, no link)
+src/controls/KM_ControlsBase.pas: KM_ControlsForm.pas(99,3) Error: Illegal expression
+src/controls/KM_ControlsEdit.pas: KM_ControlsForm.pas(99,3) Error: Illegal expression
+src/controls/KM_ControlsList.pas: KM_ControlsForm.pas(99,3) Error: Illegal expression
+src/controls/KM_ControlsTypes.pas: OK (-Cn, no link)
+src/game/KM_Game.pas: KM_ControlsForm.pas(99,3) Error: Illegal expression
+src/settings/KM_MainSettings.pas: OK (-Cn, no link)
+src/media/KM_OpenALBackend.pas: OK (-Cn, no link)
+src/media/KM_Sound.pas: KM_ControlsForm.pas(99,3) Error: Illegal expression
+src/utils/KM_UtilsExt.pas: OK (-Cn, no link)
+src/settings/KM_WindowParams.pas: OK (-Cn, no link)
+src/settings/KM_WindowTypes.pas: OK (-Cn, no link)
+android-port/host/pascal/kamprobe.lpr: OK (-Cn, no link)
+
+
+dependency-chains.log
+src/controls/KM_ControlsBase.pas: KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_GUICOMMONKEYS -> KM_CONTROLSFORM
+src/controls/KM_ControlsEdit.pas: KM_CONTROLSEDIT -> KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_GUICOMMONKEYS -> KM_CONTROLSFORM
+src/controls/KM_ControlsList.pas: KM_CONTROLSLIST -> KM_CONTROLS -> KM_CONTROLSBASE -> KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_GUICOMMONKEYS -> KM_CONTROLSFORM
+src/game/KM_Game.pas: KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_GUICOMMONKEYS -> KM_CONTROLSFORM
+src/media/KM_Sound.pas: KM_SOUND -> KM_HANDSCOLLECTION -> KM_GAME -> KM_INTERFACEGAMEPLAY -> KM_GUICOMMONGAMEOPTIONS -> KM_GUICOMMONOPTIONS -> KM_GUICOMMONKEYS -> KM_CONTROLSFORM
+
+
+test-audio-session.log
+PASS success, context transfer, source-before-buffer cleanup, repeated stop
+PASS 12 intermediate failures including partial object allocation and detach failure
+PASS CloseDevice failure: stopped, inactive, IDs invalidated, device retained, retry closes once
+PASS failed detach retains context/device for safe retry
+PASS destruction during blocked initialization joins before releasing backend
+Audio resource ownership tests passed (controlled backend; NOT Android OpenAL runtime)
+Heap dump by heaptrc unit of /workspace/kam-window-evidence/final/test-audio-session/audio_session_probe
+299 memory blocks allocated : 18026/18216
+299 memory blocks freed     : 18026/18216
+0 unfreed memory blocks : 0
+True heap size : 98304
+True free heap :
+
+old-audio-negative.log
+PASS success, context transfer, source-before-buffer cleanup, repeated stop
+PASS 12 intermediate failures including partial object allocation and detach failure
+An unhandled exception occurred at $0000000000401189:
+Exception: ready after failed Stop
+  $0000000000401189
+  $0000000000402606
+  $0000000000402EC1
+
+
+
+test-desktop-types.log
+DESKTOP_WINDOW_TYPES_OK actual Lazarus Forms/nogui; all 4 states and 9 positions in both directions; XML codes pinned
+
+
+PASS XML legacy-0-0 state=0 position=0
+PASS XML legacy-0-1 state=0 position=1
+PASS XML legacy-0-2 state=0 position=2
+PASS XML legacy-0-3 state=0 position=3
+PASS XML legacy-0-4 state=0 position=4
+PASS XML legacy-0-5 state=0 position=5
+PASS XML legacy-0-6 state=0 position=6
+PASS XML legacy-0-7 state=0 position=7
+PASS XML legacy-1-0 state=0 position=0
+PASS XML legacy-1-1 state=0 position=1
+PASS XML legacy-1-2 state=0 position=2
+PASS XML legacy-1-3 state=0 position=3
+PASS XML legacy-1-4 state=0 position=4
+PASS XML legacy-1-5 state=0 position=5
+PASS XML legacy-1-6 state=0 position=6
+PASS XML legacy-1-7 state=0 position=7
+PASS XML legacy-2-0 state=2 position=0
+PASS XML legacy-2-1 state=2 position=1
+PASS XML legacy-2-2 state=2 position=2
+PASS XML legacy-2-3 state=2 position=3
+PASS XML legacy-2-4 state=2 position=4
+PASS XML legacy-2-5 state=2 position=5
+PASS XML legacy-2-6 state=2 position=6
+PASS XML legacy-2-7 state=2 position=7
+PASS XML negative state=0 position=0
+PASS XML high state=2 position=7
+PASS XML extensions state=2 position=7
+PASS XML no-main state=0 position=0
+PASS XML malformed state=0 position=4
+PASS XML defaults state=0 position=4
+PASS XML missing-left state=0 position=0
+PASS XML missing-top state=0 position=0
+PASS XML empty state=0 position=0
+PASS real window model LockParams FixedPosition minimum sizes validity
+WINDOW_SETTINGS_XML_OK 33 fixtures; minimized normalized before save; actual LoadFromXML/SaveToXML
+0 unfreed memory blocks : 0
