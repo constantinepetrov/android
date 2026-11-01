@@ -1,0 +1,66 @@
+{
+  "scope": "Host syntax checks only; no Android or game execution",
+  "status": "PASS",
+  "python_ast": [
+    "qa/fetch_official_installer.py",
+    "qa/probe_android.py",
+    "qa/prepare_inputs.py"
+  ],
+  "actionlint_exit": 0,
+  "shell_syntax": [
+    {
+      "job": "fetch-input",
+      "name": "Fetch and verify the official installer",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-readiness",
+      "name": "Prepare KVM, Airtest and isolated evidence",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-qa",
+      "name": "Prepare isolated paths and evidence directory",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-qa",
+      "name": "Enable and verify KVM access",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-qa",
+      "name": "Install the isolated Airtest environment",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-qa",
+      "name": "Restore the exact signed APK from the official game data",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "android-qa",
+      "name": "Require the prepared APK and adequate host disk",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "job": "remove-temporary-input",
+      "name": "Verify artifact ownership and remove the consumed transfer",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "sha256": {
+    "qa/fetch_official_installer.py": "e78eb3a39fafa2af9f9c9367a4a2d3390257e44db6aa83ea315c3f6ad1b09a39",
+    "qa/probe_android.py": "99e1844598b71079e9aeaff6b9e416f05575ce1684aec062fa66e8037be88f2a",
+    "qa/prepare_inputs.py": "f7527eea9ab2e39355cbcaaef2daf560d5941b198e450ee5a8c1ce236de2decd",
+    ".github/workflows/kam-cloud-qa.yml": "538e6cd96284f8bad143a670863d428fe3e4925e75e4ba5201a86364b95c0583"
+  }
+}

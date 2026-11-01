@@ -1,0 +1,23 @@
+{
+  "scope": "Host-only AST syntax (CLI and capture child) and --help; no Android commands or game execution",
+  "source": "qa/probe_android.py",
+  "source_sha256": "99e1844598b71079e9aeaff6b9e416f05575ce1684aec062fa66e8037be88f2a",
+  "syntax": "PASS",
+  "capture_child_syntax": "PASS",
+  "cli_help": {
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "-B",
+      "qa/probe_android.py",
+      "--help"
+    ],
+    "returncode": 0,
+    "stdout": "usage: probe_android.py [-h] --output OUTPUT [--adb ADB] [--serial SERIAL]\n                        [--readiness-timeout READINESS_TIMEOUT]\n\nProbe an existing Android device without an APK or launching KaM. Reuses\nandroid_cloud_qa.Runner for bounded ADB readiness, command evidence and PNG\nvalidation. Success confirms sampled Android readiness and an Airtest PNG\nonly. ARM64 translation, APK installation and playable KaM remain untested.\nThe only intentional guest write is the readiness helper's unique temporary\n/sdcard file, which it writes, reads and deletes. Logcat is not cleared.\n\noptions:\n  -h, --help            show this help message and exit\n  --output OUTPUT       New evidence directory; must not exist\n  --adb ADB             ADB executable; default: adb from PATH\n  --serial SERIAL       Explicit ADB serial; otherwise exactly one device is\n                        required\n  --readiness-timeout READINESS_TIMEOUT\n",
+    "stderr": ""
+  },
+  "android_probe": "NOT_RUN",
+  "apk_installation": "NOT_RUN",
+  "game_runtime": "NOT_RUN",
+  "playable_confirmed": false,
+  "capture_design": "Direct Airtest AdbCap child without Android/ScreenProxy auto_setup; raw ADB fallback diagnostic only"
+}

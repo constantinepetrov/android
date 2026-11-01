@@ -10,7 +10,17 @@ The workflow uses the standard GitHub-hosted Ubuntu 24.04 runner and KVM. It exp
 
 This is Android runtime with ARM64 translation, not a physical ARM64 compatibility or performance result.
 
-The entire job is bounded to 65 minutes, including up to 14 minutes for preparation, 32 minutes for emulator setup/checks, and 3 minutes for uploading evidence. These are failure ceilings, not an estimate of normal duration. Every dependency action is pinned to a full commit SHA. The job has only `contents: read` permissions; checkout credentials are not retained.
+The game-check job is bounded to 75 minutes, including up to 14 minutes for preparation, 32 minutes for emulator setup/checks, and 3 minutes for uploading evidence. These are failure ceilings, not an estimate of normal duration. Every dependency action is pinned to a full commit SHA. Checkout credentials are not retained.
+
+### Network recovery and independent device probe
+
+Real Ubuntu runs [41333826307](https://github.com/constantinepetrov/android/actions/runs/41333826307) and [41334600832](https://github.com/constantinepetrov/android/actions/runs/41334600832) failed before Android setup. The second run resolved `www.kamremake.com` to `51.77.64.109`, but three bounded IPv4 connection attempts to port 443 timed out, each after about 20 seconds, with zero downloaded bytes. This is an input-network failure, not a KaM failure.
+
+The recovery workflow uses a standard `macos-15` job to download the same pinned official installer through another runner network. Its result must pass the same fixed size and SHA checks. A short-lived artifact transfers that one file to the Ubuntu game-check job, which checks it again before extraction. No game payload is added to Git or a release.
+
+The installer artifact has one-day expiry as a fallback. A separate cleanup job normally deletes it after the consumer finishes, even if the game check fails. Only that cleanup job has `actions: write`; before deletion it verifies the exact artifact ID, expected name and current workflow run ID. Other jobs retain only `contents: read`. Temporary artifact storage is subject to the account's existing allowances; public standard compute does not imply unlimited storage.
+
+In parallel, `qa/probe_android.py` boots no game and requires no APK. It reuses the readiness gates and captures a genuine Airtest PNG. Its strongest result, `ANDROID_READINESS_PROBE_PASS`, confirms sampled Android readiness and screenshot capture only. Advertised ARM64 translation remains unproven until real ARM64 game code runs. The probe has its own 35-minute job; installer fetch has a 30-minute job and cleanup a 3-minute job.
 
 ## Exact artifact identity
 
@@ -54,7 +64,7 @@ A fatal marker from another Android process can conservatively fail the check. T
 
 ## Evidence and local validation
 
-The workflow captures its diagnostics before the emulator action shuts down the device. It uploads JSON status/commands, logs and PNG screenshots with seven-day retention. The APK, official installer, extracted game data and AVD are excluded.
+The workflow captures its diagnostics before the emulator action shuts down the device. It uploads JSON status/commands, logs and PNG screenshots with seven-day retention. The APK, official installer, extracted game data and AVD are excluded from these evidence archives. The separate temporary installer-transfer artifact described above is deleted after its consumer finishes.
 
 Local validation is distinct from cloud execution:
 
