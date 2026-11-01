@@ -22,7 +22,7 @@ permissions:
   contents: read
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/android-native-port' && github.event.label.name == 'android-runtime')
+    if: github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/android-native-port' && (github.event.label.name == 'android-runtime' || github.event.label.name == 'android-native-arm64-diagnostic'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -126,6 +126,7 @@ jobs:
           path: ${{ runner.temp }}/*ffi*.log
           if-no-files-found: warn
   runtime:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'android-runtime'
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -157,7 +158,7 @@ jobs:
           if-no-files-found: warn
 
   runtime-native-arm64:
-    if: github.event_name == 'workflow_dispatch' && inputs.native_arm64
+    if: (github.event_name == 'workflow_dispatch' && inputs.native_arm64) || github.event.label.name == 'android-native-arm64-diagnostic'
     needs: build
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
