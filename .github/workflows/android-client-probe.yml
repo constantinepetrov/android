@@ -98,6 +98,12 @@ jobs:
         run: |
           set -o pipefail
           bash android-port/tests/test-audio-session-linux.sh 2>&1 | tee "$RUNNER_TEMP/audio-session.log"
+      - name: Test real window-settings XML and platform-independent model
+        shell: bash
+        run: |
+          set -o pipefail
+          LAZUTILS_SOURCE="$GITHUB_WORKSPACE/lazarus-source/components/lazutils" \
+            bash android-port/tests/test-window-settings-linux.sh 2>&1 | tee "$RUNNER_TEMP/window-settings.log"
       - name: Test game options save/load on Linux
         shell: bash
         run: |
@@ -244,6 +250,7 @@ jobs:
             ${{ runner.temp }}/controls-input.log
             ${{ runner.temp }}/platform-services.log
             ${{ runner.temp }}/audio-session.log
+            ${{ runner.temp }}/window-settings.log
             ${{ runner.temp }}/game-presentation-port.log
             ${{ runner.temp }}/game-messages.log
             ${{ runner.temp }}/map-header-build.log

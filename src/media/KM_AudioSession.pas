@@ -16,6 +16,7 @@ type
     procedure DeleteSource(aID: Cardinal); virtual; abstract;
     procedure DeleteBuffer(aID: Cardinal); virtual; abstract;
     procedure DestroyContext(aContext: Pointer); virtual; abstract;
+    // On failure the handle remains owned/live; throw without consuming it.
     procedure CloseDevice(aDevice: Pointer); virtual; abstract;
   end;
   TKMAudioSession = class;
@@ -127,47 +128,64 @@ begin
   end;
 end;
 procedure TKMAudioSession.Cleanup;
-var i: Integer; bound: Boolean;
+var i: Integer; bound, detached: Boolean; errors: string;
+  procedure Remember(const aStage, aMessage: string);
+  begin
+    if errors <> '' then errors := errors + '; ';
+    errors := errors + aStage + ': ' + aMessage;
+  end;
 begin
+  errors := '';
   if fContext <> nil then
   begin
-    try
-      bound := fBackend.MakeCurrent(fContext);
-      if bound then
-      begin
-        // Sources retain buffer references: delete sources first.
-        for i := 0 to High(fSources) do
-          if fSources[i] <> 0 then fBackend.DeleteSource(fSources[i]);
-        for i := 0 to High(fBuffers) do
-          if fBuffers[i] <> 0 then fBackend.DeleteBuffer(fBuffers[i]);
-      end;
-    finally
-      try fBackend.MakeCurrent(nil);
-      finally
-        try fBackend.DestroyContext(fContext);
-        finally
-          fContext := nil;
-          if fDevice <> nil then
-          begin
-            try fBackend.CloseDevice(fDevice) finally fDevice := nil end;
-          end;
-        end;
-      end;
+    bound := False;
+    try bound := fBackend.MakeCurrent(fContext);
+    except on E: Exception do Remember('bind cleanup context', E.Message) end;
+    if bound then
+    begin
+      // Continue freeing independent objects after a failure. Successful releases
+      // are invalidated immediately, so a retry never deletes a stale ID.
+      for i := 0 to High(fSources) do
+        if fSources[i] <> 0 then
+          try
+            fBackend.DeleteSource(fSources[i]); fSources[i] := 0;
+          except on E: Exception do Remember('delete source', E.Message) end;
+      for i := 0 to High(fBuffers) do
+        if fBuffers[i] <> 0 then
+          try
+            fBackend.DeleteBuffer(fBuffers[i]); fBuffers[i] := 0;
+          except on E: Exception do Remember('delete buffer', E.Message) end;
     end;
-    // Destroying a context also releases objects if it could not be bound.
-    for i := 0 to High(fSources) do fSources[i] := 0;
-    for i := 0 to High(fBuffers) do fBuffers[i] := 0;
-  end
-  else if fDevice <> nil then
-  begin
-    try fBackend.CloseDevice(fDevice) finally fDevice := nil end;
+    detached := False;
+    try detached := fBackend.MakeCurrent(nil);
+    except on E: Exception do Remember('detach cleanup context', E.Message) end;
+    if detached then
+    begin
+      try
+        fBackend.DestroyContext(fContext);
+        fContext := nil;
+        // Context destruction releases any remaining objects even if binding
+        // or individual deletions failed. Do this BEFORE closing the device.
+        for i := 0 to High(fSources) do fSources[i] := 0;
+        for i := 0 to High(fBuffers) do fBuffers[i] := 0;
+      except on E: Exception do Remember('destroy context', E.Message) end;
+    end
+    else Remember('detach cleanup context', 'context retained for retry');
   end;
+  if (fContext = nil) and (fDevice <> nil) then
+  begin
+    try
+      fBackend.CloseDevice(fDevice);
+      fDevice := nil; // A failed close retains the handle for the next Stop.
+    except on E: Exception do Remember('close device', E.Message) end;
+  end;
+  if errors <> '' then raise Exception.Create(errors);
 end;
 function TKMAudioSession.Activate: Boolean;
 begin
   fLock.Enter;
   try
-    Result := fState = aisReady;
+    Result := (fState = aisReady) and (fContext <> nil) and (fDevice <> nil);
     if Result and not fBackend.MakeCurrent(fContext) then
     begin
       fState := aisFailed;
@@ -182,17 +200,32 @@ function TKMAudioSession.Source(aIndex: Integer): Cardinal;
 begin Result := fSources[aIndex] end;
 procedure TKMAudioSession.Stop;
 begin
-  if fWorker <> nil then
-  begin
-    fWorker.Terminate;
-    fWorker.WaitFor; // No Synchronize callbacks or logger references on worker.
-    FreeAndNil(fWorker);
-  end;
-  Cleanup;
-  if fLock <> nil then
-  begin
-    fLock.Enter;
-    try fState := aisStopped finally fLock.Leave end;
+  try
+    if fWorker <> nil then
+    begin
+      fWorker.Terminate;
+      fWorker.WaitFor; // No Synchronize callbacks or logger references on worker.
+      FreeAndNil(fWorker);
+    end;
+    try Cleanup;
+    except
+      on E: Exception do
+      begin
+        fLock.Enter;
+        try
+          if fError <> '' then fError := fError + '; ';
+          fError := fError + 'Stop: ' + E.Message;
+        finally fLock.Leave end;
+        raise;
+      end;
+    end;
+  finally
+    // Also covers a teardown exception: no destroyed context can remain ready.
+    if fLock <> nil then
+    begin
+      fLock.Enter;
+      try fState := aisStopped finally fLock.Leave end;
+    end;
   end;
 end;
 destructor TKMAudioSession.Destroy;

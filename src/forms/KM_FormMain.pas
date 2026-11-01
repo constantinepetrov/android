@@ -5,7 +5,7 @@ uses
   Classes,
   ComCtrls, Controls, Buttons, Dialogs, ExtCtrls, Forms, Graphics, Menus, StdCtrls,
   KM_RenderControl, KM_CommonTypes,
-  KM_WindowParams, KM_SettingsDev, KM_GameTypes,
+  KM_WindowParams, KM_DesktopWindowTypes, KM_SettingsDev, KM_GameTypes,
   KM_Defaults, KM_ResExporter,
   {$IFDEF FPC} LResources, Spin, {$ENDIF}
   {$IFNDEF FPC} Vcl.Samples.Spin, {$ENDIF}  // For some unknown reason Delphi auto add Vcl.Samples.Spin when use {$IFDEF WDC}
@@ -1830,12 +1830,12 @@ begin
 
   // Here we set window Width/Height and State
   // Left and Top will set on FormShow, so omit setting them here
-  Position     := gMainSettings.WindowParams.Position;
+  Position     := ToDesktopWindowPosition(gMainSettings.WindowParams.Position);
   ClientWidth  := gMainSettings.WindowParams.Width;
   ClientHeight := gMainSettings.WindowParams.Height;
   Left := gMainSettings.WindowParams.Left;
   Top := gMainSettings.WindowParams.Top;
-  WindowState  := gMainSettings.WindowParams.State;
+  WindowState  := ToDesktopWindowState(gMainSettings.WindowParams.State);
 
   gLog.AddTime('Set window params to: '
               + gMainSettings.WindowParams.ObjToString);
@@ -1945,8 +1945,8 @@ var
   bordersWidth, bordersHeight: SmallInt;
   rect: TRect;
 begin
-  Result.State := WindowState;
-  Result.Position := Position;
+  Result.State := FromDesktopWindowState(WindowState);
+  Result.Position := FromDesktopWindowPosition(Position);
   case WindowState of
     wsMinimized:  ;
     wsNormal:     begin

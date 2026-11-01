@@ -5,7 +5,8 @@ type
   TProbe = class
     Devices, Contexts, Buffers, Sources, Bound: Integer;
     Calls, FailAt: Integer;
-    Freed: Boolean;
+    Freed, FailClose: Boolean;
+    CloseAttempts: Integer;
     Entered, ReleaseInit: TEvent;
     Gate: Boolean;
     constructor Create;
@@ -90,7 +91,12 @@ begin Check((P.Bound = 1) and (P.Sources = 0) and (aID <> 0),'buffer deleted bef
 procedure TBackend.DestroyContext(aContext: Pointer);
 begin Check(P.Bound = 0,'destroy current context'); Dec(P.Contexts); P.Sources := 0; P.Buffers := 0 end;
 procedure TBackend.CloseDevice(aDevice: Pointer);
-begin Check(P.Contexts = 0,'close before context destruction'); Dec(P.Devices) end;
+begin
+  Check(P.Contexts = 0,'close before context destruction'); Inc(P.CloseAttempts);
+  if P.FailClose then
+  begin P.FailClose := False; raise Exception.Create('injected close failure') end;
+  Dec(P.Devices);
+end;
 constructor TDestroyer.Create(aSession: TKMAudioSession);
 begin inherited Create(True); FreeOnTerminate := False; Session := aSession; Done := TEvent.Create(nil,True,False,'') end;
 procedure TDestroyer.Execute;
@@ -142,6 +148,50 @@ begin
   end;
   WriteLn('PASS 12 intermediate failures including partial object allocation and detach failure');
 end;
+procedure CloseFailure;
+var P: TProbe; S: TKMAudioSession; i: Integer;
+begin
+  P:=TProbe.Create;
+  try
+    S:=TKMAudioSession.Create(TBackend.Create(P),3);
+    try
+      WaitInit(S); Check(S.State=aisReady,S.ErrorText);
+      P.FailClose:=True;
+      try S.Stop; Check(False,'close failure swallowed');
+      except on E: Exception do Check(Pos('injected close failure',E.Message)>0,E.Message) end;
+      Check((S.State=aisStopped) and not S.Activate,'ready after failed Stop');
+      Check((P.Contexts=0) and (P.Buffers=0) and (P.Sources=0),'objects not released before failed close');
+      for i:=0 to 2 do Check((S.Buffer(i)=0) and (S.Source(i)=0),'stale resource IDs');
+      Check((P.Devices=1) and (S.Device<>nil),'failed close lost device ownership');
+      Check(Pos('injected close failure',S.ErrorText)>0,'close diagnosis lost');
+      S.Stop;
+      Check((P.CloseAttempts=2) and (S.Device=nil),'pending close not retried');
+      Check((S.State=aisStopped) and not S.Activate,'retry made stopped session ready');
+      Check(Pos('injected close failure',S.ErrorText)>0,'retry erased diagnosis');
+    finally S.Free end;
+    Check(P.CloseAttempts=2,'double close during destruction'); Balanced(P);
+  finally P.Free end;
+  WriteLn('PASS CloseDevice failure: stopped, inactive, IDs invalidated, device retained, retry closes once');
+end;
+procedure DetachFailure;
+var P: TProbe; S: TKMAudioSession;
+begin
+  P:=TProbe.Create;
+  try
+    S:=TKMAudioSession.Create(TBackend.Create(P),3);
+    try
+      WaitInit(S);Check(S.State=aisReady,S.ErrorText);
+      P.FailAt:=P.Calls+2; // Cleanup bind succeeds, detach fails.
+      try S.Stop;Check(False,'detach failure swallowed');
+      except on E: Exception do Check(Pos('context retained for retry',E.Message)>0,E.Message) end;
+      Check((S.State=aisStopped) and not S.Activate,'ready with retained cleanup context');
+      Check((P.Contexts=1) and (P.Devices=1),'destroyed current context on failed detach');
+      S.Stop;
+    finally S.Free end;
+    Balanced(P);
+  finally P.Free end;
+  WriteLn('PASS failed detach retains context/device for safe retry');
+end;
 procedure DestroyDuringInit;
 var P: TProbe; S: TKMAudioSession; D: TDestroyer;
 begin
@@ -164,6 +214,6 @@ begin
   WriteLn('PASS destruction during blocked initialization joins before releasing backend');
 end;
 begin
-  Success; Failures; DestroyDuringInit;
+  Success; Failures; CloseFailure; DetachFailure; DestroyDuringInit;
   WriteLn('Audio resource ownership tests passed (controlled backend; NOT Android OpenAL runtime)');
 end.
