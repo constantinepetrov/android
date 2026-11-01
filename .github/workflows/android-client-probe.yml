@@ -11,13 +11,13 @@ on:
       - 'android-port/experiments/*.sh'
       - 'android-port/experiments/*.py'
       - '.github/workflows/android-client-probe.yml'
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   source-scope:
+    concurrency:
+      group: ${{ github.workflow }}-scope-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     if: github.event_name == 'workflow_dispatch' || github.head_ref == 'codex/android-native-port'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -55,6 +55,9 @@ jobs:
           done < changed-files.txt
           echo "run_client=$run_client" >> "$GITHUB_OUTPUT"
   client-probe:
+    concurrency:
+      group: ${{ github.workflow }}-compile-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     needs: source-scope
     if: needs.source-scope.outputs.run_client == 'true'
     runs-on: ubuntu-24.04
