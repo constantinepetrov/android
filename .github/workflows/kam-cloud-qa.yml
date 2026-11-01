@@ -16,8 +16,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  request:
+    name: Read the explicit QA request and scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      game-check: ${{ steps.scope.outputs.game-check }}
+    steps:
+      - name: Check out the requested QA revision
+        timeout-minutes: 3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Validate the requested scope
+        id: scope
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          request = json.loads(Path("qa/run-request.json").read_text())
+          mode = request.get("mode", "full")
+          if mode not in {"full", "readiness-only"}:
+              raise SystemExit("Unknown QA mode")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("game-check=" + ("true" if mode == "full" else "false") + "\n")
+          print(json.dumps({"mode": mode, "game_execution_requested": mode == "full"}))
+          PY
+
   fetch-input:
     name: Fetch pinned official data through the macOS network
+    needs: request
+    if: ${{ needs.request.outputs.game-check == 'true' }}
     runs-on: macos-15
     timeout-minutes: 30
     outputs:
@@ -66,6 +101,7 @@ jobs:
 
   android-readiness:
     name: Verify Android and Airtest independently of game data
+    needs: request
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -124,7 +160,7 @@ jobs:
             -camera-back none -camera-front none
           pre-emulator-launch-script: |
             "$ANDROID_HOME/emulator/emulator" -accel-check > readiness-evidence/accel-check.txt 2>&1
-            "$ANDROID_HOME/emulator/emulator" -version > readiness-evidence/emulator-version.txt 2>&1
+            "$ANDROID_HOME/emulator/emulator" -no-window -no-audio -version > readiness-evidence/emulator-version.txt 2>&1
             cat "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties" > readiness-evidence/system-image-properties.txt
           script: >-
             "$KAM_AIRTEST_PYTHON" qa/probe_android.py
@@ -299,7 +335,7 @@ jobs:
             -camera-back none -camera-front none
           pre-emulator-launch-script: |
             "$ANDROID_HOME/emulator/emulator" -accel-check > "$KAM_QA_OUTPUT/accel-check.txt" 2>&1
-            "$ANDROID_HOME/emulator/emulator" -version > "$KAM_QA_OUTPUT/emulator-version.txt" 2>&1
+            "$ANDROID_HOME/emulator/emulator" -no-window -no-audio -version > "$KAM_QA_OUTPUT/emulator-version.txt" 2>&1
             cat "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties" > "$KAM_QA_OUTPUT/system-image-properties.txt"
             df -h > "$KAM_QA_OUTPUT/disk-before-boot.txt"
           # The Python runner owns readiness, ABI, APK identity and game gates,

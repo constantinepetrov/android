@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "request_id": "kam-network-recovery-20261101T181057Z",
+  "request_id": "kam-headless-readiness-20261101T181916Z",
   "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
   "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
   "apk_bytes": 856629249,
   "package": "org.kamremake.android",
   "scenario": "only:tutorials/battle tutorial",
-  "mode": "fresh-install-and-automated-content-smoke",
+  "mode": "readiness-only",
   "ui_review_required": true,
   "playable_preapproved": false,
-  "retry_of_run": 41334600832,
-  "reason": "Ubuntu TCP443 to official installer host timed out three times; try pinned official input on standard macOS and independently verify accelerated Android/Airtest",
+  "retry_of_run": 41335488254,
+  "reason": "The Android/Airtest probe passed but GUI emulator version query required missing libpulse; select the headless binary for metadata. Game inputs remain blocked by official-host TCP timeouts on both runner networks.",
   "input_route": "macos-15 pinned official installer via one temporary artifact, removed after consumption",
   "independent_android_probe": true
 }

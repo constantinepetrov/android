@@ -6,6 +6,8 @@ This branch runs one bounded Android check before the APK is offered for user pl
 
 Only a push to `codex/kam-cloud-qa` that changes `qa/run-request.json` requests a run. There is no pull-request, scheduled, or matrix trigger. A separate `workflow_dispatch` entry point on master is not required. Normal edits to the scripts or documentation do not trigger another run.
 
+The request's `mode` selects `full` (the default) or `readiness-only`. The latter explicitly skips input fetch and all game checks; a green readiness-only run is never evidence that KaM launched. The initial scope job validates this field before starting either path.
+
 The workflow uses the standard GitHub-hosted Ubuntu 24.04 runner and KVM. It explicitly requires `-accel on`; a software-only TCG fallback is not accepted. Android API 35 Google APIs x86_64 is used, and the runner checks that ARM64 is advertised and a native bridge is configured before transferring the APK.
 
 This is Android runtime with ARM64 translation, not a physical ARM64 compatibility or performance result.
@@ -21,6 +23,8 @@ The recovery workflow uses a standard `macos-15` job to download the same pinned
 The installer artifact has one-day expiry as a fallback. A separate cleanup job normally deletes it after the consumer finishes, even if the game check fails. Only that cleanup job has `actions: write`; before deletion it verifies the exact artifact ID, expected name and current workflow run ID. Other jobs retain only `contents: read`. Temporary artifact storage is subject to the account's existing allowances; public standard compute does not imply unlimited storage.
 
 In parallel, `qa/probe_android.py` boots no game and requires no APK. It reuses the readiness gates and captures a genuine Airtest PNG. Its strongest result, `ANDROID_READINESS_PROBE_PASS`, confirms sampled Android readiness and screenshot capture only. Advertised ARM64 translation remains unproven until real ARM64 game code runs. The probe has its own 35-minute job; installer fetch has a 30-minute job and cleanup a 3-minute job.
+
+Run [41335488254](https://github.com/constantinepetrov/android/actions/runs/41335488254) reached that real probe PASS: three stable samples, working storage, API 35 ARM64/native-bridge advertisement, and an Airtest screenshot. Its emulator action still reported failure because the earlier plain version query selected the GUI binary, which required missing `libpulse.so.0`. The diagnostic command now uses `-no-window -no-audio -version`, matching the headless runtime. No error suppression or blanket `continue-on-error` was added. The macOS input job independently reproduced three connection timeouts; no installer-transfer artifact was created.
 
 ## Exact artifact identity
 

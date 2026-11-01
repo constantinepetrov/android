@@ -1,0 +1,12 @@
+{
+  "scope": "Static configuration validation; next requested run is readiness-only",
+  "actionlint_exit": 0,
+  "reason": "Match the diagnostic version query to the successful headless emulator runtime",
+  "no_error_suppression": true,
+  "game_check_requested": false,
+  "sha256": {
+    ".github/workflows/kam-cloud-qa.yml": "44ae8f46fb01314fc000a2c9efb6cee4d848bc36ed8b7b6b55d02e3681909bf1",
+    "qa/run-request.json": "f66505153f1daafbd86b7c0b4000c178649ffc7586d6b998822f0ced506885e5",
+    "qa/CLOUD_QA.md": "49d760c410620b97a4d908bd9e33e8b4e93ab586c30f1a4cd8313a933355a825"
+  }
+}
