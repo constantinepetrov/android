@@ -1,6 +1,17 @@
 library kamprobe;
 {$mode delphi}
-uses {$IFDEF UNIX} cthreads, {$ENDIF} SysUtils, KM_TextClipboard, KM_AndroidTextClipboard, KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario, KM_AndroidRttiProbe;
+uses {$IFDEF UNIX} cthreads, {$ENDIF} SysUtils, KM_ControlsTypes, KM_TextClipboard, KM_AndroidTextClipboard, KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario, KM_AndroidRttiProbe;
+
+// Called in the native-service process after loading this library; never query LCL.
+function Java_com_kamremake_androidprobe_NativeProbeService_nativeConfigureInput(env, cls: Pointer; timeout: LongInt): LongInt; cdecl;
+begin
+  Result := 0;
+  try
+    if timeout <= 0 then Exit;
+    KMInputConfigureDoubleClick(Cardinal(timeout));
+    Result := LongInt(GetDoubleClickTime);
+  except Result := 0 end;
+end;
 
 type TIntArray = array[0..2] of LongInt;
 function CompareInt(const A, B): Integer;
@@ -73,7 +84,8 @@ begin
     finally scope.Free end;
   except Result := -1 end;
 end;
-exports Java_com_kamremake_androidprobe_MainActivity_nativeClipboardProbe,
+exports Java_com_kamremake_androidprobe_NativeProbeService_nativeConfigureInput,
+        Java_com_kamremake_androidprobe_MainActivity_nativeClipboardProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe,

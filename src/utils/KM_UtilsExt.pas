@@ -3,7 +3,7 @@ unit KM_UtilsExt;
 interface
 uses
   Classes,
-  Controls
+  {$IFDEF ANDROID} KM_ControlsTypes {$ELSE} Controls {$ENDIF}
   {$IFDEF MSWindows}
   , Windows
   {$ENDIF}
@@ -27,7 +27,7 @@ implementation
 uses
   SysUtils,
   KM_Defaults
-  {$IFDEF FPC} , LCLIntF, LCLType {$ENDIF}
+  {$IFDEF FPC}{$IFNDEF ANDROID} , LCLIntF, LCLType {$ENDIF}{$ENDIF}
   ;
 //  {$IFDEF FPC} FileUtil, {$ENDIF}
 //  {$IFDEF WDC} IOUtils {$ENDIF};

@@ -4,7 +4,7 @@ interface
 uses
   Generics.Collections,
   KromOGLUtils,
-  Classes, Controls,
+  Classes, {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KM_Controls,
   KM_RenderUI,
   KM_ResFonts,

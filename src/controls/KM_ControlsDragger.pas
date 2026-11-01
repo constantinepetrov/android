@@ -2,7 +2,7 @@
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Controls,
+  Classes, {$IFDEF ANDROID} KM_ControlsTypes, {$ELSE} Controls, {$ENDIF}
   KM_Controls;
 
 

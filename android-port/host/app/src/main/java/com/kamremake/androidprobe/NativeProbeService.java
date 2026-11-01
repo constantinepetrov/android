@@ -15,6 +15,7 @@ public final class NativeProbeService extends Service {
         thread.setDaemon(true);
         return thread;
     });
+    static native int nativeConfigureInput(int timeout);
     static native int[] nativeReadMap(String path);
     static native int nativeFfiProbe();
     static native int nativeFfiScriptProbe();
@@ -34,6 +35,9 @@ public final class NativeProbeService extends Service {
             try {
                 report("LOAD", "loading libkamprobe.so and Pascal RTL");
                 System.loadLibrary("kamprobe");
+                int doubleTapTimeout = android.view.ViewConfiguration.getDoubleTapTimeout();
+                if (nativeConfigureInput(doubleTapTimeout) != doubleTapTimeout)
+                    throw new IllegalStateException("Native input timeout configuration failed");
                 report("LOAD", "library and Pascal RTL initialized");
                 if (request != null && request.getBooleanExtra("ffiTest", false)) {
                     System.loadLibrary("kamffi_probe");

@@ -31,6 +31,8 @@ const
   VK_F1 = 112;
   VK_F12 = 123;
 
+function GetDoubleClickTime: Cardinal;
+procedure KMInputConfigureDoubleClick(aMilliseconds: Cardinal);
 function GetKeyState(aVirtualKey: Word): SmallInt;
 procedure KMInputSetKeyState(aVirtualKey: Word; aPressed: Boolean);
 procedure KMInputSetButtonDown(aButton: TMouseButton; aPressed: Boolean);
@@ -50,10 +52,25 @@ const
   CTRL_HIGHLIGHT_COEF_DEF = 0.4;
 
 implementation
+uses SysUtils;
 
 {$IFDEF ANDROID}
 var
   KMInputKeyState: array[0..255] of Boolean;
+  KMInputDoubleClickTime: Cardinal;
+
+procedure KMInputConfigureDoubleClick(aMilliseconds: Cardinal);
+begin
+  if aMilliseconds = 0 then raise EArgumentException.Create('Invalid host double-click interval');
+  KMInputDoubleClickTime := aMilliseconds;
+end;
+
+function GetDoubleClickTime: Cardinal;
+begin
+  if KMInputDoubleClickTime = 0 then
+    raise EInvalidOpException.Create('Android input requires host ViewConfiguration double-tap timeout');
+  Result := KMInputDoubleClickTime;
+end;
 
 function GetKeyState(aVirtualKey: Word): SmallInt;
 begin

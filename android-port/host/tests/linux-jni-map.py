@@ -9,6 +9,13 @@ import sys
 import tempfile
 
 lib = c.CDLL(sys.argv[1])
+configure = lib.Java_com_kamremake_androidprobe_NativeProbeService_nativeConfigureInput
+configure.argtypes = [c.c_void_p, c.c_void_p, c.c_int32]
+configure.restype = c.c_int32
+assert configure(None, None, 0) == 0
+assert configure(None, None, -1) == 0
+assert configure(None, None, 283) == 283
+print('Native input configuration: host timeout preserved; invalid values rejected')
 GET = c.CFUNCTYPE(c.c_void_p, c.c_void_p, c.c_void_p, c.c_void_p)
 RELEASE = c.CFUNCTYPE(None, c.c_void_p, c.c_void_p, c.c_void_p)
 NEW = c.CFUNCTYPE(c.c_void_p, c.c_void_p, c.c_int32)

@@ -3,7 +3,7 @@ unit KM_Sound;
 interface
 uses
   Generics.Collections,
-  OpenAL,
+  OpenAL, KM_AudioSession,
   KM_ResSound,
   KM_Defaults, KM_CommonClasses, KM_CommonTypes, KM_Points;
 
@@ -25,7 +25,8 @@ type
       Vel: array [1..3] of TALfloat; //Velocity, used in doppler effect calculation
       Ori: array [1..6] of TALfloat; //Orientation LookingAt and UpVector
     end;
-    fIsSoundInitialized: Boolean;
+    fAudioSession: TKMAudioSession;
+    fSoundDisabled, fInitErrorReported: Boolean;
     fInitComplete: Boolean;
 
     fALSounds: array [0..MAX_SOUNDS-1] of record
@@ -123,7 +124,7 @@ uses
   {$IFNDEF NO_OGG_SOUND}
   Codec, VorbisFile,
   {$ENDIF}
-  KromUtils,
+  KromUtils, KM_OpenALBackend,
   {$IFDEF ANDROID} KM_GameAudioState, {$ELSE} KM_Game, {$ENDIF} KM_Resource,
   KM_HandsCollection, KM_HandTypes,
   KM_RenderAux,
@@ -145,7 +146,7 @@ procedure ShowOpenALWarning(const aText: string);
 begin
   {$IFDEF ANDROID}
   // Android has no desktop modal dialog; preserve the warning in the game log and continue without sound.
-  gLog.AddTime('OpenAL warning: ' + aText);
+  if gLog <> nil then gLog.AddTime('OpenAL warning: ' + aText);
   {$ELSE}
   MessageDlg(aText, mtWarning, [mbOk], 0);
   {$ENDIF}
@@ -165,124 +166,20 @@ end;
 
 
 destructor TKMSoundPlayer.Destroy;
-var
-  I: Integer;
 begin
-  if fIsSoundInitialized then
-  begin
-    for I := Low(fALSounds) to High(fALSounds) do
-    begin
-      AlDeleteBuffers(1, @fALSounds[I].ALBuffer);
-      AlDeleteSources(1, @fALSounds[I].ALSource);
-    end;
-    AlutExit;
-  end;
+  // Joins init before any owner fields or sound resources can be destroyed.
+  FreeAndNil(fAudioSession);
   inherited;
 end;
 
-
 procedure TKMSoundPlayer.Init;
-var
-  I: Integer;
-
+var I: Integer;
 begin
   for I := Low(fScriptSoundALIndex) to High(fScriptSoundALIndex) do
     fScriptSoundALIndex[I] := -1;
-
   if SKIP_SOUND then Exit;
-
-  fInitComplete := False;
-
-  TThread.CreateAnonymousThread(
-    procedure
-    var
-      I: Integer;
-      context: PALCcontext;
-      numMono, numStereo: TALCint;
-    begin
-      gLog.AddTime('OpenAL init started');
-
-      fIsSoundInitialized := InitOpenAL;
-      Set8087CW($133F); //Above OpenAL call messes up FPU settings
-      if not fIsSoundInitialized then
-      begin
-        gLog.AddNoTime('OpenAL warning. OpenAL could not be initialized.');
-        //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        ShowOpenALWarning('OpenAL could not be initialized. Please refer to Readme.html for solution');
-        fIsSoundInitialized := False;
-        Exit;
-      end;
-
-      // Open device (this is quite slow, 700-800 ms)
-      //todo -cPractical: OpenAL init can be perfomed in a thread
-      fALDevice := alcOpenDevice(nil); // this is supposed to select the "preferred device"
-      Set8087CW($133F); //Above OpenAL call messes up FPU settings
-      if fALDevice = nil then
-      begin
-        gLog.AddNoTime('OpenAL warning. Device could not be opened.');
-        //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        ShowOpenALWarning('OpenAL device could not be opened. Please refer to Readme.html for solution');
-        fIsSoundInitialized := False;
-        Exit;
-      end;
-
-      // Create context
-      context := alcCreateContext(fALDevice, nil);
-      Set8087CW($133F); //Above OpenAL call messes up FPU settings
-      if context = nil then
-      begin
-        gLog.AddNoTime('OpenAL warning. Context could not be created.');
-        //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        ShowOpenALWarning('OpenAL context could not be created. Please refer to Readme.html for solution');
-        fIsSoundInitialized := False;
-        Exit;
-      end;
-
-      // Set active context
-      I := alcMakeContextCurrent(context);
-      Set8087CW($133F); //Above OpenAL call messes up FPU settings
-      if not (I in [AL_NO_ERROR, AL_TRUE]) then
-      begin
-        gLog.AddNoTime('OpenAL warning. Context could not be made current.');
-        //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
-        ShowOpenALWarning('OpenAL context could not be made current. Please refer to Readme.html for solution');
-        fIsSoundInitialized := False;
-        Exit;
-      end;
-
-      CheckOpenALError;
-      if not fIsSoundInitialized then Exit;
-
-      // Set attenuation model
-      alDistanceModel(AL_LINEAR_DISTANCE_CLAMPED);
-      gLog.AddTime('Pre-LoadSFX init done');
-
-      alcGetIntegerv(fALDevice, ALC_MONO_SOURCES, 4, @numMono);
-      alcGetIntegerv(fALDevice, ALC_STEREO_SOURCES, 4, @numStereo);
-
-      gLog.AddTime('ALC_MONO_SOURCES %d', [numMono]);
-      gLog.AddTime('ALC_STEREO_SOURCES %d', [numStereo]);
-
-      for I := Low(fALSounds) to High(fALSounds) do
-      begin
-        AlGenBuffers(1, @fALSounds[i].ALBuffer);
-        AlGenSources(1, @fALSounds[i].ALSource);
-      end;
-
-      CheckOpenALError;
-      if not fIsSoundInitialized then Exit;
-
-      // Set default Listener orientation
-      fListener.Ori[1] := 0; fListener.Ori[2] := 0; fListener.Ori[3] := -1; //Look-at vector
-      fListener.Ori[4] := 0; fListener.Ori[5] := 1; fListener.Ori[6] := 0; //Up vector
-      AlListenerfv(AL_ORIENTATION, @fListener.Ori);
-
-      fInitComplete := True;
-      gLog.AddTime('OpenAL init done');
-    end).Start;
+  fAudioSession := TKMAudioSession.Create(TKMOpenALBackend.Create, Length(fALSounds));
 end;
-
-
 
 procedure TKMSoundPlayer.CheckOpenALError;
 var
@@ -293,7 +190,7 @@ begin
     gLog.AddNoTime('OpenAL warning. There is OpenAL error '+inttostr(errCode)+' raised. Sound will be disabled.');
     //MessageDlg works better than Application.MessageBox or others, it stays on top and pauses here until the user clicks ok.
     ShowOpenALWarning('There is OpenAL error '+IntToStr(errCode)+' raised. Sound will be disabled.');
-    fIsSoundInitialized := False;
+    fSoundDisabled := True;
   end;
 end;
 
@@ -302,7 +199,7 @@ procedure TKMSoundPlayer.AbortAllFadeSounds;
 var
   I: Integer;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
 
   fMusicIsFaded := False;
   for I := Low(fALSounds) to High(fALSounds) do
@@ -315,7 +212,7 @@ procedure TKMSoundPlayer.AbortAllLongSounds;
 var
   I: Integer;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
 
   //This is used to abort long sounds from the game when you quit so they don't play in the menu
   for I := Low(fALSounds) to High(fALSounds) do
@@ -336,8 +233,33 @@ end;
 
 
 function TKMSoundPlayer.GetIsReady: Boolean;
+var I: Integer;
 begin
-  Result := fInitComplete and fIsSoundInitialized;
+  Result := False;
+  if fSoundDisabled or (fAudioSession = nil) then Exit;
+  if fAudioSession.State = aisFailed then
+  begin
+    if not fInitErrorReported then
+    begin
+      fInitErrorReported := True;
+      // Logger/UI are used only by the playback owner, never by init/teardown.
+      if gLog <> nil then gLog.AddTime(fAudioSession.ErrorText);
+      ShowOpenALWarning(fAudioSession.ErrorText);
+    end;
+    Exit;
+  end;
+  if not fAudioSession.Activate then Exit;
+  if not fInitComplete then
+  begin
+    fALDevice := fAudioSession.Device;
+    for I := Low(fALSounds) to High(fALSounds) do
+    begin
+      fALSounds[I].ALBuffer := fAudioSession.Buffer(I);
+      fALSounds[I].ALSource := fAudioSession.Source(I);
+    end;
+    fInitComplete := True;
+  end;
+  Result := True;
 end;
 
 
@@ -373,7 +295,7 @@ end;
 {Update listener position in 3D space}
 procedure TKMSoundPlayer.UpdateListener(X,Y:single);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   fListener.Pos[1] := X;
   fListener.Pos[2] := Y;
   fListener.Pos[3] := 24; //Place Listener above the surface
@@ -392,7 +314,7 @@ procedure TKMSoundPlayer.UpdateSoundVolume(aValue: Single);
 var
   I: Integer;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   fVolume := aValue;
   if fVolume > 0 then
     fPrevVolume := fVolume;
@@ -414,7 +336,7 @@ end;
 // Wrapper with fewer options for non-attenuated sounds
 procedure TKMSoundPlayer.Play(aSoundID: TKMSoundEffectOriginal; aVolume: Single = 1);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
 
   // Check for consecutive messageNotices
   // When many warrior groups are hungry at the same time or many houses are not occupied at the same time
@@ -434,14 +356,14 @@ end;
 
 procedure TKMSoundPlayer.Play(aSoundID: TSoundFXNew; aVolume: Single = 1; aFadeMusic: Boolean = False);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   Play(aSoundID, KMPOINT_ZERO, False, aVolume, aFadeMusic);
 end;
 
 
 procedure TKMSoundPlayer.Play(aSoundID: TSoundFXNew; aLoc: TKMPoint; aAttenuated: Boolean = True; aVolume: Single = 1; aFadeMusic: Boolean = False);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   PlayWave(gRes.Sounds.FileOfNewSFX(aSoundID), KMPointF(aLoc), gRes.Sounds.GetSoundType(aSoundID), aAttenuated, aVolume, aFadeMusic);
 end;
 
@@ -449,14 +371,14 @@ end;
 {Wrapper for TKMSoundEffectOriginal}
 procedure TKMSoundPlayer.Play(aSoundID: TKMSoundEffectOriginal; aLoc: TKMPoint; aAttenuated: Boolean = True; aVolume: Single = 1);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   PlaySound(aSoundID, '', KMPointF(aLoc), gRes.Sounds.GetSoundType(aSoundID), aAttenuated, aVolume, MAX_DISTANCE, False, False); //Redirect
 end;
 
 
 procedure TKMSoundPlayer.Play(aSoundID: TKMSoundEffectOriginal; aLoc: TKMPointF; aAttenuated: Boolean = True; aVolume: Single = 1);
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   PlaySound(aSoundID, '', aLoc, gRes.Sounds.GetSoundType(aSoundID), aAttenuated, aVolume, MAX_DISTANCE, False, False); //Redirect
 end;
 
@@ -466,7 +388,7 @@ function TKMSoundPlayer.PlayWave(const aFile: UnicodeString; const aLoc: TKMPoin
                                  aVolume: Single = 1; aFadeMusic: Boolean = False; aLoop: Boolean = False): Integer;
 begin
   Result := -1;
-  if not fIsSoundInitialized then Exit;
+  if not GetIsReady then Exit;
   Result := PlaySound(sfxNone, aFile, aLoc, aSoundType, aAttenuated, aVolume, MAX_DISTANCE, aFadeMusic, aLoop); //Redirect
 end;
 
@@ -481,6 +403,8 @@ function TKMSoundPlayer.PlaySound(aSoundID: TKMSoundEffectOriginal; const aFile:
 var
   dif: array[1..3]of Single;
   freeBuf{,FreeSrc}: Integer;
+  I, soundId, wavSampleRate: Integer;
+  W: TKMSoundData;
   {$IFNDEF NO_OGG_SOUND}
   oggOpenResult: Integer;
   {$ENDIF}
@@ -502,7 +426,7 @@ var
   {$ENDIF}
 begin
   Result := -1;
-  if not fIsSoundInitialized then Exit;
+  if not GetIsReady then Exit;
   if (aSoundID = sfxNone) and (aFile = '') then Exit;
 
   // Do not play game sounds, if game is ready to stop
@@ -532,7 +456,7 @@ begin
 
   //Find free buffer and use it
   freeBuf := -1;
-  for var I := Low(fALSounds) to High(fALSounds) do
+  for I := Low(fALSounds) to High(fALSounds) do
   begin
     alGetSourcei(fALSounds[i].ALSource, AL_SOURCE_STATE, @alState);
     if alState <> AL_PLAYING then
@@ -631,12 +555,12 @@ begin
   end
   else
   begin
-    var soundId := Ord(aSoundID);
+    soundId := Ord(aSoundID);
     // Can not find sound with this Id, silently Exit...
     if soundId > gRes.Sounds.WavesCount then
       Exit;
 
-    var W := gRes.Sounds.fWaves[soundId];
+    W := gRes.Sounds.fWaves[soundId];
 
     Assert(W.IsLoaded, 'Sounds.dat seems to be short');
 
@@ -649,7 +573,7 @@ begin
         raise Exception.Create('Unexpected wave bit depth');
       end;
 
-      var wavSampleRate := gRes.Sounds.GetSoundSampleRate(aSoundID);
+      wavSampleRate := gRes.Sounds.GetSoundSampleRate(aSoundID);
       AlBufferData(fALSounds[freeBuf].ALBuffer, wavFormat, @W.Data[0], W.Head.DataSize, wavSampleRate);
       wavDuration := Round(W.Head.DataSize / wavSampleRate / W.Head.BytesPerSample * 1000);
     end else
@@ -708,7 +632,7 @@ end;
 procedure TKMSoundPlayer.PlayCitizen(aUnitType: TKMUnitType; aSound: TKMWarriorSpeech);
 begin
   if SKIP_SOUND
-    or not fIsSoundInitialized
+    or not GetIsReady
     or ((gMySpectator.Selected <> nil) and not gMySpectator.IsSelectedMyObj) then // Do not play sound for ally's citizens selection
     Exit;
 
@@ -721,7 +645,7 @@ var
   wave: UnicodeString;
   hasLoc: Boolean;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   if not (aUnitType in [CITIZEN_MIN..CITIZEN_MAX]) then Exit;
 
   hasLoc := not KMSamePointF(aLoc, KMPOINTF_ZERO);
@@ -736,7 +660,7 @@ var
   wave: UnicodeString;
   count: Byte;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
 
   count := gRes.Sounds.NotificationSoundCount[aSound];
 
@@ -749,7 +673,7 @@ end;
 procedure TKMSoundPlayer.PlayWarrior(aUnitType: TKMUnitType; aSound: TKMWarriorSpeech);
 begin
   if SKIP_SOUND
-    or not fIsSoundInitialized
+    or not GetIsReady
     or ((gMySpectator.Selected <> nil) and not gMySpectator.IsSelectedMyObj) then // Do not play sound for ally's warriors
     Exit;
 
@@ -763,7 +687,7 @@ var
   hasLoc: Boolean;
   count: Byte;
 begin
-  if SKIP_SOUND or not fIsSoundInitialized then Exit;
+  if SKIP_SOUND or not GetIsReady then Exit;
   if not (aUnitType in [WARRIOR_MIN..WARRIOR_MAX]) then Exit;
 
   count := gRes.Sounds.WarriorSoundCount[aUnitType, aSound];
@@ -818,7 +742,7 @@ end;
 
 procedure TKMSoundPlayer.StopScriptSound(aIndex: Integer);
 begin
-  if not fIsSoundInitialized then Exit;
+  if not GetIsReady then Exit;
   if fScriptSoundALIndex[aIndex] = -1 then Exit;
 
   //Stop previously playing sound and release buffer

@@ -18,11 +18,11 @@ failed=0
 echo "KM_SCRIPTING_SOURCE_BYTES_BEGIN"
 head -c 96 "$root/src/scripting/KM_Scripting.pas" | od -An -tx1c
 echo "KM_SCRIPTING_SOURCE_BYTES_END"
-read -r -a targets <<< "${PORT_TARGETS:-src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_GameMessages.pas src/game/KM_GamePresentationState.pas src/media/KM_BassAndroid.pas src/game/KM_GameAudioState.pas src/utils/KM_TextClipboard.pas android-port/host/pascal/KM_AndroidTextClipboard.pas src/controls/KM_ControlsEdit.pas src/controls/KM_ControlsBase.pas src/game/KM_Game.pas}"
+read -r -a targets <<< "${PORT_TARGETS:-src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_GameMessages.pas src/game/KM_GamePresentationState.pas src/media/KM_BassAndroid.pas src/game/KM_GameAudioState.pas src/utils/KM_TextClipboard.pas android-port/host/pascal/KM_AndroidTextClipboard.pas src/media/KM_AudioSession.pas src/media/KM_OpenALBackend.pas src/media/KM_Sound.pas src/controls/KM_ControlsList.pas src/controls/KM_ControlsEdit.pas src/controls/KM_ControlsBase.pas src/game/KM_Game.pas}"
 for unit in "${targets[@]}"; do
   echo "ANDROID_UNIT_START $unit"
   trace=()
-  case "$unit" in src/controls/KM_ControlsBase.pas|src/controls/KM_ControlsEdit.pas|src/game/KM_Game.pas) trace=(-vu);; esac
+  case "$unit" in src/controls/*.pas|src/media/KM_Sound.pas|src/game/KM_Game.pas) trace=(-vu);; esac
   # The upstream secure-auth unit is absent from this repository. This diagnostic compile
   # uses the project's documented unsecure-auth option only to continue unit analysis.
   command=("$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -dDBG_SKIP_SECURE_AUTH -B -Cn "${trace[@]}" -Fi"$root" \

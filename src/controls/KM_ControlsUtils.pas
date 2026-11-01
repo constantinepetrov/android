@@ -18,7 +18,7 @@ uses
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
   Math,
   KromUtils;
 
