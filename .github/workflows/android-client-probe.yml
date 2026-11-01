@@ -7,6 +7,7 @@ on:
       - 'KaM_Remake.inc'
       - 'android-port/tests/**'
       - 'android-port/pascal/**'
+      - 'android-port/host/pascal/**'
       - 'android-port/experiments/*.sh'
       - 'android-port/experiments/*.py'
       - '.github/workflows/android-client-probe.yml'
@@ -16,7 +17,46 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  source-scope:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'codex/android-native-port'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      run_client: ${{ steps.scope.outputs.run_client }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+      - id: scope
+        name: Skip heavy compilation for documentation-only updates
+        env:
+          COMPARE_BASE: ${{ github.event.before || github.event.pull_request.base.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            echo 'run_client=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git fetch --no-tags --depth=1 origin "$COMPARE_BASE"; then
+            echo '::notice::Comparison commit unavailable; retain compilation rather than silently skip it'
+            echo 'run_client=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "$COMPARE_BASE" HEAD > changed-files.txt
+          run_client=false
+          while IFS= read -r path; do
+            case "$path" in
+              src/*|KaM_Remake.inc|android-port/tests/*|android-port/pascal/*|android-port/host/pascal/*|android-port/experiments/*.sh|android-port/experiments/*.py|.github/workflows/android-client-probe.yml)
+                run_client=true; break ;;
+            esac
+          done < changed-files.txt
+          echo "run_client=$run_client" >> "$GITHUB_OUTPUT"
   client-probe:
+    needs: source-scope
+    if: needs.source-scope.outputs.run_client == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
