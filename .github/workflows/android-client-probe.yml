@@ -37,6 +37,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/krom-test"
           fpc -dANDROID -Mdelphi -Fi. -Fusrc/utils -FU"$RUNNER_TEMP/krom-test" -FE"$RUNNER_TEMP/krom-test" android-port/tests/kromutils_smoke.pas
           "$RUNNER_TEMP/krom-test/kromutils_smoke"
+      - name: Check Android control input types and bounds
+        shell: bash
+        run: |
+          set -o pipefail
+          bash android-port/tests/test-controls-input-linux.sh 2>&1 | tee "$RUNNER_TEMP/controls-input.log"
       - name: Test game options save/load on Linux
         shell: bash
         run: |
@@ -180,6 +185,7 @@ jobs:
             ${{ runner.temp }}/client-overlay.log
             ${{ runner.temp }}/ps-android-units/
             ${{ runner.temp }}/game-options-test.log
+            ${{ runner.temp }}/controls-input.log
             ${{ runner.temp }}/game-presentation-port.log
             ${{ runner.temp }}/game-messages.log
             ${{ runner.temp }}/map-header-build.log
