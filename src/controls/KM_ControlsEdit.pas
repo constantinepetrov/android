@@ -2,7 +2,7 @@
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Controls,
+  Classes, {$IFNDEF ANDROID} Controls, {$ENDIF}
   KM_Controls, KM_ControlsBase, KM_ControlsTypes,
   KM_RenderUI,
   KM_ResFonts,
@@ -148,8 +148,8 @@ type
 implementation
 uses
   {$IFDEF MSWindows} Windows, {$ENDIF}
-  {$IFDEF Unix} LCLIntf, LCLType, {$ENDIF}
-  Clipbrd,
+  {$IFDEF Unix}{$IFNDEF ANDROID} LCLIntf, LCLType, {$ENDIF}{$ENDIF}
+  KM_TextClipboard,
   SysUtils, StrUtils, Math,
   KromUtils, KromOGLUtils,
   KM_ControlsUtils,
@@ -318,6 +318,7 @@ function TKMSelectableEdit.KeyDown(Key: Word; Shift: TShiftState): Boolean;
 
 var
   oldCursorPos: Integer;
+  clipboardText: UnicodeString;
 begin
   Result := KeyEventHandled(Key, Shift);
   if inherited KeyDown(Key, Shift) or ReadOnly then Exit;
@@ -337,28 +338,29 @@ begin
                   SelectionEnd := Length(fText);
                 end;
       Ord('C'): if HasSelection then
-                  Clipboard.AsText := GetSelectedText;
+                  KMWriteClipboardText(GetSelectedText);
       Ord('X'): if HasSelection then
                 begin
-                  Clipboard.AsText := GetSelectedText;
+                  KMWriteClipboardText(GetSelectedText);
                   DeleteSelectedText;
                   ValidateText;
                 end;
       Ord('V'): begin
+                  clipboardText := KMReadClipboardText;
                   if HasSelection then
                   begin
                     Delete(fText, fSelectionStart + 1, fSelectionEnd-fSelectionStart);
-                    Insert(Clipboard.AsText, fText, fSelectionStart + 1);
+                    Insert(clipboardText, fText, fSelectionStart + 1);
                     ValidateText;
                     if CursorPos = fSelectionStart then
-                      CursorPos := CursorPos + Length(Clipboard.AsText)
+                      CursorPos := CursorPos + Length(clipboardText)
                     else if CursorPos = fSelectionEnd then
-                      CursorPos := CursorPos + Length(Clipboard.AsText) - (fSelectionEnd-fSelectionStart);
+                      CursorPos := CursorPos + Length(clipboardText) - (fSelectionEnd-fSelectionStart);
                     ResetSelection;
                   end else begin
-                    Insert(Clipboard.AsText, fText, CursorPos + 1);
+                    Insert(clipboardText, fText, CursorPos + 1);
                     ValidateText;
-                    CursorPos := CursorPos + Length(Clipboard.AsText);
+                    CursorPos := CursorPos + Length(clipboardText);
                   end;
                 end;
     end;

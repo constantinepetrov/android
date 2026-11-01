@@ -1,8 +1,9 @@
 name: Inspect existing translated-x86 log
 on:
-  push:
-    branches: [codex/android-native-port]
-    paths: ['.github/workflows/inspect-prior-x86-crash.yml']
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   actions: read

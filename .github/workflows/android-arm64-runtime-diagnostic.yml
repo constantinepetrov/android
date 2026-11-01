@@ -1,11 +1,9 @@
 name: Existing APK ARM64 runtime diagnostic
 on:
-  push:
-    branches: [codex/android-native-port]
-    paths:
-      - '.github/workflows/android-arm64-runtime-diagnostic.yml'
-      - 'android-port/diagnostics/**'
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
   actions: read

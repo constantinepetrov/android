@@ -1,6 +1,6 @@
 library kamprobe;
 {$mode delphi}
-uses KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario, KM_AndroidRttiProbe;
+uses {$IFDEF UNIX} cthreads, {$ENDIF} SysUtils, KM_TextClipboard, KM_AndroidTextClipboard, KM_Sort, KM_AndroidMap, KM_FogOfWar, KM_FogScenario, KM_AndroidRttiProbe;
 
 type TIntArray = array[0..2] of LongInt;
 function CompareInt(const A, B): Integer;
@@ -60,7 +60,21 @@ begin
 end;
 function Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe(env, clazz: Pointer): LongInt; cdecl;
 begin Result := ProbeUnconfiguredRtti end;
-exports Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe,
+function Java_com_kamremake_androidprobe_MainActivity_nativeClipboardProbe(env, clazz: Pointer): LongInt; cdecl;
+var scope: TKMAndroidClipboardScope; text: UnicodeString;
+begin
+  Result := -1;
+  try
+    scope := TKMAndroidClipboardScope.Create(env);
+    try
+      text := UnicodeString('KaM ') + WideChar($0416) + WideChar(0) + WideChar($D83D) + WideChar($DE00);
+      KMWriteClipboardText(text);
+      if KMReadClipboardText = text then Result := 1;
+    finally scope.Free end;
+  except Result := -1 end;
+end;
+exports Java_com_kamremake_androidprobe_MainActivity_nativeClipboardProbe,
+        Java_com_kamremake_androidprobe_MainActivity_nativeRttiProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeFogProbe,
         Java_com_kamremake_androidprobe_MainActivity_nativeSortProbe,
         Java_com_kamremake_androidprobe_NativeProbeService_nativeReadMap;

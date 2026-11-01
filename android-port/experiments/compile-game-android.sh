@@ -12,18 +12,25 @@ paths=()
 while IFS= read -r -d '' path; do paths+=("-Fu$path" "-Fi$path"); done < <(find "$root/src" -type d -print0)
 overlay=()
 if [ -n "${PS_OVERLAY:-}" ]; then overlay=("-Fu$PS_OVERLAY" "-Fi$PS_OVERLAY"); fi
+git -C "$root" rev-parse HEAD HEAD^{tree}
+"$FPC_ANDROID" -Paarch64 -Tandroid -iV -iTP -iTO
 failed=0
 echo "KM_SCRIPTING_SOURCE_BYTES_BEGIN"
 head -c 96 "$root/src/scripting/KM_Scripting.pas" | od -An -tx1c
 echo "KM_SCRIPTING_SOURCE_BYTES_END"
-for unit in src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_GameMessages.pas src/game/KM_GamePresentationState.pas src/controls/KM_ControlsBase.pas src/game/KM_Game.pas; do
+read -r -a targets <<< "${PORT_TARGETS:-src/common/KM_Defaults.pas src/utils/KM_MapHeader.pas src/utils/KM_MapLegacyTile.pas src/game/KM_GameOptions.pas src/terrain/KM_TerrainTypes.pas src/game/KM_FogOfWar.pas src/hands/KM_HandTypes.pas src/hands/KM_HandEntity.pas src/res/KM_ResUnits.pas src/scripting/KM_ScriptExceptionState.pas src/scripting/KM_ScriptingUtils.pas src/game/KM_GameMessages.pas src/game/KM_GamePresentationState.pas src/media/KM_BassAndroid.pas src/game/KM_GameAudioState.pas src/utils/KM_TextClipboard.pas android-port/host/pascal/KM_AndroidTextClipboard.pas src/controls/KM_ControlsEdit.pas src/controls/KM_ControlsBase.pas src/game/KM_Game.pas}"
+for unit in "${targets[@]}"; do
   echo "ANDROID_UNIT_START $unit"
   trace=()
-  case "$unit" in src/controls/KM_ControlsBase.pas|src/game/KM_Game.pas) trace=(-vu);; esac
+  case "$unit" in src/controls/KM_ControlsBase.pas|src/controls/KM_ControlsEdit.pas|src/game/KM_Game.pas) trace=(-vu);; esac
   # The upstream secure-auth unit is absent from this repository. This diagnostic compile
   # uses the project's documented unsecure-auth option only to continue unit analysis.
-  if "$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -dDBG_SKIP_SECURE_AUTH -B -Cn -Fi"$root" \
-    "-Fu$FPC_ANDROID_UNITS/*" "${overlay[@]}" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" "-Fu$root/android-port/pascal" "-Fi$root/android-port/pascal" "-Fu$LCL_SOURCE" "-Fi$LCL_SOURCE/include" "${paths[@]}" -FU"$out" "$root/$unit"; then
+  command=("$FPC_ANDROID" -Paarch64 -Tandroid -XPaarch64-linux-gnu- -Mdelphi -dDBG_SKIP_SECURE_AUTH -B -Cn "${trace[@]}" -Fi"$root" \
+    "-Fu$FPC_ANDROID_UNITS/*" "${overlay[@]}" "-Fu$LAZUTILS_SOURCE" "-Fi$LAZUTILS_SOURCE" "-Fu$root/android-port/pascal" "-Fi$root/android-port/pascal" "-Fu$LCL_SOURCE" "-Fi$LCL_SOURCE/include" "${paths[@]}" -FU"$out" "$root/$unit")
+  printf 'FPC_COMMAND '
+  printf '%q ' "${command[@]}"
+  printf '\n'
+  if "${command[@]}"; then
     echo "ANDROID_UNIT_OK $unit"
   else
     echo "ANDROID_UNIT_FAILED $unit"

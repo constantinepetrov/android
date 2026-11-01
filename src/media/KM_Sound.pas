@@ -124,7 +124,7 @@ uses
   Codec, VorbisFile,
   {$ENDIF}
   KromUtils,
-  KM_Game, KM_Resource, 
+  {$IFDEF ANDROID} KM_GameAudioState, {$ELSE} KM_Game, {$ENDIF} KM_Resource,
   KM_HandsCollection, KM_HandTypes,
   KM_RenderAux,
   KM_Log, KM_CommonUtils;
@@ -506,7 +506,7 @@ begin
   if (aSoundID = sfxNone) and (aFile = '') then Exit;
 
   // Do not play game sounds, if game is ready to stop
-  if (aSoundType = stGame) and (gGame <> nil) and gGame.ReadyToStop then
+  if (aSoundType = stGame) and {$IFDEF ANDROID} GameAudioIsStopping {$ELSE} (gGame <> nil) and gGame.ReadyToStop {$ENDIF} then
     Exit;
 
   if aAttenuated then

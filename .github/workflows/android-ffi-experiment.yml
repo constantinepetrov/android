@@ -1,21 +1,28 @@
 name: Android AArch64 libffi experiment
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/android-native-port]
-    paths:
-      - 'android-port/ffi/**'
-      - 'android-port/host/**'
-      - '.github/workflows/android-ffi-experiment.yml'
+    inputs:
+      native_arm64:
+        description: Explicitly retry native ARM64 SDK provisioning (currently unavailable)
+        type: boolean
+        default: false
   pull_request:
+    types: [labeled]
     paths:
-      - 'android-port/ffi/**'
+      - 'src/**'
+      - 'KaM_Remake.inc'
       - 'android-port/host/**'
+      - 'android-port/ffi/**'
+      - 'android-port/experiments/*.py'
       - '.github/workflows/android-ffi-experiment.yml'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || (github.head_ref == 'codex/android-native-port' && github.event.label.name == 'android-runtime')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -50,7 +57,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/fpc-android
-          key: fpc-3.2.2-aarch64-android-ubuntu-24.04-v1
+          key: fpc-0d122c49-aarch64-android-ubuntu-24.04-v2
       - name: Build FPC cross compiler
         if: steps.fpc-cache.outputs.cache-hit != 'true'
         run: |
@@ -150,6 +157,7 @@ jobs:
           if-no-files-found: warn
 
   runtime-native-arm64:
+    if: github.event_name == 'workflow_dispatch' && inputs.native_arm64
     needs: build
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40

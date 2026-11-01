@@ -32,6 +32,7 @@ import javax.microedition.khronos.opengles.GL10;
 /** Integration probe only: there is no game loop or original map here. */
 public final class MainActivity extends Activity {
     static native int nativeSortProbe();
+    static native int nativeClipboardProbe();
     static native int nativeFogProbe();
     static native int nativeRttiProbe();
     static final String DIAGNOSTIC_ACTION = "com.kamremake.androidprobe.DIAGNOSTIC";
@@ -74,6 +75,7 @@ public final class MainActivity extends Activity {
     }
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        GameTextClipboard.initialize(this);
         FrameLayout frame = new FrameLayout(this);
         IntentFilter filter = new IntentFilter(DIAGNOSTIC_ACTION);
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(diagnostics, filter, Context.RECEIVER_NOT_EXPORTED);

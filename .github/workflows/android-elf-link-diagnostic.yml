@@ -1,9 +1,9 @@
 name: Android ELF link diagnostic
 on:
-  push:
-    branches: [codex/android-native-port]
-    paths: ['.github/workflows/android-elf-link-diagnostic.yml']
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ runner.temp }}/fpc-android
-          key: fpc-3.2.2-aarch64-android-ubuntu-24.04-v1
+          key: fpc-0d122c49-aarch64-android-ubuntu-24.04-v2
           fail-on-cache-miss: true
       - name: Link Pascal library against API-specific Android libc
         shell: bash

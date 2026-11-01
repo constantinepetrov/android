@@ -1,8 +1,9 @@
 name: Observe ARM64 emulator startup
 on:
-  push:
-    branches: [codex/android-native-port]
-    paths: ['.github/workflows/android-arm64-boot-observation.yml']
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

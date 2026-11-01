@@ -1,9 +1,9 @@
 name: Inspect ARM64 runner for Android emulation
 on:
-  push:
-    branches: [codex/android-native-port]
-    paths: ['.github/workflows/android-arm-runner-availability.yml']
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:

@@ -180,6 +180,20 @@ public final class GestureInstrumentation extends Instrumentation {
             await(() -> activity.testResumeGeneration()>resumes && activity.hasWindowFocus() && activity.testMapWidth()==64,"map missing after background/resume");
             Bitmap resumedImage=capture("resumed");
             check(different(textured,resumedImage)<100,"map changed after background/resume");
+            checkpoint("clipboard");
+            await(() -> activity.hasWindowFocus(), "clipboard Activity not focused");
+            runOnMainSync(() -> {
+                android.content.ClipboardManager clipboard = (android.content.ClipboardManager) activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                android.content.ClipData saved = clipboard.getPrimaryClip();
+                try {
+                    System.loadLibrary("kamprobe");
+                    check(MainActivity.nativeClipboardProbe() == 1, "JNI ClipboardManager UTF-16 roundtrip failed");
+                    android.util.Log.i("KaMProbe", "ANDROID_CLIPBOARD_UTF16_OK");
+                } finally {
+                    if (saved != null) clipboard.setPrimaryClip(saved);
+                    else if (android.os.Build.VERSION.SDK_INT >= 28) clipboard.clearPrimaryClip();
+                }
+            });
             android.util.Log.i("KaMProbe", "QA_PASSED pan="+pan[1]+" zoom="+zoom[0]+" context="+activity.testSurfaceGeneration());
             result.putString("result","QA_PASSED"); finish(Activity.RESULT_OK,result);
         } catch(Throwable failure) {

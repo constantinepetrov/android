@@ -103,6 +103,7 @@ type
     fMapEdMapSaveStarted: TKMEvent;
     fMapEdMapSaveEnded: TKMEvent;
 
+    function QueryAudioStopping: Boolean;
     procedure IssueAutosaveCommand(aAfterPT: Boolean);
     function CheckIfPeacetimeJustEnded: Boolean;
     function GetWaitingPlayersList: TKMByteArray;
@@ -333,7 +334,7 @@ uses
   {$IFNDEF ANDROID} Dialogs, {$ENDIF}
   {$IFDEF WDC} UITypes, {$ENDIF}
   KromUtils,
-  KM_Sound, KM_ScriptSound,
+  KM_GameAudioState, KM_Sound, KM_ScriptSound,
   KM_PathFindingAStarOld, KM_PathFindingAStarNew, KM_PathFindingJPS,
   KM_Projectiles, KM_AIFields, KM_NetTypes,
   {$IFDEF ANDROID} KM_GameRuntime, {$ELSE} KM_Main, KM_GameApp, {$ENDIF}
@@ -450,6 +451,7 @@ const
   UI_MODE: array [TKMGameMode] of TKMUIMode = (umSP, umSP, umMP, umSpectate, umSP, umReplay, umReplay);
 begin
   inherited Create;
+  {$IFDEF ANDROID} BindGameAudioState(Self, QueryAudioStopping); {$ENDIF}
 
   // Suppress Alt key for menu while in the game. We can use Alt key as a modificator for some hotkeys (for School hotkeys, f.e.)
   if gMain <> nil then
@@ -623,6 +625,7 @@ begin
   {$ENDIF}
 
   FreeAndNil(fParams);
+  {$IFDEF ANDROID} UnbindGameAudioState(Self); {$ENDIF}
 
   if Assigned(fOnDestroy) then
     fOnDestroy();
@@ -630,6 +633,11 @@ begin
   inherited;
 end;
 
+
+function TKMGame.QueryAudioStopping: Boolean;
+begin
+  Result := fReadyToStop;
+end;
 
 function TKMGame.GetMapSize: TKMPoint;
 begin
