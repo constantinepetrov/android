@@ -14,7 +14,6 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib.request
 
 INSTALLER_URL = "https://www.kamremake.com/files/kam-remake-r16397/?tmstv=1793532124"
 INSTALLER_BYTES = 711493971
@@ -69,35 +68,33 @@ def assemble_template(output):
     return len(records)
 
 
-def download(output, timeout):
-    request = urllib.request.Request(INSTALLER_URL, headers={"User-Agent": "KaM-cloud-QA/1.0"})
-    deadline = time.monotonic() + timeout
-    count, next_notice = 0, 64 * 1024 * 1024
-    with urllib.request.urlopen(request, timeout=min(timeout, 60)) as response:
-        response_type = response.headers.get("Content-Type", "")
-        if response.status != 200 or "text/html" in response_type.lower():
-            raise RuntimeError("Official installer URL did not return binary content")
-        resolved_url = response.url
-        with output.open("xb") as target:
-            while True:
-                if time.monotonic() > deadline:
-                    raise TimeoutError("Installer download deadline exceeded")
-                chunk = response.read1(1024 * 1024)
-                if not chunk:
-                    break
-                if count == 0 and not chunk.startswith(b"MZ"):
-                    raise RuntimeError("Installer response has no executable header")
-                count += len(chunk)
-                if count > INSTALLER_BYTES:
-                    raise RuntimeError("Installer response is larger than pinned file")
-                target.write(chunk)
-                if count >= next_notice:
-                    print(json.dumps({"phase": "download_official_installer", "bytes": count,
-                                      "expected_bytes": INSTALLER_BYTES}), flush=True)
-                    next_notice += 64 * 1024 * 1024
+def download(output, timeout, evidence, record):
+    if output.exists():
+        raise RuntimeError("Refusing to replace an existing installer download")
+    curl = shutil.which("curl")
+    if not curl:
+        raise RuntimeError("curl is required for the bounded IPv4 installer download")
+    if shutil.which("getent"):
+        try:
+            command("installer-dns", ["getent", "ahosts", "www.kamremake.com"],
+                    evidence, 20, record)
+        except RuntimeError as exc:
+            record["dns_probe_warning"] = str(exc)
+    # The first real GitHub run timed out before receiving response headers.
+    # Keep the official URL and TLS verification, choose IPv4 explicitly, and
+    # preserve DNS/HTTP diagnostics. The outer process deadline bounds retries.
+    argv = [curl, "--ipv4", "--location", "--fail", "--show-error", "--silent",
+            "--connect-timeout", "20", "--max-time", str(timeout),
+            "--retry", "2", "--retry-delay", "3", "--retry-max-time", str(timeout),
+            "--remove-on-error", "--user-agent", "Mozilla/5.0 (compatible; KaMCloudQA/1.0)",
+            "--output", str(output), "--write-out",
+            "http_code=%{http_code}\\nremote_ip=%{remote_ip}\\nurl_effective=%{url_effective}\\nsize_download=%{size_download}\\n",
+            INSTALLER_URL]
+    command("download-installer", argv, evidence, timeout + 30, record)
     require_file(output, INSTALLER_BYTES, INSTALLER_SHA256)
-    return {"url": INSTALLER_URL, "resolved_url": resolved_url,
-            "bytes": count, "sha256": INSTALLER_SHA256}
+    return {"url": INSTALLER_URL, "backend": "curl-ipv4", "retry_limit": 2,
+            "http_metadata_log": "download-installer.stdout",
+            "bytes": output.stat().st_size, "sha256": INSTALLER_SHA256}
 
 
 def command(name, argv, evidence, timeout, record):
@@ -157,7 +154,7 @@ def main():
             record["installer"] = {"source": "existing pinned installer", "path": str(installer),
                                    "bytes": INSTALLER_BYTES, "sha256": INSTALLER_SHA256}
         else:
-            record["installer"] = download(installer, args.download_timeout)
+            record["installer"] = download(installer, args.download_timeout, evidence, record)
         write_json(result_path, record)
         extract_dir = owned / "extracted"
         extract_dir.mkdir()

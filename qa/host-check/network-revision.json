@@ -1,0 +1,8 @@
+{
+  "scope": "Static validation of download change; no Android or new installer download",
+  "prepare_inputs_sha256": "f7527eea9ab2e39355cbcaaef2daf560d5941b198e450ee5a8c1ce236de2decd",
+  "syntax": "PASS",
+  "cli_help_returncode": 0,
+  "review": "Independent read-only review found no partial-download success path; full size/SHA remain mandatory",
+  "prior_run": 41333826307
+}
