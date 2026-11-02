@@ -9,5 +9,7 @@
     "fog",
     "invulnerability"
   ],
-  "test_apk_only": true
+  "test_apk_only": true,
+  "retry": "assets-path-fixed",
+  "retry_of": 41512283991
 }
