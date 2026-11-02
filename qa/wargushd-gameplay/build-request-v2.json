@@ -1,0 +1,10 @@
+{
+  "task": "compile-direct-jni-cheats-v2",
+  "version": "3.4.91",
+  "package": "net.wargushd.game.cheats.v2",
+  "source": "nikoltu/WargusHD-android v3.4.91",
+  "build": "native-arm64-and-apk",
+  "fix": "SDL_TEXTINPUT disabled; replace with JNI queued cheats",
+  "original_app_untouched": true,
+  "device_testing_pending": true
+}
