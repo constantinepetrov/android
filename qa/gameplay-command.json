@@ -3,15 +3,15 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 25,
+  "step": 26,
   "action": {
     "type": "swipe",
-    "x1": 1100,
+    "x1": 900,
     "y1": 500,
-    "x2": 900,
+    "x2": 1100,
     "y2": 500,
     "duration_ms": 300
   },
   "wait_seconds": 1,
-  "label": "pan-map-on-observed-open-grass"
+  "label": "pan-map-in-opposite-direction"
 }
