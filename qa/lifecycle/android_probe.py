@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from gameplay_session import parse_save_header
 
 PACKAGE = "org.kamremake.android"
