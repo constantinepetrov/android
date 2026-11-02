@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "request_id": "kam-game-logcat-retry-20261102T063431Z",
-  "github_run_id": "41400991651",
+  "request_id": "kam-live-gameplay-20261102T064927Z",
+  "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "artifact_name": "kam-encrypted-apk-41400991651-1",
+  "artifact_name": "kam-encrypted-apk-41402762513-1",
   "zip_bytes": 856629405,
-  "zip_sha256": "2bd6059a45d0d6423f74bf05d48964d2f669edf826a727bd8e2a7e711e85f9c5"
+  "zip_sha256": "bf98ef5074afd94477ceac07c673a345502269a47dc6ed9cbc8af0350ec85e02"
 }
