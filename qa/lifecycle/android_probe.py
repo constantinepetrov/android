@@ -149,22 +149,50 @@ def run(args):
         else:
             if delta < 50:
                 raise RuntimeError("Patched build still frozen after background: delta=" + str(delta))
-            # Manual pause must survive background/foreground transitions.
-            event(args.serial, "KEYCODE_P")
-            m0 = checkpoint("pre-manual-pause", lambda: save(args.serial, out, "lcm0"))
-            event(args.serial, "KEYCODE_HOME")
-            sleep(3)
-            _ = launch(args.serial)
-            sleep(12)
-            m1 = checkpoint("manual-pause-after-resume", lambda: save(args.serial, out, "lcm1"))
-            state["tick_deltas"]["manual_pause_after_resume"] = m1 - m0
-            if m1 - m0 > 30:
-                raise RuntimeError("Manual pause was incorrectly removed by background")
-            event(args.serial, "KEYCODE_P")
-            sleep(12)
-            m2 = checkpoint("manual-then-unpause", lambda: save(args.serial, out, "lcm2"))
-            state["tick_deltas"]["manual_then_unpause"] = m2 - m1
-            if m2 - m1 < 45:
+            # A manually paused game deliberately blocks F4 / Save Game: never
+            # try to produce a save during pause. Observe the pause overlay and
+            # check the exact Android lifecycle ownership log instead.
+            checkpoint("manual-pause-enter", lambda: (
+                event(args.serial, "KEYCODE_P"), sleep(2),
+                frame(args.serial, out, "manual-pause-before-home"), True)[-1])
+            checkpoint("manual-pause-home", lambda: (
+                event(args.serial, "KEYCODE_HOME"), sleep(4), True)[-1])
+            manual_pid = checkpoint("manual-pause-return", lambda: launch(args.serial))
+            if manual_pid != pid:
+                raise RuntimeError("Android changed the PID during manually paused resume")
+            sleep(9)
+            frame(args.serial, out, "manual-pause-after-home")
+
+            # The patched engine emits ownership markers to its own Logs files.
+            # auto=0 on the most recent pair confirms Android never claimed
+            # a manual pause as its own and therefore must not clear it.
+            lifecycle_log = adb(args.serial, "shell", "sh", "-c",
+                "grep -h 'Android lifecycle' " + 
+                "/sdcard/Android/data/" + PACKAGE + "/files/Logs/KaM_*.log")
+            markers = [line.strip() for line in lifecycle_log.splitlines()
+                       if "Android lifecycle " in line]
+            (out / "manual-pause-lifecycle.txt").write_text("\\n".join(markers[-20:]) + "\\n")
+            last_pauses = [line for line in markers if "Android lifecycle pause:" in line]
+            last_resumes = [line for line in markers if "Android lifecycle resume:" in line]
+            if not last_pauses or not last_resumes:
+                raise RuntimeError("Native lifecycle ownership markers not found")
+            if "auto=0" not in last_pauses[-1] or "auto=0" not in last_resumes[-1]:
+                raise RuntimeError("Android incorrectly took ownership of a manual pause")
+            state["manual_pause"] = {
+                "most_recent_pause": last_pauses[-1],
+                "most_recent_resume": last_resumes[-1],
+                "screenshots": ["manual-pause-before-home.png", "manual-pause-after-home.png"],
+                "visual_pause_overlay_review_required": True,
+            }
+            checkpoint("manual-pause-ownership", lambda: state["manual_pause"])
+
+            # Unpause explicitly before using the Save Game menu again.
+            checkpoint("manual-pause-unpause", lambda: (
+                event(args.serial, "KEYCODE_P"), sleep(14),
+                frame(args.serial, out, "manual-pause-unpaused"), True)[-1])
+            m2 = checkpoint("post-manual-unpause", lambda: save(args.serial, out, "lcm2"))
+            state["tick_deltas"]["manual_then_unpause"] = m2 - b0
+            if m2 - b0 < 45:
                 raise RuntimeError("Manual unpause did not restart simulation")
 
         state["status"] = ("REPRODUCED_BASELINE_PAUSE_BUG" if args.expected == "baseline-stuck"
