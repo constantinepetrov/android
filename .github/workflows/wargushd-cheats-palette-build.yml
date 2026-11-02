@@ -56,10 +56,10 @@ jobs:
             names=[x for x in src.namelist() if x.startswith('assets/wargushd/') and not x.endswith('/')]
             assert len(names)>40 and 'assets/wargushd/scripts/cheats.lua' in names
             for n in names:
-              target=d/n[len('assets/'):]
+              target=d/'assets'/n[len('assets/'):]
               target.parent.mkdir(parents=True,exist_ok=True)
               target.write_bytes(src.read(n))
-            source=(d/'wargushd/scripts/cheats.lua')
+            source=(d/'assets/wargushd/scripts/cheats.lua')
             assert 'function HandleCheats(str)' in source.read_text(errors='replace')
             print('OFFICIAL_NATIVE_BYTES',native.stat().st_size)
             print('OFFICIAL_ASSETS_RESTORED',len(names))
