@@ -24,6 +24,8 @@ git -C "$DONOR" apply "$GITHUB_WORKSPACE/qa/reconstruction/patches/0002-bundled-
 git -C "$DONOR/src/ext/pascalscript_submodule" apply --check "$GITHUB_WORKSPACE/qa/reconstruction/patches/0003-pascalscript-working-tree.patch"
 git -C "$DONOR/src/ext/pascalscript_submodule" apply "$GITHUB_WORKSPACE/qa/reconstruction/patches/0003-pascalscript-working-tree.patch"
 cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_MainAndroid.inc" "$DONOR/src/KM_MainAndroid.inc"
+# Fix one unrelated FPC AArch64 mixed-width codegen expression without changing its value.
+cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_GUIMapEdTerrainTiles.pas" "$DONOR/src/gui/pages_maped/terrain/KM_GUIMapEdTerrainTiles.pas"
 git -C "$DONOR" diff --stat > "$LOG/source-diff-stat.txt"
 sha256sum "$DONOR/src/KM_MainAndroid.inc" > "$LOG/override-sha256.txt"
 echo '== Install SDK components' | tee -a "$LOG/progress.txt"
