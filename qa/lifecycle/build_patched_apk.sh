@@ -27,6 +27,8 @@ cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_MainAndroid.inc" "$DONOR/src/KM_
 # Fix one unrelated FPC AArch64 mixed-width codegen expression without changing its value.
 cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_GUIMapEdTerrainTiles.pas" "$DONOR/src/gui/pages_maped/terrain/KM_GUIMapEdTerrainTiles.pas"
 cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_GUIMapEdTerrainObjects.pas" "$DONOR/src/gui/pages_maped/terrain/KM_GUIMapEdTerrainObjects.pas"
+# The event argument is UnicodeString in the donor menu callback type.
+cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_InterfaceMainMenu.pas" "$DONOR/src/gui/KM_InterfaceMainMenu.pas"
 git -C "$DONOR" diff --stat > "$LOG/source-diff-stat.txt"
 sha256sum "$DONOR/src/KM_MainAndroid.inc" > "$LOG/override-sha256.txt"
 echo '== Install SDK components' | tee -a "$LOG/progress.txt"
