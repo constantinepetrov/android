@@ -51,7 +51,7 @@ def main():
             length, dest, asset = entry
             dest_path, asset_path = check_path(dest), check_path(asset)
             n = int(length)
-            if not (0 <= n <= 128 * 1024 * 1024):
+            if not (0 <= n <= 1024 * 1024 * 1024):
                 raise ValueError("Unexpected asset byte size")
             filename = a.output.joinpath(*dest_path.parts)
             filename.parent.mkdir(parents=True, exist_ok=True)
