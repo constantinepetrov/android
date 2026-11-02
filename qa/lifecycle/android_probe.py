@@ -53,8 +53,7 @@ def save(serial, out, name):
     tap(serial, 99, 309)      # Save Game in the ordinary menu
     sleep(1.5)
     event(serial, "KEYCODE_MOVE_END")
-    for _ in range(12):
-        event(serial, "KEYCODE_DEL")
+    adb(serial, "shell", "input", "keyevent", *(["KEYCODE_DEL"] * 64))
     adb(serial, "shell", "input", "text", name)
     sleep(0.6)
     event(serial, "KEYCODE_BACK")
@@ -62,6 +61,14 @@ def save(serial, out, name):
     tap(serial, 99, 549)      # Save
     sleep(3)
     remote = SAVES + "/" + name + "/" + name + ".sav"
+    for attempt in range(8):
+        exists = subprocess.run(["adb", "-s", serial, "shell", "test", "-f", remote], capture_output=True).returncode == 0
+        if exists:
+            break
+        sleep(2)
+    else:
+        frame(serial, out, "failed-save-" + name)
+        raise RuntimeError("Expected game save was not created: " + remote)
     data = adb(serial, "exec-out", "head -c 4096 " + remote, binary=True, timeout=15)
     details = parse_save_header(data)
     (out / (name + ".json")).write_text(json.dumps(details, indent=2) + "\n")
@@ -99,8 +106,8 @@ def run(args):
         pid = checkpoint("launch", lambda: launch(args.serial))
         frame(args.serial, out, "main")
         checkpoint("open-tutorial", lambda: (
-            tap(args.serial, 640, 331), sleep(2),
-            tap(args.serial, 640, 371), sleep(10), frame(args.serial, out, "tutorial"), True)[-1])
+            tap(args.serial, 640, 331), sleep(8), frame(args.serial, out, "single-player-menu"),
+            tap(args.serial, 640, 371), sleep(22), frame(args.serial, out, "tutorial"), True)[-1])
         a0 = checkpoint("pre-0", lambda: save(args.serial, out, "lca0"))
         sleep(14)
         a1 = checkpoint("pre-1", lambda: save(args.serial, out, "lca1"))
