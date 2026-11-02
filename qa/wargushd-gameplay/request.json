@@ -1,0 +1,6 @@
+{
+  "task": "inspect-official-apk-and-cheat-interfaces",
+  "upstream": "nikoltu/WargusHD-android",
+  "version": "3.4.91",
+  "no_changes_to_original_install": true
+}
