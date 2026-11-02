@@ -48,27 +48,37 @@ def frame(serial, out, name):
 
 
 def save(serial, out, name):
+    """Observe each UI transition so a test failure cannot masquerade as a game regression."""
+    frame(serial, out, name + "-before")
     event(serial, "KEYCODE_F4")
-    sleep(1.5)
+    sleep(2.0)
+    frame(serial, out, name + "-after-f4")
     tap(serial, 99, 309)      # Save Game in the ordinary menu
-    sleep(1.5)
+    sleep(2.0)
+    frame(serial, out, name + "-save-dialog")
     event(serial, "KEYCODE_MOVE_END")
     adb(serial, "shell", "input", "keyevent", *(["KEYCODE_DEL"] * 64))
     adb(serial, "shell", "input", "text", name)
-    sleep(0.6)
+    sleep(0.8)
+    frame(serial, out, name + "-entered-name")
     event(serial, "KEYCODE_BACK")
-    sleep(1)
+    sleep(1.5)
+    frame(serial, out, name + "-keyboard-dismissed")
     tap(serial, 99, 549)      # Save
     sleep(3)
+    frame(serial, out, name + "-after-save")
+
+    # Record filenames on the device, but never upload private save bodies.
     remote = SAVES + "/" + name + "/" + name + ".sav"
     for attempt in range(8):
         exists = subprocess.run(["adb", "-s", serial, "shell", "test", "-f", remote], capture_output=True).returncode == 0
         if exists:
             break
         sleep(2)
-    else:
-        frame(serial, out, "failed-save-" + name)
-        raise RuntimeError("Expected game save was not created: " + remote)
+    listing = adb(serial, "shell", "find", SAVES, "-name", "*.sav")
+    (out / (name + "-save-paths.txt")).write_text(listing)
+    if not exists:
+        raise RuntimeError("Expected game save missing: " + remote + "; available: " + repr(listing[-2000:]))
     data = adb(serial, "exec-out", "head -c 4096 " + remote, binary=True, timeout=15)
     details = parse_save_header(data)
     (out / (name + ".json")).write_text(json.dumps(details, indent=2) + "\n")
