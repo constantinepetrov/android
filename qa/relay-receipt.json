@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "request_id": "kam-direct-apk-20261102T062302Z",
+  "github_run_id": "41399865980",
+  "github_run_attempt": "1",
+  "artifact_name": "kam-encrypted-apk-41399865980-1",
+  "zip_bytes": 856629405,
+  "zip_sha256": "1e785cf0afc49fc7e60f0288c5c6465244511549da5db6ab56d5a512d61dfb1b"
+}
