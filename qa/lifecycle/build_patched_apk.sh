@@ -27,8 +27,18 @@ cp "$GITHUB_WORKSPACE/qa/lifecycle/overrides/KM_MainAndroid.inc" "$DONOR/src/KM_
 git -C "$DONOR" diff --stat > "$LOG/source-diff-stat.txt"
 sha256sum "$DONOR/src/KM_MainAndroid.inc" > "$LOG/override-sha256.txt"
 echo '== Install SDK components' | tee -a "$LOG/progress.txt"
-yes | sdkmanager --licenses > "$LOG/sdk-licenses.txt" 2>&1 || true
-sdkmanager --install 'ndk;29.0.13599879' 'cmake;3.22.1' 'platforms;android-36' 'build-tools;35.0.0' \
+SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+if [ ! -x "$SDKMANAGER" ]; then
+  SDKMANAGER="$(find "${ANDROID_HOME}/cmdline-tools" -type f -path '*/bin/sdkmanager' 2>/dev/null | sort -V | tail -1)"
+fi
+if [ ! -x "$SDKMANAGER" ]; then
+  echo "SDK manager missing. ANDROID_HOME=$ANDROID_HOME" | tee "$LOG/sdk-manager-missing.txt" >&2
+  find "$ANDROID_HOME" -maxdepth 3 -type d | head -70 >> "$LOG/sdk-manager-missing.txt"
+  exit 1
+fi
+echo "$SDKMANAGER" > "$LOG/sdkmanager-path.txt"
+yes | "$SDKMANAGER" --licenses > "$LOG/sdk-licenses.txt" 2>&1 || true
+"$SDKMANAGER" --install 'ndk;29.0.13599879' 'cmake;3.22.1' 'platforms;android-36' 'build-tools;35.0.0' \
   > "$LOG/sdk-setup.txt" 2>&1
 export KAM_TOOLCHAIN="$TC"
 export KAM_DATA="$DATA"
