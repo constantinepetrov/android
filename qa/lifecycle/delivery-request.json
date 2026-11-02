@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "request_id": "kam-lifecycle-fixed-apk-owner-draft-20261102",
+  "artifact_run_id": 41432594079,
+  "artifact_id": 13134754041,
+  "apk_sha256": "f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5",
+  "old_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "scope": "Use existing compiled binary; do not rebuild, publish, or modify old release; compare signing certs and attach to new draft"
+}
