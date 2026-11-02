@@ -1,0 +1,54 @@
+name: WargusHD cheat and gameplay options inspection
+
+on:
+  push:
+    branches:
+      - codex/wargushd-gameplay-options
+    paths:
+      - qa/wargushd-gameplay/request.json
+      - .github/workflows/wargushd-gameplay-inspect.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect official release APK safely (no execution)
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --output "$RUNNER_TEMP/WargusHD.apk" \
+            "https://github.com/nikoltu/WargusHD-android/releases/download/v3.4.91/WargusHD-3.4.91.apk"
+          echo "APK_BYTES $(stat -c%s "$RUNNER_TEMP/WargusHD.apk")"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          import re,json,collections,os
+          p=Path(os.environ['RUNNER_TEMP'])/'WargusHD.apk'
+          with ZipFile(p) as z:
+            alln=z.namelist()
+            print("APK_ALL_ENTRIES",len(alln))
+            print("APK_PACKAGES",json.dumps([n for n in alln if n.startswith('lib/')],ensure_ascii=False))
+            assets=[n for n in alln if n.startswith('assets/')]
+            print("APK_ASSETS_COUNT",len(assets))
+            print("APK_ASSETS_FIRST",json.dumps(assets[:160],ensure_ascii=False))
+            lua=[n for n in assets if n.endswith(".lua")]
+            print("APK_LUA_FILES",json.dumps(lua[:200],ensure_ascii=False))
+            matches=[]
+            for n in assets:
+              if not n.lower().endswith(('.lua','.json','.txt','.toml','.ini')):continue
+              o=z.getinfo(n)
+              if o.file_size>2_000_000:continue
+              s=z.read(n).decode('utf-8',errors='replace')
+              if any(t in s for t in ('function HandleCheats','glittering prizes','make it so','ModStore','ModsReadJson','ModsEnable','launcher')):
+                 hits=[]
+                 for q in ['function HandleCheats','glittering prizes','make it so','ModsReadJson','ModsEnable']:
+                   if q in s:
+                     i=s.find(q);hits.append({'term':q,'near':s[max(0,i-100):i+250]})
+                 matches.append({'path':n,'size':len(s),'hits':hits})
+            print("APK_SCRIPT_MATCHES",json.dumps(matches,ensure_ascii=False)[:27000])
+          PY
