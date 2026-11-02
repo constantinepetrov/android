@@ -1,0 +1,161 @@
+name: KaM Android fixed APK owner-only draft delivery
+
+on:
+  push:
+    branches:
+      - codex/kam-lifecycle-qa
+    paths:
+      - qa/lifecycle/delivery-request.json
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: kam-lifecycle-draft-delivery
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout delivery-only script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Download the already-built patched APK (no compilation)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41432594079
+          artifact-ids: 13134754041
+          path: ${{ runner.temp }}/kam-fixed
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify SHA-256 and signing identity of patched APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/kam-fixed/KaM_lifecycle_fix_debug.apk"
+          test -f "$APK"
+          echo "f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5  $APK" | sha256sum --check --status
+          test "$(stat -c%s "$APK")" = 856644436
+          printf 'PATCHED_APK_PATH=%s\n' "$APK" >> "$GITHUB_ENV"
+      - name: Compare signing certificate with the installed original APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p delivery-evidence
+          BASE="$RUNNER_TEMP/kam-old.apk"
+          curl --fail --silent --show-error --location --retry 2 \
+            --connect-timeout 25 --max-time 450 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/constantinepetrov/android/releases/assets/701064241" \
+            -o "$BASE"
+          echo "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4  $BASE" | sha256sum -c -
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)"
+          test -x "$SIGNER"
+          "$SIGNER" verify --print-certs "$BASE" > delivery-evidence/original-signature.txt
+          "$SIGNER" verify --print-certs "$PATCHED_APK_PATH" > delivery-evidence/patched-signature.txt
+          echo "f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5" > delivery-evidence/patched-sha256.txt
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import re
+          def digest(path):
+              text = pathlib.Path(path).read_text()
+              result = re.search(r'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]+)', text)
+              if not result:
+                  raise SystemExit('apksigner did not report signing certificate SHA-256')
+              return result.group(1).lower()
+          old = digest('delivery-evidence/original-signature.txt')
+          new = digest('delivery-evidence/patched-signature.txt')
+          result = {
+              'old_certificate_sha256': old,
+              'patched_certificate_sha256': new,
+              'same_signing_certificate': old == new,
+              'in_place_update_expected': old == new,
+              'note': 'If certificates differ, do not uninstall the old game until all saves are backed up.'
+          }
+          pathlib.Path('delivery-evidence/signing-comparison.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('SIGNING_COMPARISON: '+json.dumps(result))
+          PY
+          rm -f "$BASE"
+      - name: Upload patched APK only to an unpublished draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="kam-android-lifecycle-fixed-20261102"
+          cat > delivery-evidence/release-notes.md <<'NOTES'
+          This is an **unpublished draft** for the repository owner to test on their Android phone.
+
+          KaM Remake Android r16397 native ARM64 APK with bundled game data and
+          a small game-lifecycle patch. Original full APK has not been modified.
+
+          Evidence: cloud Android 15 with ARM64 translation loaded Battle Tutorial,
+          and real save TickCount advanced from 625 before backgrounding to 1024
+          after Home/Resume in the same process. More extensive manual-pause QA
+          remains incomplete due to test-script/menu errors, not a proven game failure.
+
+          APK SHA-256:
+          f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5
+          APK bytes: 856644436
+
+          **WARNING**: Do not delete the installed earlier build until its saves are
+          backed up. Different debug signing certificates block in-place updates.
+          Consult signing-comparison.json in the delivery workflow for the result.
+
+          The owner will test device behavior, sound, and saved data separately.
+          This is not a final stable release and is not published publicly.
+          NOTES
+          gh release create "$TAG" "$PATCHED_APK_PATH" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "codex/kam-lifecycle-qa" \
+            --draft --prerelease \
+            --title "KaM Android - fixed background pause (device test)" \
+            --notes-file delivery-evidence/release-notes.md
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > delivery-evidence/releases.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          release = next((r for r in json.loads(Path('delivery-evidence/releases.json').read_text())
+                       if r['tag_name']=='kam-android-lifecycle-fixed-20261102'),None)
+          if not release or not release.get('draft') or release.get('published_at'):
+              raise SystemExit('Draft release identity not verified')
+          assets = release['assets']
+          if len(assets) != 1:
+              raise SystemExit('Expected exactly one APK asset')
+          asset = assets[0]
+          if asset['name'] != 'KaM_lifecycle_fix_debug.apk' or asset['size'] != 856644436:
+              raise SystemExit('Release APK identity and size mismatch')
+          expected = 'sha256:f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5'
+          if asset.get('digest') != expected:
+              raise SystemExit('GitHub release asset digest mismatch')
+          response = {
+              'draft_release_url': release['html_url'],
+              'asset_url': asset['browser_download_url'],
+              'asset_size': asset['size'],
+              'asset_sha256': asset['digest'],
+              'draft': release['draft'],
+              'published': False
+          }
+          Path('delivery-evidence/release-verified.json').write_text(json.dumps(response,indent=2)+'\n')
+          print('VERIFIED_DRAFT_RELEASE: '+json.dumps(response))
+          PY
+          rm -f delivery-evidence/releases.json
+      - name: Preserve signing evidence and verified draft receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: kam-lifecycle-fixed-delivery-receipt-${{ github.run_id }}
+          path: delivery-evidence/
+          if-no-files-found: warn
+          retention-days: 7
