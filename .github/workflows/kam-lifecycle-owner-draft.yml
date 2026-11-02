@@ -70,7 +70,7 @@ jobs:
           import re
           def digest(path):
               text = pathlib.Path(path).read_text()
-              result = re.search(r'Signer #1 certificate SHA-256 digest:\s*([0-9a-fA-F]+)', text)
+              result = re.search(r'(?:V[0-9]+\s+)?Signer: certificate SHA-256 digest:\s*([0-9a-fA-F]+)', text)
               if not result:
                   raise SystemExit('apksigner did not report signing certificate SHA-256')
               return result.group(1).lower()
@@ -109,9 +109,10 @@ jobs:
           f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5
           APK bytes: 856644268
 
-          **WARNING**: Do not delete the installed earlier build until its saves are
-          backed up. Different debug signing certificates block in-place updates.
-          Consult signing-comparison.json in the delivery workflow for the result.
+          **IMPORTANT: different Android signing keys.** This APK cannot be
+          installed as an in-place update over the existing app. Back up existing
+          game saves and configuration before uninstalling the old build.
+          The original package is preserved unchanged in its previous draft.
 
           The owner will test device behavior, sound, and saved data separately.
           This is not a final stable release and is not published publicly.
