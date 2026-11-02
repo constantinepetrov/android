@@ -1,0 +1,13 @@
+{
+  "task": "build-wargushd-android-cheats-touch-controls",
+  "version": "3.4.91",
+  "parallel_package": "net.wargushd.game.cheats",
+  "do_not_replace_official": true,
+  "functions": [
+    "resources",
+    "speed",
+    "fog",
+    "invulnerability"
+  ],
+  "test_apk_only": true
+}
