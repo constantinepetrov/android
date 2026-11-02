@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "review_date_utc": "2026-11-02",
+  "run_id": 41402762513,
+  "run_url": "https://github.com/constantinepetrov/android/actions/runs/41402762513",
+  "tested_code_commit": "c75724f075ec4a38d57cbdd93370458f46e7d213",
+  "review_status": "REVIEWED_GAMEPLAY_SCENARIOS_PASS_WITH_SESSION_TIMEOUT",
+  "overall_workflow_conclusion": "failure",
+  "baseline_runtime_status": "AUTOMATED_CONTENT_SMOKE_PASS",
+  "ui_session_status": "FAIL",
+  "ui_session_reason": "session_deadline",
+  "ui_session_failed_step": 27,
+  "ui_timeout_seconds": 1200,
+  "finish_command_accepted": true,
+  "finish_observation_completed": false,
+  "finish_detail": "The finish command was accepted, but its screenshot had only 0.625 seconds left. It timed out at the original 1200-second session deadline. Earlier observations remain complete; no game crash was recorded.",
+  "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "apk_bytes": 856629249,
+  "reviewed_scenarios": {
+    "normal_menu_and_battle_tutorial_start": "PASS",
+    "select_six_scouts_by_tap": "PASS",
+    "issue_movement_by_stationary_900ms_hold": "PASS",
+    "horizontal_camera_pan": "PASS_ON_OPPOSITE_SWIPE",
+    "manual_save_creation": "PASS",
+    "actual_simulation_tick_advancement": "PASS",
+    "load_exact_qaa_file": "PASS",
+    "restore_previous_troop_positions": "PASS",
+    "restore_earlier_simulation_time": "PASS",
+    "continue_simulation_after_load": "PASS"
+  },
+  "pan_detail": "Step 25 did not visibly shift the map. The opposite 300-ms swipe at step 26 shifted terrain and units about 200 pixels together while the sidebar stayed fixed. The cause of the first unchanged view was not independently isolated.",
+  "manual_saves": [
+    {
+      "path": "/sdcard/Android/data/org.kamremake.android/files/Saves/qaa/qaa.sav",
+      "size_bytes": 61826,
+      "mtime": 1793603098,
+      "sha256": "9894d898d072fb977e1d6c4b4282d8b2b26fbfaf0ca1aefee9b40a1610b03692",
+      "stable_read": true,
+      "revision": "r16398",
+      "title": "Battle Tutorial",
+      "realTickCount": 2172,
+      "tick_count": 2172,
+      "tick_offset": 80,
+      "header_bytes": 16460,
+      "source": "save GameInfo.TickCount copied from game Params.Tick",
+      "header_parsed": true
+    },
+    {
+      "path": "/sdcard/Android/data/org.kamremake.android/files/Saves/qab/qab.sav",
+      "size_bytes": 62537,
+      "mtime": 1793603513,
+      "sha256": "d07b1e6c743029740b5fac1a3cac924c894529836f0164b71c145651f132e33d",
+      "stable_read": true,
+      "revision": "r16398",
+      "title": "Battle Tutorial",
+      "realTickCount": 6313,
+      "tick_count": 6313,
+      "tick_offset": 80,
+      "header_bytes": 16460,
+      "source": "save GameInfo.TickCount copied from game Params.Tick",
+      "header_parsed": true
+    },
+    {
+      "path": "/sdcard/Android/data/org.kamremake.android/files/Saves/qac/qac.sav",
+      "size_bytes": 62159,
+      "mtime": 1793603834,
+      "sha256": "d0397323b0581a65115e221f162b8c5e7e7eefbf1ddcb9f5858065b6690b629f",
+      "stable_read": true,
+      "revision": "r16398",
+      "title": "Battle Tutorial",
+      "realTickCount": 4023,
+      "tick_count": 4023,
+      "tick_offset": 80,
+      "header_bytes": 16460,
+      "source": "save GameInfo.TickCount copied from game Params.Tick",
+      "header_parsed": true
+    }
+  ],
+  "tick_comparison": {
+    "qaa": 2172,
+    "qab": 6313,
+    "qac": 4023,
+    "qaa_less_than_qac_less_than_qab": true,
+    "advance_before_reload": 4141,
+    "advance_after_reload": 1851
+  },
+  "native_save_load_markers": [
+    "07:04:58.947   316.712s   37161ms  135752499218624   Saving game at tick 2172 to \"/storage/emulated/0/Android/data/org.kamremake.android/files/Saves/qaa/qaa.sav\"",
+    "07:11:53.112   730.876s   31325ms  135752499218624   Saving game at tick 6313 to \"/storage/emulated/0/Android/data/org.kamremake.android/files/Saves/qab/qab.sav\"",
+    "07:14:09.531   867.296s       2ms  135752499218624   Loading game from: /storage/emulated/0/Android/data/org.kamremake.android/files/Saves/qaa/qaa.sav",
+    "07:14:09.594   867.358s       1ms  135752499218624   Loading game done",
+    "07:14:09.594   867.358s       0ms  135752499218624   After game loading",
+    "07:14:09.598   867.363s       0ms  135752499218624   After game loading done",
+    "07:17:14.574  1052.339s   42280ms  135752499218624   Saving game at tick 4023 to \"/storage/emulated/0/Android/data/org.kamremake.android/files/Saves/qac/qac.sav\""
+  ],
+  "screenshots": [
+    {
+      "step": 0,
+      "label": "normal-main-menu",
+      "path": "ui-session/steps/step-000/screen.png",
+      "sha256": "3242d2b2959d259732bab29e77e312e4a8f99ab45c8a79acf8db59f05a07c80f",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 2,
+      "label": "normal-battle-tutorial",
+      "path": "ui-session/steps/step-002/screen.png",
+      "sha256": "7b6b221c02230c711840cb34440ac3be4c300fb9f3e8261167174a703c2fa184",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 7,
+      "label": "qaa-before-movement",
+      "path": "ui-session/steps/step-007/screen.png",
+      "sha256": "5c6417a966a6233ebcce02d0c6e2bd523de15d9cfd0eb4a6084371f63092f2a1",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 8,
+      "label": "selected-scouts",
+      "path": "ui-session/steps/step-008/screen.png",
+      "sha256": "599976c0395078fde61bc5e4eef8be312e69b9751c64e476afd5020b5213dc40",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 9,
+      "label": "scouts-after-movement",
+      "path": "ui-session/steps/step-009/screen.png",
+      "sha256": "c3a6e035ca60cc26866321106950896f58f3e17141e716f4607bcdb779bc3528",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 18,
+      "label": "selected-qaa-load-entry",
+      "path": "ui-session/steps/step-018/screen.png",
+      "sha256": "f04935a3c9757951614c2c0bca55f7ba45836f4997c57c57e668b3806dda1629",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 19,
+      "label": "world-restored-from-qaa",
+      "path": "ui-session/steps/step-019/screen.png",
+      "sha256": "7b6b221c02230c711840cb34440ac3be4c300fb9f3e8261167174a703c2fa184",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 24,
+      "label": "qac-after-restored-simulation",
+      "path": "ui-session/steps/step-024/screen.png",
+      "sha256": "5c6417a966a6233ebcce02d0c6e2bd523de15d9cfd0eb4a6084371f63092f2a1",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 25,
+      "label": "first-pan-no-observable-shift",
+      "path": "ui-session/steps/step-025/screen.png",
+      "sha256": "94c5273856843c5f3b7b5639163c718da4161edb9cc3b43aff22203d1dd3ae31",
+      "dimensions": [
+        1280,
+        720
+      ]
+    },
+    {
+      "step": 26,
+      "label": "opposite-pan-shifted-world",
+      "path": "ui-session/steps/step-026/screen.png",
+      "sha256": "d01e719a25595b85e578e120305cf67850a5ee49c63c376a386cf0a780449055",
+      "dimensions": [
+        1280,
+        720
+      ]
+    }
+  ],
+  "complete_observation_steps": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26
+  ],
+  "observed_pids": [
+    4546
+  ],
+  "recorded_commands_in_complete_steps": 823,
+  "nonzero_command_results_in_complete_steps": 0,
+  "fatal_markers_in_complete_observations": 0,
+  "temporary_transfer_cleanup": {
+    "status": "PASS",
+    "job_id": 125146762308,
+    "deleted_artifact_ids": [
+      13122675208,
+      13121777568
+    ]
+  },
+  "raw_evidence_modified": false,
+  "broad_playability_approval": false,
+  "not_verified": [
+    "audible sound",
+    "physical ARM64 device compatibility and performance",
+    "full playthrough",
+    "building and economy",
+    "all maps and campaigns",
+    "multiplayer",
+    "long-term stability"
+  ],
+  "repository_scope": {
+    "branch": "codex/kam-cloud-qa",
+    "master": "11cd5fd0e10ae6e8cfce27493564e49cd8ee11d5",
+    "draft_pr_1_head": "bb9e7600690d4006c447b55fd0c69608bf42fe5f",
+    "master_and_pr_changed": false
+  },
+  "evidence_archive": {
+    "artifact_id": 13123655632,
+    "bytes": 54136453,
+    "sha256": "14cb9c5a90adbd8ca93c64adcbd23fb9426690764663842151584c84b3d81b61"
+  }
+}

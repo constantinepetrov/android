@@ -124,6 +124,47 @@ whole session has a shared deadline and a step limit; finishing the session does
 not automatically label the game playable. UI observations and save/load
 evidence must be assessed separately. This emulator has no audible output.
 
+### Reviewed normal gameplay, with a session-finalization timeout
+
+Run [41402762513](https://github.com/constantinepetrov/android/actions/runs/41402762513)
+at tested code `c75724f075ec4a38d57cbdd93370458f46e7d213` repeated the baseline
+`AUTOMATED_CONTENT_SMOKE_PASS`, then launched KaM normally without the selftest
+intent. Its 27 complete observations (steps 0 through 26) show the normal menu,
+Battle Tutorial, selection of six scouts, movement after a stationary 900-ms
+touch hold, and horizontal camera panning. Screenshots before movement, after
+movement and after reloading show the same fixed camera and restored troop
+positions. The camera pan was performed afterwards, in step 26.
+
+Three unique manual saves provide actual simulation values from their headers,
+matching the native engine's save log:
+
+| Save | Real TickCount | Meaning |
+| --- | ---: | --- |
+| `qaa` | 2172 | Initial troop positions, before the movement order |
+| `qab` | 6313 | Later state after movement and further simulation |
+| `qac` | 4023 | New save after loading `qaa` and continuing simulation |
+
+The exact `qaa` load path and all completion markers are recorded. The relation
+`2172 < 4023 < 6313`, together with the restored troop positions, confirms that
+loading restored the earlier state and that simulation then continued. Manual
+save hashes remained unchanged; a concurrent autosave-rotation sample is not
+used for these conclusions. All complete observations have PID 4546 and no
+detected fatal markers. Text entry displayed Android's keyboard, and Back
+closed it before each Save press.
+
+**The overall Actions run is still `failure`, not a green gameplay workflow.**
+The operator submitted `finish` too close to the original 1200-second deadline.
+Step 27 accepted the command but had only 0.625 seconds left for its final
+screenshot, which timed out. The raw session status is `FAIL` with
+`reason: session_deadline`; it has not been rewritten. Earlier complete evidence
+was uploaded immediately and also appears in the final 54,136,453-byte archive.
+The verified cleanup job deleted both temporary input artifacts.
+
+The separate [review summary](results/run-41402762513-review.json) records the
+scenarios that passed and this finalization failure. These results do not claim
+audible sound, physical ARM64 performance, building/economy, every map/campaign,
+multiplayer, a full playthrough or long-term stability.
+
 - Package: `org.kamremake.android`
 - Version: `1.0-r16397`
 - APK size: 856,629,249 bytes
