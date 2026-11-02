@@ -3,12 +3,12 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 18,
+  "step": 19,
   "action": {
     "type": "tap",
     "x": 99,
-    "y": 346
+    "y": 549
   },
-  "wait_seconds": 1,
-  "label": "select-observed-qaa-row"
+  "wait_seconds": 5,
+  "label": "load-qaa-and-observe-restored-map"
 }
