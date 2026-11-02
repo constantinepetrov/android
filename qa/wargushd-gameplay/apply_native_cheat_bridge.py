@@ -189,4 +189,14 @@ helper=root/"android/app/src/main/java/org/libsdl/app/WargusHDKeys.java"
 assert helper.is_file(),helper
 helper.unlink()
 print("REMOVED obsolete keyboard injection",helper)
+# v2 intentionally has another package ID: each GitHub runner's debug signing key
+# is different, so a naive update over the v1 APK would fail signature validation.
+gradle = root/"android/app/build.gradle"
+update(gradle, "applicationId 'net.wargushd.game.cheats'",
+       "applicationId 'net.wargushd.game.cheats.v2'")
+update(gradle, "versionName '3.4.91-cheats-test1'",
+       "versionName '3.4.91-cheats-native-2'")
+strings = root/"android/app/src/main/res/values/strings.xml"
+update(strings, '<string name="app_name">WargusHD Cheats</string>',
+       '<string name="app_name">WargusHD Cheats v2</string>')
 print("DIRECT_JNI_BRIDGE_PATCH_COMPLETE",True)
