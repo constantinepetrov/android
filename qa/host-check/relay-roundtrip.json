@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "Local full-size exact APK encryption/decryption roundtrip only; no network upload or Android execution",
+  "apk_bytes": 856629249,
+  "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "state_removed": true,
+  "partial_removed": true,
+  "source_parts": 2,
+  "envelope_encryptor": "Node RSA-OAEP SHA256 + AES-256-GCM",
+  "payload_encryptor": "Python cryptography AES-256-GCM",
+  "payload_decryptor": "Node streaming AES-256-GCM",
+  "zip_bytes": 856629405,
+  "zip_sha256": "e2fd93b00ac52c0eb4454f327cbb8745402097c134decafce262c9426f17c544",
+  "checked_at": "2026-11-02T06:23:50.428699+00:00"
+}

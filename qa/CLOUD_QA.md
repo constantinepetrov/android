@@ -18,11 +18,11 @@ The game-check job is bounded to 75 minutes, including up to 14 minutes for prep
 
 Real Ubuntu runs [41333826307](https://github.com/constantinepetrov/android/actions/runs/41333826307) and [41334600832](https://github.com/constantinepetrov/android/actions/runs/41334600832) failed before Android setup. The second run resolved `www.kamremake.com` to `51.77.64.109`, but three bounded IPv4 connection attempts to port 443 timed out, each after about 20 seconds, with zero downloaded bytes. This is an input-network failure, not a KaM failure.
 
-The recovery workflow uses a standard `macos-15` job to download the same pinned official installer through another runner network. Its result must pass the same fixed size and SHA checks. A short-lived artifact transfers that one file to the Ubuntu game-check job, which checks it again before extraction. No game payload is added to Git or a release.
+The `input_source: official` route uses a standard `macos-15` job to download the same pinned official installer through another runner network. Its result must pass the same fixed size and SHA checks. A short-lived artifact transfers that one file to the Ubuntu game-check job, which checks it again before extraction. No game payload is added to Git or a release.
 
 The installer artifact has one-day expiry as a fallback. A separate cleanup job normally deletes it after the consumer finishes, even if the game check fails. Only that cleanup job has `actions: write`; before deletion it verifies the exact artifact ID, expected name and current workflow run ID. Other jobs retain only `contents: read`. Temporary artifact storage is subject to the account's existing allowances; public standard compute does not imply unlimited storage.
 
-In parallel, `qa/probe_android.py` boots no game and requires no APK. It reuses the readiness gates and captures a genuine Airtest PNG. Its strongest result, `ANDROID_READINESS_PROBE_PASS`, confirms sampled Android readiness and screenshot capture only. Advertised ARM64 translation remains unproven until real ARM64 game code runs. The probe has its own 35-minute job; installer fetch has a 30-minute job and cleanup a 3-minute job.
+For `mode: readiness-only`, `qa/probe_android.py` boots no game and requires no APK. It reuses the readiness gates and captures a genuine Airtest PNG. Its strongest result, `ANDROID_READINESS_PROBE_PASS`, confirms sampled Android readiness and screenshot capture only. Advertised ARM64 translation remains unproven until real ARM64 game code runs. The probe has its own 35-minute job; installer fetch has a 30-minute job and cleanup a 3-minute job.
 
 Run [41335488254](https://github.com/constantinepetrov/android/actions/runs/41335488254) reached that real probe PASS: three stable samples, working storage, API 35 ARM64/native-bridge advertisement, and an Airtest screenshot. Its emulator action still reported failure because the earlier plain version query selected the GUI binary, which required missing `libpulse.so.0`. The diagnostic command now uses `-no-window -no-audio -version`, matching the headless runtime. No error suppression or blanket `continue-on-error` was added. The macOS input job independently reproduced three connection timeouts; no installer-transfer artifact was created.
 
@@ -33,16 +33,42 @@ Run [41335488254](https://github.com/constantinepetrov/android/actions/runs/4133
 The authors' [download page](https://www.kamremake.com/download/) publishes an
 [alternative download](https://release.knightsprovince.com/index.php/s/9xdF69oCWmJXW59)
 for the full r16397 installer. Input preparation now uses that alternate host,
-which avoids the primary host's connection timeouts on both runner networks.
+as a separate route from the primary host. The subsequent macOS run also timed out on this alternate; the direct relay below is now the requested route.
 The alternate names `KaM Remake Beta r16397.exe` and advertises 711,493,971 bytes.
 Neither the filename nor a successful HTTP response is sufficient: the existing
 installer size/SHA-256 and complete reconstructed APK size/SHA-256 checks remain
 mandatory and unchanged. No additional game bytes are committed to Git.
 
-The next `mode: full` request runs the existing install/first-launch/Battle Tutorial
-checks after verified input preparation. This route change alone is not evidence
+A `mode: full` request runs the existing install/first-launch/Battle Tutorial
+checks only after verified input preparation. This route change alone is not evidence
 that the game has launched; the linked Actions result and captured runtime evidence
 must establish that separately.
+
+### Direct encrypted APK input (2026-11-02)
+
+Run [41398840259](https://github.com/constantinepetrov/android/actions/runs/41398840259)
+also timed out connecting to the official alternate host. The `input_source:
+relay` route therefore transfers the already saved exact APK without depending
+on either download server. It uses the official, pinned `@actions/artifact`
+6.3.1 backend and Azure upload client; no Actions or GitHub token leaves the job.
+
+The job issues one temporary blob upload capability, encrypts it and a random
+payload key for the operator's RSA public key, and uploads that encrypted
+handshake. The private RSA key is kept outside Git. The operator encrypts the
+hash-verified APK with AES-256-GCM, uploads a ZIP containing only ciphertext,
+and commits a non-secret receipt tied to the exact request, run and attempt.
+The same job finalizes the artifact, downloads it with strict ZIP digest checks,
+authenticates/decrypts it, and requires the original complete APK size and SHA-256
+before any Android commands. The relay has a bounded receipt wait.
+
+Only source, the public transport key, request and receipt enter Git. Payload
+keys, decrypted capabilities, signing keys, plaintext APK and game data do not.
+The cleanup job validates the current run and exact names before deleting the
+temporary encrypted payload and handshake artifacts. One-day retention is a
+fallback. Runtime evidence retains the existing seven-day policy.
+
+For `mode: full`, the game job performs its own existing Android readiness gates.
+The separate readiness-only job runs only for `mode: readiness-only`.
 
 - Package: `org.kamremake.android`
 - Version: `1.0-r16397`

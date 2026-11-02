@@ -1,0 +1,24 @@
+name: KaM encrypted input relay
+description: Prepare, finalize or decrypt one pinned APK transfer without exporting Actions credentials
+inputs:
+  mode:
+    description: prepare, finalize or decrypt
+    required: true
+  request-id:
+    description: Exact request_id from the pinned QA request
+    required: true
+  receipt-path:
+    description: Local verified receipt JSON, required for finalize
+    required: false
+outputs:
+  handshake-directory:
+    description: Directory containing the encrypted transport capsule and public metadata
+  artifact-name:
+    description: Exact encrypted payload artifact name
+  artifact-id:
+    description: Finalized encrypted payload artifact ID
+  apk-path:
+    description: Verified decrypted APK path
+runs:
+  using: node24
+  main: main.cjs

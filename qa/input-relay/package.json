@@ -1,0 +1,14 @@
+{
+  "name": "kam-encrypted-input-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "One-run encrypted APK input transfer using the pinned official Actions artifact client",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@actions/artifact": "6.3.1",
+    "@actions/core": "3.0.1"
+  }
+}

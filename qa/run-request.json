@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "request_id": "kam-official-mirror-20261102T060949Z",
+  "request_id": "kam-direct-apk-20261102T062302Z",
   "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
   "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
   "apk_bytes": 856629249,
@@ -9,8 +9,9 @@
   "mode": "full",
   "ui_review_required": true,
   "playable_preapproved": false,
-  "retry_of_run": 41335488254,
-  "reason": "Use the alternative r16397 installer link published on the official KaM download page; retain exact installer/APK hashes and run the real game gates.",
-  "input_route": "macos-15 official alternate host via one verified temporary installer artifact, removed after consumption",
-  "independent_android_probe": true
+  "retry_of_run": 41398840259,
+  "reason": "Both official download hosts time out on GitHub runners; transfer the existing exact APK through a one-run encrypted Actions artifact.",
+  "input_route": "Encrypted local APK upload to one GitHub Actions artifact; decrypt and hash-verify in the same job; delete temporary transfer artifacts after use.",
+  "independent_android_probe": false,
+  "input_source": "relay"
 }

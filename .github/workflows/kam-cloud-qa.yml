@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 5
     outputs:
       game-check: ${{ steps.scope.outputs.game-check }}
+      input-source: ${{ steps.scope.outputs.input-source }}
+      request-id: ${{ steps.scope.outputs.request-id }}
     steps:
       - name: Check out the requested QA revision
         timeout-minutes: 3
@@ -38,21 +40,30 @@ jobs:
           python3 - <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
           request = json.loads(Path("qa/run-request.json").read_text())
           mode = request.get("mode", "full")
           if mode not in {"full", "readiness-only"}:
               raise SystemExit("Unknown QA mode")
+          source = request.get("input_source", "official")
+          if source not in {"official", "relay"}:
+              raise SystemExit("Unknown input source")
+          request_id = request.get("request_id", "")
+          if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,100}", request_id):
+              raise SystemExit("Invalid request ID")
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               output.write("game-check=" + ("true" if mode == "full" else "false") + "\n")
-          print(json.dumps({"mode": mode, "game_execution_requested": mode == "full"}))
+              output.write("input-source=" + source + "\n")
+              output.write("request-id=" + request_id + "\n")
+          print(json.dumps({"mode": mode, "input_source": source, "game_execution_requested": mode == "full"}))
           PY
 
   fetch-input:
     name: Fetch pinned official data through the macOS network
     needs: request
-    if: ${{ needs.request.outputs.game-check == 'true' }}
+    if: ${{ needs.request.outputs.game-check == 'true' && needs.request.outputs.input-source == 'official' }}
     runs-on: macos-15
     timeout-minutes: 30
     outputs:
@@ -102,6 +113,7 @@ jobs:
   android-readiness:
     name: Verify Android and Airtest independently of game data
     needs: request
+    if: ${{ needs.request.outputs.game-check != 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -178,9 +190,13 @@ jobs:
 
   android-qa:
     name: Android API 35 with ARM64 translation
-    needs: fetch-input
+    needs: [request, fetch-input]
+    if: ${{ always() && needs.request.result == 'success' && needs.request.outputs.game-check == 'true' && (needs.fetch-input.result == 'success' || needs.request.outputs.input-source == 'relay') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    outputs:
+      relay-artifact-id: ${{ steps.relay-finalize.outputs.artifact-id }}
+      handshake-artifact-id: ${{ steps.relay-handshake.outputs.artifact-id }}
     env:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONUNBUFFERED: "1"
@@ -214,6 +230,73 @@ jobs:
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+
+      - name: Install pinned input relay dependencies
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        timeout-minutes: 3
+        run: npm ci --prefix qa/input-relay --ignore-scripts --no-audit --no-fund
+
+      - name: Prepare one encrypted APK transfer
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        id: relay-prepare
+        timeout-minutes: 2
+        uses: ./qa/input-relay
+        with:
+          mode: prepare
+          request-id: ${{ needs.request.outputs.request-id }}
+
+      - name: Publish only the encrypted transfer handshake
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        id: relay-handshake
+        timeout-minutes: 2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kam-transfer-handshake-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kam-relay-handshake/transport.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Wait for this run's encrypted upload receipt
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELAY_REQUEST_ID: ${{ needs.request.outputs.request-id }}
+        run: >-
+          python qa/wait_relay_receipt.py
+          --request-id "$RELAY_REQUEST_ID"
+          --output "$RUNNER_TEMP/kam-relay-receipt.json"
+          --timeout 660
+
+      - name: Finalize this run's encrypted artifact
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        id: relay-finalize
+        timeout-minutes: 2
+        uses: ./qa/input-relay
+        with:
+          mode: finalize
+          request-id: ${{ needs.request.outputs.request-id }}
+          receipt-path: ${{ runner.temp }}/kam-relay-receipt.json
+
+      - name: Receive the encrypted APK in the same job
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        timeout-minutes: 5
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.relay-finalize.outputs.artifact-id }}
+          path: ${{ runner.temp }}/kam-encrypted-input
+          merge-multiple: true
+          digest-mismatch: error
+
+      - name: Decrypt and verify the exact original APK
+        if: ${{ needs.request.outputs.input-source == 'relay' }}
+        timeout-minutes: 3
+        uses: ./qa/input-relay
+        env:
+          KAM_ENCRYPTED_APK_PATH: ${{ runner.temp }}/kam-encrypted-input/app.apk.enc
+        with:
+          mode: decrypt
+          request-id: ${{ needs.request.outputs.request-id }}
 
       - name: Enable and verify KVM access
         timeout-minutes: 2
@@ -261,6 +344,7 @@ jobs:
           PY
 
       - name: Receive the verified installer from this workflow
+        if: ${{ needs.request.outputs.input-source == 'official' }}
         timeout-minutes: 5
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -270,6 +354,7 @@ jobs:
           digest-mismatch: error
 
       - name: Restore the exact signed APK from the official game data
+        if: ${{ needs.request.outputs.input-source == 'official' }}
         timeout-minutes: 14
         shell: bash
         run: |
@@ -366,10 +451,17 @@ jobs:
           compression-level: 6
           include-hidden-files: false
 
+      - name: Remove local relay secrets and ciphertext
+        if: ${{ always() && needs.request.outputs.input-source == 'relay' }}
+        timeout-minutes: 1
+        run: |
+          rm -f "$RUNNER_TEMP/kam-relay-state.json" "$RUNNER_TEMP/kam-relay-receipt.json"
+          rm -f "$RUNNER_TEMP/kam-encrypted-input/app.apk.enc"
+
   remove-temporary-input:
-    name: Remove only this run's temporary installer artifact
+    name: Remove only this run's temporary input artifacts
     needs: [fetch-input, android-qa]
-    if: ${{ always() && needs.fetch-input.outputs.installer-artifact-id != '' }}
+    if: ${{ always() && (needs.fetch-input.outputs.installer-artifact-id != '' || needs.android-qa.outputs.relay-artifact-id != '' || needs.android-qa.outputs.handshake-artifact-id != '') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     permissions:
@@ -378,23 +470,32 @@ jobs:
       - name: Verify artifact ownership and remove the consumed transfer
         env:
           GH_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ needs.fetch-input.outputs.installer-artifact-id }}
-          EXPECTED_NAME: kam-temporary-installer-${{ github.run_id }}-${{ github.run_attempt }}
+          INSTALLER_ARTIFACT_ID: ${{ needs.fetch-input.outputs.installer-artifact-id }}
+          RELAY_ARTIFACT_ID: ${{ needs.android-qa.outputs.relay-artifact-id }}
+          HANDSHAKE_ARTIFACT_ID: ${{ needs.android-qa.outputs.handshake-artifact-id }}
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]]
-          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > artifact.json
           python3 - <<'PY'
           import json
           import os
-          from pathlib import Path
+          import subprocess
 
-          item = json.loads(Path("artifact.json").read_text())
-          assert item["id"] == int(os.environ["ARTIFACT_ID"])
-          assert item["name"] == os.environ["EXPECTED_NAME"]
-          assert item["workflow_run"]["id"] == int(os.environ["GITHUB_RUN_ID"])
-          print("Verified ownership of this run's temporary input artifact")
+          for variable, prefix in (
+              ("INSTALLER_ARTIFACT_ID", "kam-temporary-installer"),
+              ("RELAY_ARTIFACT_ID", "kam-encrypted-apk"),
+              ("HANDSHAKE_ARTIFACT_ID", "kam-transfer-handshake"),
+          ):
+              artifact_id = os.environ.get(variable, "")
+              if not artifact_id:
+                  continue
+              assert artifact_id.isdigit()
+              expected_name = prefix + "-" + os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+              endpoint = "repos/" + os.environ["GITHUB_REPOSITORY"] + "/actions/artifacts/" + artifact_id
+              item = json.loads(subprocess.check_output(["gh", "api", endpoint]))
+              assert item["id"] == int(artifact_id)
+              assert item["name"] == expected_name
+              assert item["workflow_run"]["id"] == int(os.environ["GITHUB_RUN_ID"])
+              subprocess.run(["gh", "api", "--method", "DELETE", endpoint], check=True)
+              print("Removed verified temporary input artifact " + artifact_id)
           PY
-          gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID"
-          printf 'Removed temporary input artifact %s\n' "$ARTIFACT_ID"
