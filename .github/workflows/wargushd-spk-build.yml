@@ -1,0 +1,111 @@
+name: WargusHD private SPK briefing voice mod
+
+on:
+  push:
+    branches:
+      - codex/wargushd-spk-briefing
+    paths:
+      - qa/wargushd-spk/build-request.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: owner-only-wargushd-spk-briefing
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout isolated mod converter
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source audio tools
+        run: |
+          set -euo pipefail
+          ffmpeg -version | head -2
+          ffmpeg -hide_banner -encoders 2>/dev/null | grep -q libmp3lame
+          python3 -m pip install gdown==5.2.0
+      - name: Obtain original SPK voice files from the owner-supplied public archive
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          gdown --id 1-7JtFFIGtvPLkXch61VW7dQdVmqfdLyb \
+            --output "$RUNNER_TEMP/Speech_SPK.zip"
+          test "$(stat -c%s "$RUNNER_TEMP/Speech_SPK.zip")" = 93259498
+      - name: Compile the personal audio-only WargusHD campaign mod
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          python3 qa/wargushd-spk/build_briefings.py \
+            --source "$RUNNER_TEMP/Speech_SPK.zip" \
+            --out "$RUNNER_TEMP/WargusHD_Russian_SPK_Briefings.zip" \
+            --report "qa-report/SPK-briefings-report.json"
+          du -h "$RUNNER_TEMP/WargusHD_Russian_SPK_Briefings.zip"
+          test "$(stat -c%s "$RUNNER_TEMP/WargusHD_Russian_SPK_Briefings.zip")" -gt 1000000
+      - name: Keep audio only in a private, unpublished GitHub draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="wargushd-russian-spk-briefings-owner-20261102"
+          mkdir -p qa-report
+          cat > qa-report/release-notes.md <<'NOTES'
+          **Unpublished owner-only draft.** Russian SPK voice-over for the
+          Warcraft II: Remastered native Android port WargusHD 3.4.91.
+
+          Contains the briefing narration of four campaigns. 104 original
+          Russian WAV fragments have been combined in order into 56 MP3 files.
+          No retail game files or APK changes are included. The separate SPK
+          unit-voices mod already used by the owner is unaffected.
+
+          Install: copy this ZIP to Android and use WargusHD > Mods > Import Mod,
+          then enable "Russian Classic SPK - Campaign Briefings". Both the
+          existing Russian unit-voices mod and this mod can remain enabled.
+          Start a campaign mission to confirm the briefing audio.
+
+          This artifact's ZIP integrity and content mapping were validated in
+          the build; playback in WargusHD on a real phone requires manual
+          verification by the owner.
+          NOTES
+          gh release create "$TAG" "$RUNNER_TEMP/WargusHD_Russian_SPK_Briefings.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "codex/wargushd-spk-briefing" \
+            --draft --prerelease \
+            --title "WargusHD SPK Russian campaign briefings (owner test)" \
+            --notes-file qa-report/release-notes.md
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > qa-report/all-releases.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('qa-report/SPK-briefings-report.json').read_text())
+          releases=json.loads(Path('qa-report/all-releases.json').read_text())
+          d=next((x for x in releases if x['tag_name']=='wargushd-russian-spk-briefings-owner-20261102'),None)
+          assert d and d['draft'] is True and d.get('published_at') is None
+          assert len(d['assets']) == 1
+          a=d['assets'][0]
+          assert a['name']=='WargusHD_Russian_SPK_Briefings.zip'
+          assert a['size']==r['archives']['mod_zip_bytes']
+          assert a.get('digest')=='sha256:'+r['sha256']
+          receipt={'status':'PRIVATE_DRAFT_VALIDATED','draft':d['draft'],
+                   'release_url':d['html_url'],'asset_url':a['browser_download_url'],
+                   'size':a['size'],'sha256':r['sha256']}
+          Path('qa-report/release-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print('VALIDATED_OWNER_DRAFT:',json.dumps(receipt))
+          PY
+          rm -f qa-report/all-releases.json
+      - name: Preserve only non-audio diagnostic reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wargushd-spk-briefings-qa-report
+          path: qa-report/
+          if-no-files-found: warn
+          retention-days: 7
