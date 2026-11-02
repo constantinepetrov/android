@@ -21,10 +21,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with: 
           persist-credentials: false
-      - uses: actions/setup-java@17a28c4403ce90d4572a4b296dd59900209d658b
-        with:
-          distribution: temurin
-          java-version: '17'
+      - name: Use preinstalled JDK 17 without downloading an unverified action
+        run: |
+          test -x "$JAVA_HOME_17_X64/bin/java"
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
       - name: Select Linux FPC 3.2.2
         shell: bash
         timeout-minutes: 8
