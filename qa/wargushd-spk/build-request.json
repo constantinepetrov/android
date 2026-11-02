@@ -1,0 +1,9 @@
+{
+  "task": "build-private-wargushd-spk-briefings",
+  "engine": "WargusHD 3.4.91",
+  "archive": "Speech_SPK.zip",
+  "original_file_count": 104,
+  "expected_tracks": 56,
+  "share": "owner only draft",
+  "do_not_publish": true
+}
