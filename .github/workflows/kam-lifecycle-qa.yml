@@ -24,6 +24,9 @@ jobs:
       - name: Compile actual patched AppPause and AppResume and run behavior cases
         run: python3 qa/lifecycle/validate_lifecycle_pascal.py --source qa/lifecycle/overrides/KM_MainAndroid.inc
   baseline-android:
+    # Draft assets require an identity with push access; no code writes are performed.
+    permissions:
+      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
