@@ -1,0 +1,102 @@
+name: KaM background pause regression
+on:
+  push:
+    branches: [codex/kam-lifecycle-qa]
+    paths: [qa/lifecycle/request.json]
+permissions:
+  contents: read
+concurrency:
+  group: kam-lifecycle-qa
+  cancel-in-progress: false
+jobs:
+  source-behavior:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install real Pascal compiler
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq fp-compiler
+          fpc -iV
+      - name: Compile actual patched AppPause and AppResume and run behavior cases
+        run: python3 qa/lifecycle/validate_lifecycle_pascal.py --source qa/lifecycle/overrides/KM_MainAndroid.inc
+  baseline-android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.12"
+      - name: Download and hash-verify the EXACT previously tested APK, not a rebuild
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kam-input" qa-lifecycle
+          curl --fail --silent --show-error --location --retry 2 --connect-timeout 25 --max-time 490 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/constantinepetrov/android/releases/assets/701064241 \
+            -o "$RUNNER_TEMP/kam-input/old.apk"
+          test "$(stat -c%s "$RUNNER_TEMP/kam-input/old.apk")" = 856629249
+          echo "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4  $RUNNER_TEMP/kam-input/old.apk" | sha256sum -c -
+          printf 'KAM_OLD_APK=%s\n' "$RUNNER_TEMP/kam-input/old.apk" >> "$GITHUB_ENV"
+      - name: Configure KVM and airtest
+        timeout-minutes: 7
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -w /dev/kvm
+          python -m venv "$RUNNER_TEMP/kam-airtest"
+          "$RUNNER_TEMP/kam-airtest/bin/python" -m pip install -r qa/requirements-airtest-lock.txt
+          "$RUNNER_TEMP/kam-airtest/bin/python" -m pip check
+          printf 'KAM_PYTHON=%s\n' "$RUNNER_TEMP/kam-airtest/bin/python" >> "$GITHUB_ENV"
+      - name: Start cloud Android and measure simulation tick before/after Home
+        timeout-minutes: 38
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          disk-size: 6G
+          avd-name: kam-lifecycle
+          emulator-boot-timeout: 480
+          emulator-port: 5554
+          disable-linux-hw-accel: false
+          disable-animations: true
+          emulator-options: >-
+            -no-window -no-snapshot -no-audio -no-boot-anim -accel on -gpu swiftshader
+            -camera-front none -camera-back none
+          script: |
+            "$KAM_PYTHON" qa/android_cloud_qa.py --apk "$KAM_OLD_APK" \
+              --output "$GITHUB_WORKSPACE/qa-lifecycle/startup" --serial emulator-5554
+            "$KAM_PYTHON" qa/lifecycle/android_probe.py --serial emulator-5554 \
+              --output "$GITHUB_WORKSPACE/qa-lifecycle/background" --expected baseline-stuck
+      - name: Archive screenshots, logs and tick results (never the APK)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: kam-lifecycle-baseline-${{ github.run_id }}-${{ github.run_attempt }}
+          path: qa-lifecycle/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Clean temporary APK
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/kam-input/old.apk"
