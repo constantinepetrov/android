@@ -3,12 +3,12 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 1,
+  "step": 2,
   "action": {
     "type": "tap",
     "x": 640,
-    "y": 331
+    "y": 371
   },
-  "wait_seconds": 1,
-  "label": "open-single-player"
+  "wait_seconds": 10,
+  "label": "start-battle-tutorial"
 }
