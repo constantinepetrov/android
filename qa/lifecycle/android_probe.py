@@ -59,7 +59,7 @@ SINGLE_PLAYER_SHA = "867be1d4a0453de2bbe66ca6843630385a20ed7363f54d1bad3b564e767
 
 def observe_scene(serial, out, attempt):
     content = adb(serial, "exec-out", "screencap", "-p", binary=True)
-    if not content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if not content.startswith(b"\x89PNG\r\n\x1a\n"):
         raise RuntimeError("Emulator did not return a PNG")
     image = Image.open(BytesIO(content)).convert("RGB")
     if image.size != (1280, 720):
