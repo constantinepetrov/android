@@ -176,6 +176,13 @@ g=replace_once(g,"applicationId 'net.wargushd.game'",
 g=replace_once(g,"versionName '3.4.91'",
                "versionName '3.4.91-cheats-test1'",str(gradle))
 gradle.write_text(g)
+strings = root/"android/app/src/main/res/values/strings.xml"
+if strings.is_file():
+    source = strings.read_text()
+    original_label = '<string name="app_name">WargusHD</string>'
+    new_label = '<string name="app_name">WargusHD Cheats</string>'
+    source = replace_once(source, original_label, new_label, str(strings))
+    strings.write_text(source)
 print("PATCHED_ACTIVITY",activity)
 print("PATCHED_HELPER",helper)
 print("PATCHED_PACKAGE_ID","net.wargushd.game.cheats")
