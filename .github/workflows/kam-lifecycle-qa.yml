@@ -87,11 +87,11 @@ jobs:
           emulator-options: >-
             -no-window -no-snapshot -no-audio -no-boot-anim -accel on -gpu swiftshader
             -camera-front none -camera-back none
-          script: |
-            "$KAM_PYTHON" qa/android_cloud_qa.py --apk "$KAM_OLD_APK" \
-              --output "$GITHUB_WORKSPACE/qa-lifecycle/startup" --serial emulator-5554
-            "$KAM_PYTHON" qa/lifecycle/android_probe.py --serial emulator-5554 \
-              --output "$GITHUB_WORKSPACE/qa-lifecycle/background" --expected baseline-stuck
+          script: >-
+            "$KAM_PYTHON" qa/android_cloud_qa.py --apk "$KAM_OLD_APK"
+            --output "$GITHUB_WORKSPACE/qa-lifecycle/startup" --serial emulator-5554
+            && "$KAM_PYTHON" qa/lifecycle/android_probe.py --serial emulator-5554
+            --output "$GITHUB_WORKSPACE/qa-lifecycle/background" --expected baseline-stuck
       - name: Archive screenshots, logs and tick results (never the APK)
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
