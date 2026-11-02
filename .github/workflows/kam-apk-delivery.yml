@@ -1,0 +1,177 @@
+name: KaM private APK delivery
+
+on:
+  push:
+    branches:
+      - codex/kam-cloud-qa
+    paths:
+      - qa/delivery-request.json
+
+permissions:
+  contents: read
+
+# The existing receipt path is shared with QA. Never run both relays together.
+concurrency:
+  group: kam-cloud-qa
+  cancel-in-progress: false
+
+jobs:
+  request:
+    name: Validate the explicit draft-only delivery request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      request-id: ${{ steps.scope.outputs.request-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Require exact APK identity and unpublished draft scope
+        id: scope
+        run: python3 qa/deliver_apk_draft.py --request qa/delivery-request.json --validate-request
+
+  deliver:
+    name: Receive the existing APK and attach it to a private draft
+    needs: request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    outputs:
+      relay-artifact-id: ${{ steps.relay-finalize.outputs.artifact-id }}
+      handshake-artifact-id: ${{ steps.relay-handshake.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Prepare isolated delivery paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kam-input" "$RUNNER_TEMP/kam-delivery-evidence"
+          {
+            printf 'KAM_APK_PATH=%s\n' "$RUNNER_TEMP/kam-input/KaM_Remake_ARM64_with_data.apk"
+            printf 'KAM_QA_OUTPUT=%s\n' "$RUNNER_TEMP/kam-delivery-evidence"
+          } >> "$GITHUB_ENV"
+      - name: Install pinned relay dependencies
+        timeout-minutes: 3
+        run: npm ci --prefix qa/input-relay --ignore-scripts --no-audit --no-fund
+      - name: Prepare one encrypted APK transfer
+        id: relay-prepare
+        timeout-minutes: 2
+        uses: ./qa/input-relay
+        with:
+          mode: prepare
+          request-id: ${{ needs.request.outputs.request-id }}
+      - name: Upload the encrypted transfer handshake
+        id: relay-handshake
+        timeout-minutes: 2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kam-transfer-handshake-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/kam-relay-handshake/transport.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Wait for this run's verified upload receipt
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELAY_REQUEST_ID: ${{ needs.request.outputs.request-id }}
+        run: >-
+          python3 qa/wait_relay_receipt.py
+          --request-id "$RELAY_REQUEST_ID"
+          --output "$RUNNER_TEMP/kam-relay-receipt.json"
+          --timeout 660
+      - name: Finalize the encrypted input artifact
+        id: relay-finalize
+        timeout-minutes: 2
+        uses: ./qa/input-relay
+        with:
+          mode: finalize
+          request-id: ${{ needs.request.outputs.request-id }}
+          receipt-path: ${{ runner.temp }}/kam-relay-receipt.json
+      - name: Download ciphertext in the same job
+        timeout-minutes: 5
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ steps.relay-finalize.outputs.artifact-id }}
+          path: ${{ runner.temp }}/kam-encrypted-input
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Decrypt and verify the original complete APK
+        timeout-minutes: 3
+        uses: ./qa/input-relay
+        env:
+          KAM_ENCRYPTED_APK_PATH: ${{ runner.temp }}/kam-encrypted-input/app.apk.enc
+        with:
+          mode: decrypt
+          request-id: ${{ needs.request.outputs.request-id }}
+      - name: Upload the APK only to an unpublished draft and verify it
+        timeout-minutes: 12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 qa/deliver_apk_draft.py
+          --request qa/delivery-request.json
+          --apk "$KAM_APK_PATH"
+          --evidence "$KAM_QA_OUTPUT"
+      - name: Preserve only the small delivery receipts
+        if: ${{ always() }}
+        timeout-minutes: 2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kam-apk-delivery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/kam-delivery-evidence/input-preparation.json
+            ${{ runner.temp }}/kam-delivery-evidence/delivery.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Remove temporary local APK, ciphertext and relay state
+        if: ${{ always() }}
+        timeout-minutes: 1
+        run: |
+          rm -f "$RUNNER_TEMP/kam-input/KaM_Remake_ARM64_with_data.apk"
+          rm -f "$RUNNER_TEMP/kam-encrypted-input/app.apk.enc"
+          rm -f "$RUNNER_TEMP/kam-relay-state.json" "$RUNNER_TEMP/kam-relay-receipt.json"
+
+  cleanup:
+    name: Remove only this run's encrypted transfer artifacts
+    needs: deliver
+    if: ${{ always() && (needs.deliver.outputs.relay-artifact-id != '' || needs.deliver.outputs.handshake-artifact-id != '') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    permissions:
+      actions: write
+    steps:
+      - name: Check artifact ownership and delete temporary transport
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELAY_ARTIFACT_ID: ${{ needs.deliver.outputs.relay-artifact-id }}
+          HANDSHAKE_ARTIFACT_ID: ${{ needs.deliver.outputs.handshake-artifact-id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          for variable, prefix in (
+              ("RELAY_ARTIFACT_ID", "kam-encrypted-apk"),
+              ("HANDSHAKE_ARTIFACT_ID", "kam-transfer-handshake"),
+          ):
+              artifact_id = os.environ.get(variable, "")
+              if not artifact_id:
+                  continue
+              assert artifact_id.isdigit()
+              expected = prefix + "-" + os.environ["GITHUB_RUN_ID"] + "-" + os.environ["GITHUB_RUN_ATTEMPT"]
+              endpoint = "repos/" + os.environ["GITHUB_REPOSITORY"] + "/actions/artifacts/" + artifact_id
+              item = json.loads(subprocess.check_output(["gh", "api", endpoint]))
+              assert item["id"] == int(artifact_id)
+              assert item["name"] == expected
+              assert item["workflow_run"]["id"] == int(os.environ["GITHUB_RUN_ID"])
+              subprocess.run(["gh", "api", "--method", "DELETE", endpoint], check=True)
+              print("Removed verified temporary transfer artifact " + artifact_id)
+          PY
