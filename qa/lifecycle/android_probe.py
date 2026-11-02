@@ -6,6 +6,9 @@ user-device data. Saves are parsed as headers, never uploaded.
 """
 import argparse
 import json
+import hashlib
+from io import BytesIO
+from PIL import Image
 import os
 from pathlib import Path
 import subprocess
@@ -45,6 +48,63 @@ def frame(serial, out, name):
     if not content.startswith(b"\x89PNG\r\n\x1a\n"):
         raise RuntimeError("Invalid Android screenshot")
     (out / (name + ".png")).write_bytes(content)
+
+
+# Pixel-exact UI states from the independent successful 1280x720 Airtest run
+# 41441125987 (the screenshot crop contains only one KaM menu button).
+# Distinguish these from a launcher ANR dialog before sending any game taps.
+MAIN_MENU_SHA = "323916a04dbdb125dea1a93026fe9114693f14778278eb6f8567a28b7a941d35"
+SINGLE_PLAYER_SHA = "867be1d4a0453de2bbe66ca6843630385a20ed7363f54d1bad3b564e767b36ea"
+
+
+def observe_scene(serial, out, attempt):
+    content = adb(serial, "exec-out", "screencap", "-p", binary=True)
+    if not content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        raise RuntimeError("Emulator did not return a PNG")
+    image = Image.open(BytesIO(content)).convert("RGB")
+    if image.size != (1280, 720):
+        raise RuntimeError("Expected the pinned 1280x720 Android display")
+    preview = out / ("navigation-%02d.png" % attempt)
+    preview.write_bytes(content)
+    # A loaded Battle Tutorial map is bright grass-green over a large region.
+    # The parchment menus have effectively zero strongly-green samples.
+    sample = image.crop((160, 60, 1190, 650)).resize((70, 40))
+    pixels = list(sample.getdata())
+    green_fraction = sum(g > r * 1.18 and g > b * 1.18 and g > 90
+                         for r, g, b in pixels) / len(pixels)
+    if green_fraction > 0.12:
+        scene = "game-map"
+    else:
+        menu_hash = hashlib.sha256(image.crop((470, 320, 810, 345)).tobytes()).hexdigest()
+        scene = ("main-menu" if menu_hash == MAIN_MENU_SHA else
+                 "single-player-menu" if menu_hash == SINGLE_PLAYER_SHA else
+                 "unknown-overlay-or-transition")
+    print(json.dumps({"navigation": attempt, "scene": scene,
+                      "green_fraction": round(green_fraction, 4)}), flush=True)
+    return scene
+
+
+def navigate_tutorial(serial, out):
+    """Never claim tutorial navigation passed without seeing an actual map.
+
+    A fresh emulator can display an Android Launcher ANR on top of KaM,
+    swallowing ADB taps. Wait through the overlay rather than blindly
+    claiming the taps changed pages.
+    """
+    for attempt in range(18):
+        scene = observe_scene(serial, out, attempt)
+        if scene == "game-map":
+            frame(serial, out, "tutorial")
+            return True
+        if scene == "main-menu":
+            tap(serial, 640, 331)   # Single Player
+            sleep(5)
+        elif scene == "single-player-menu":
+            tap(serial, 640, 371)   # Battle Tutorial
+            sleep(12)
+        else:
+            sleep(4)               # system ANR or game loading
+    raise RuntimeError("Unable to open Battle Tutorial from observed UI states")
 
 
 def save(serial, out, name):
@@ -115,9 +175,7 @@ def run(args):
     try:
         pid = checkpoint("launch", lambda: launch(args.serial))
         frame(args.serial, out, "main")
-        checkpoint("open-tutorial", lambda: (
-            tap(args.serial, 640, 331), sleep(8), frame(args.serial, out, "single-player-menu"),
-            tap(args.serial, 640, 371), sleep(22), frame(args.serial, out, "tutorial"), True)[-1])
+        checkpoint("open-tutorial", lambda: navigate_tutorial(args.serial, out))
         a0 = checkpoint("pre-0", lambda: save(args.serial, out, "lca0"))
         sleep(14)
         a1 = checkpoint("pre-1", lambda: save(args.serial, out, "lca1"))
