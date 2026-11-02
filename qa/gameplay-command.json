@@ -3,11 +3,12 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 23,
+  "step": 24,
   "action": {
-    "type": "key",
-    "key": "KEYCODE_BACK"
+    "type": "tap",
+    "x": 99,
+    "y": 549
   },
-  "wait_seconds": 1,
-  "label": "dismiss-qac-keyboard"
+  "wait_seconds": 2,
+  "label": "save-qac-after-restored-simulation"
 }
