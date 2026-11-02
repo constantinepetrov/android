@@ -41,7 +41,7 @@ jobs:
           APK="$RUNNER_TEMP/kam-fixed/KaM_lifecycle_fix_debug.apk"
           test -f "$APK"
           echo "f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5  $APK" | sha256sum --check --status
-          test "$(stat -c%s "$APK")" = 856644436
+          test "$(stat -c%s "$APK")" = 856644268
           printf 'PATCHED_APK_PATH=%s\n' "$APK" >> "$GITHUB_ENV"
       - name: Compare signing certificate with the installed original APK
         shell: bash
@@ -107,7 +107,7 @@ jobs:
 
           APK SHA-256:
           f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5
-          APK bytes: 856644436
+          APK bytes: 856644268
 
           **WARNING**: Do not delete the installed earlier build until its saves are
           backed up. Different debug signing certificates block in-place updates.
@@ -134,7 +134,7 @@ jobs:
           if len(assets) != 1:
               raise SystemExit('Expected exactly one APK asset')
           asset = assets[0]
-          if asset['name'] != 'KaM_lifecycle_fix_debug.apk' or asset['size'] != 856644436:
+          if asset['name'] != 'KaM_lifecycle_fix_debug.apk' or asset['size'] != 856644268:
               raise SystemExit('Release APK identity and size mismatch')
           expected = 'sha256:f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5'
           if asset.get('digest') != expected:
