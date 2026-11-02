@@ -183,6 +183,13 @@ jobs:
           "$SDK_TOOL" dump badging "$APK" | grep -E '^package: name=|^application-label:' | head -3
           "$SDK_TOOL" dump badging "$APK" | grep -q "name='net.wargushd.game.cheats.v2'"
           echo APK_MANIFEST_SEPARATE_APP_ID_VERIFIED
+      - name: Preserve verified APK as fallback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wargushd-cheats-v2-full-apk
+          path: upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
       - name: Save owner-only draft test APK
         env:
           GH_TOKEN: ${{ github.token }}
@@ -198,7 +205,7 @@ jobs:
           Original WargusHD is NOT overwritten or uninstalled.
 
           1. Install APK as a separate app "WargusHD Cheats v2".
-          2. Select the SAME Warcraft II: Remastered Data folder as the official app.
+          2. Select the SAME Warcraft II: Remastered ROOT folder (the parent containing Data). Do NOT choose Data itself.
           3. Re-import Russian SPK units and SPK briefings mods in THIS app.
           4. Start a SOLO campaign mission or custom game.
           5. On game screen, top right: "ЧИТЫ".
@@ -213,7 +220,7 @@ jobs:
 
           WARNING: Built/ZIP-tested, NOT yet verified running on a Fold.
           DOC
-          gh release create "$TAG" "$RUNNER_TEMP/out/WargusHD-Cheats-Palette-test.apk" \
+          gh release create "$TAG" "$RUNNER_TEMP/out/WargusHD-Cheats-Palette-v2.apk" \
             "$RUNNER_TEMP/out/README.txt" \
             --repo "$GITHUB_REPOSITORY" \
             --target codex/wargushd-gameplay-options --draft --prerelease \
@@ -227,7 +234,7 @@ jobs:
           all=json.loads((Path(os.environ['RUNNER_TEMP'])/'out/releases.json').read_text())
           one=next(x for x in all if x['tag_name']=='wargushd-cheats-palette-v2-owner-20261102')
           assert one['draft'] and not one.get('published_at')
-          apk=next(x for x in one['assets'] if x['name']=='WargusHD-Cheats-Palette-test.apk')
+          apk=next(x for x in one['assets'] if x['name']=='WargusHD-Cheats-Palette-v2.apk')
           assert apk['size']==r['apk_bytes']
           assert apk['digest']=='sha256:'+r['sha256']
           print('PRIVATE_DRAFT_APK',one['html_url'])
