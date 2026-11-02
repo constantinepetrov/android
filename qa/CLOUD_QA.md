@@ -70,6 +70,27 @@ fallback. Runtime evidence retains the existing seven-day policy.
 For `mode: full`, the game job performs its own existing Android readiness gates.
 The separate readiness-only job runs only for `mode: readiness-only`.
 
+### First real KaM runtime result
+
+Run [41399865980](https://github.com/constantinepetrov/android/actions/runs/41399865980)
+completed the encrypted transfer and exact APK verification, Android readiness,
+APK installation (including the installed-file hash), and fresh bundled-data copy.
+Its native log reached `Game Load Done in 3892`; Airtest captured the actual main
+menu behind Android's first-use fullscreen hint. The engine identifies itself as
+`r16398 [UNSECURE]`; the package label/data bundle remain r16397, and the APK is
+still the exact previously pinned file, not a new build.
+
+This run remains `BLOCKED`: the first logcat read returned 255 with 8,192 truncated
+stdout bytes; the immediately following identical capture succeeded with 1,569,987
+bytes and no fatal markers. Battle Tutorial was not run. The tester now retries an
+incomplete capture at most three times within the original total deadline, retains
+every attempt, and accepts only a successful complete capture. Fatal markers in
+partial attempts still fail the check; logs are never cleared during a retry.
+
+Before game installation, the disposable test device is configured and screenshot-
+verified at 1280x720 landscape, 160 dpi, with Android's fullscreen hint marked as
+acknowledged. This affects the emulator only. The APK and its data are unchanged.
+
 - Package: `org.kamremake.android`
 - Version: `1.0-r16397`
 - APK size: 856,629,249 bytes

@@ -67,7 +67,7 @@ class Runner:
             "playable_confirmed": False, "simulation_tick_advance_confirmed": False,
             "tick_call_count": None, "airtest_snapshot_confirmed": False,
             "stages": {name: {"status": "NOT_RUN"} for name in (
-                "artifact", "cloud_readiness", "apk_install", "fresh_data",
+                "artifact", "cloud_readiness", "display_setup", "apk_install", "fresh_data",
                 "engine_init", "visual_evidence", "content_smoke")},
             "timeouts_seconds": {name: getattr(args, name + "_timeout") for name in
                                  ("readiness", "install", "data", "engine", "selftest")},
@@ -159,9 +159,78 @@ class Runner:
         return raw.decode("utf-8", errors="replace")
 
     def logcat(self, label, timeout=20):
-        code, raw, _ = self.adb_command(label, ["logcat", "-b", "all", "-d", "-v", "threadtime"], timeout)
-        (self.out / (label + ".txt")).write_bytes(raw)
-        return code, raw.decode("utf-8", errors="replace")
+        # A disconnected ADB read can return 255 with only a prefix of logcat.
+        # Retry the read only: never clear the buffer, restart ADB or reset game
+        # freshness. All attempts share the caller's original timeout budget.
+        started = time.monotonic()
+        deadline = started + timeout
+        capture = {"label": label, "timeout_seconds": timeout, "max_attempts": 3,
+                   "status": "RUNNING", "attempts": [], "partial_fatal_markers": [],
+                   "complete": False, "retried": False}
+        self.state.setdefault("logcat_captures", []).append(capture)
+        output = self.out / (label + ".txt")
+        # Repeated selftest polls use the same label. Do not leave an earlier
+        # complete dump masquerading as this invocation's failed capture.
+        output.unlink(missing_ok=True)
+        last_code = 124
+        for attempt in range(1, 4):
+            remaining = deadline - time.monotonic()
+            # command() has a 50-ms minimum; do not exceed the shared budget by
+            # starting another subprocess when less time remains than that.
+            if remaining < 0.05:
+                capture["deadline_exhausted"] = True
+                last_code = 124
+                break
+            command_label = label if attempt == 1 else f"{label}-retry-{attempt}"
+            code, raw, stderr = self.adb_command(
+                command_label, ["logcat", "-b", "all", "-d", "-v", "threadtime"], remaining)
+            within_deadline = time.monotonic() <= deadline
+            text = raw.decode("utf-8", errors="replace")
+            command = self.commands[-1]
+            complete = code == 0 and within_deadline
+            capture["attempts"].append({
+                "attempt": attempt, "command_index": len(self.commands),
+                "returncode": code, "complete": complete,
+                "timeout_seconds": command["timeout_seconds"],
+                "stdout_file": command["stdout_file"], "stderr_file": command["stderr_file"],
+                "elapsed_seconds": command["elapsed_seconds"],
+            })
+            capture["retried"] = attempt > 1
+            if not complete:
+                for stream, content in (("stdout", text), ("stderr", stderr.decode("utf-8", errors="replace"))):
+                    capture["partial_fatal_markers"].extend(
+                        dict(marker, attempt=attempt, stream=stream)
+                        for marker in fatal_lines(content))
+            capture["elapsed_seconds"] = round(time.monotonic() - started, 3)
+            if complete:
+                # The strict selftest parser receives this one complete dump,
+                # never concatenated retries (which would duplicate KAMTEST).
+                output.write_bytes(raw)
+                capture.update(complete=True, complete_attempt=attempt, status="COMPLETE")
+                if capture["partial_fatal_markers"]:
+                    capture["status"] = "REJECTED_PARTIAL_FATAL"
+                    self.save()
+                    raise GateError("fatal_markers_in_incomplete_logcat_capture", "FAIL")
+                self.save()
+                return 0, text
+            last_code = code if code else 124
+            if not within_deadline:
+                capture["deadline_exhausted"] = True
+                last_code = 124
+                break
+            self.save()
+            if attempt < 3:
+                self.pause(deadline, 0.25)
+        capture.update(status="INCOMPLETE", returncode=last_code,
+                       elapsed_seconds=round(time.monotonic() - started, 3))
+        if capture["partial_fatal_markers"]:
+            capture["status"] = "REJECTED_PARTIAL_FATAL"
+            self.save()
+            raise GateError("fatal_markers_in_incomplete_logcat_capture", "FAIL")
+        self.save()
+        # Partial bytes remain in each numbered command's stdout/stderr files;
+        # an incomplete dump is never exposed as parser input or a complete TXT.
+        return last_code, ""
 
     @staticmethod
     def png_info(path):
@@ -312,6 +381,28 @@ class Runner:
             self.pause(deadline, 3)
         raise GateError("cloud_readiness_deadline")
 
+    def display_setup(self):
+        self.begin("display_setup")
+        # Configure the disposable emulator through Android's supported shell
+        # interface before KaM starts. The APK declares screenOrientation=fullUser.
+        # This is test-device setup, not a change to the game or its UI scaling.
+        self.checked("display-size", ["shell", "wm", "size", "720x1280"])
+        self.checked("display-density", ["shell", "wm", "density", "160"])
+        self.checked("display-rotation", ["shell", "wm", "user-rotation", "lock", "1"])
+        self.checked("fullscreen-hint-confirmed", ["shell", "settings", "--user", "current",
+                     "put", "secure", "immersive_mode_confirmations", "confirmed"])
+        confirmation = self.checked("fullscreen-hint-readback", ["shell", "settings", "--user", "current",
+                                    "get", "secure", "immersive_mode_confirmations"]).strip()
+        if confirmation != "confirmed":
+            raise GateError("system_fullscreen_hint_configuration_not_confirmed")
+        time.sleep(2)  # Let WindowManager apply its asynchronous display update.
+        screen = self.screenshot("configured-display")
+        if not screen.get("available") or screen.get("dimensions") != [1280, 720]:
+            raise GateError("landscape_test_display_not_confirmed")
+        self.complete(framebuffer_dimensions=screen["dimensions"], density_dpi=160,
+                      user_rotation=1, fullscreen_hint="confirmed", screenshot=screen,
+                      scope="Disposable Android display configuration only; no game execution")
+
     def install(self):
         self.begin("apk_install")
         deadline = time.monotonic() + self.args.install_timeout
@@ -445,6 +536,9 @@ class Runner:
                         self.state["first_launch_fatal_markers"] = errors
                         raise GateError("fatal_markers_in_fresh_first_launch", "FAIL")
                     self.pid(self.remaining(deadline, 10), expected=first_pid)
+                    if self.state["abi_preflight"]["route"] == "advertised_arm64_native_bridge":
+                        self.state["abi_preflight"]["runtime_translation_confirmed"] = True
+                        self.state["abi_preflight"]["runtime_evidence"] = "Fresh native Game Load Done log and same live app PID from the pinned ARM64-only APK"
                     self.complete(engine_log=path, engine_log_mtime=modified, pid=first_pid,
                                   elapsed_seconds=round(time.monotonic() - started, 3),
                                   scope="Native engine initialized; menu correctness remains PENDING")
@@ -529,6 +623,7 @@ class Runner:
     def execute(self):
         self.artifact()
         self.readiness()
+        self.display_setup()
         self.install()
         self.first_launch()
         self.selftest()

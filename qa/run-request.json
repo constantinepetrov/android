@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "request_id": "kam-direct-apk-20261102T062302Z",
+  "request_id": "kam-game-logcat-retry-20261102T063431Z",
   "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
   "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
   "apk_bytes": 856629249,
@@ -9,8 +9,8 @@
   "mode": "full",
   "ui_review_required": true,
   "playable_preapproved": false,
-  "retry_of_run": 41398840259,
-  "reason": "Both official download hosts time out on GitHub runners; transfer the existing exact APK through a one-run encrypted Actions artifact.",
+  "retry_of_run": 41399865980,
+  "reason": "The APK installed, restored data and initialized the native menu; retry incomplete ADB log captures within the original deadline and configure a verified 1280x720 landscape test display.",
   "input_route": "Encrypted local APK upload to one GitHub Actions artifact; decrypt and hash-verify in the same job; delete temporary transfer artifacts after use.",
   "independent_android_probe": false,
   "input_source": "relay"
