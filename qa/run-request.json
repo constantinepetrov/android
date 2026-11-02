@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "request_id": "kam-headless-readiness-20261101T181916Z",
+  "request_id": "kam-official-mirror-20261102T060949Z",
   "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
   "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
   "apk_bytes": 856629249,
   "package": "org.kamremake.android",
   "scenario": "only:tutorials/battle tutorial",
-  "mode": "readiness-only",
+  "mode": "full",
   "ui_review_required": true,
   "playable_preapproved": false,
   "retry_of_run": 41335488254,
-  "reason": "The Android/Airtest probe passed but GUI emulator version query required missing libpulse; select the headless binary for metadata. Game inputs remain blocked by official-host TCP timeouts on both runner networks.",
-  "input_route": "macos-15 pinned official installer via one temporary artifact, removed after consumption",
+  "reason": "Use the alternative r16397 installer link published on the official KaM download page; retain exact installer/APK hashes and run the real game gates.",
+  "input_route": "macos-15 official alternate host via one verified temporary installer artifact, removed after consumption",
   "independent_android_probe": true
 }

@@ -28,6 +28,22 @@ Run [41335488254](https://github.com/constantinepetrov/android/actions/runs/4133
 
 ## Exact artifact identity
 
+### Official alternate download route (2026-11-02)
+
+The authors' [download page](https://www.kamremake.com/download/) publishes an
+[alternative download](https://release.knightsprovince.com/index.php/s/9xdF69oCWmJXW59)
+for the full r16397 installer. Input preparation now uses that alternate host,
+which avoids the primary host's connection timeouts on both runner networks.
+The alternate names `KaM Remake Beta r16397.exe` and advertises 711,493,971 bytes.
+Neither the filename nor a successful HTTP response is sufficient: the existing
+installer size/SHA-256 and complete reconstructed APK size/SHA-256 checks remain
+mandatory and unchanged. No additional game bytes are committed to Git.
+
+The next `mode: full` request runs the existing install/first-launch/Battle Tutorial
+checks after verified input preparation. This route change alone is not evidence
+that the game has launched; the linked Actions result and captured runtime evidence
+must establish that separately.
+
 - Package: `org.kamremake.android`
 - Version: `1.0-r16397`
 - APK size: 856,629,249 bytes

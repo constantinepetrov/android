@@ -14,8 +14,12 @@ import shutil
 import subprocess
 import sys
 import time
+from urllib.parse import urlsplit
 
-INSTALLER_URL = "https://www.kamremake.com/files/kam-remake-r16397/?tmstv=1793532124"
+# This exact alternate is linked by the authors at https://www.kamremake.com/download/.
+# GitHub-hosted runners timed out connecting to the primary www.kamremake.com host.
+# Keep the installer and reconstructed APK identities pinned across the route change.
+INSTALLER_URL = "https://release.knightsprovince.com/index.php/s/9xdF69oCWmJXW59/download/KaM%20Remake%20Beta%20r16397.exe"
 INSTALLER_BYTES = 711493971
 INSTALLER_SHA256 = "9980a414f4adbe3806c322de5a74068861857968b3b5ddd4ec1d84987208cd9e"
 APK_BYTES = 856629249
@@ -76,12 +80,12 @@ def download(output, timeout, evidence, record):
         raise RuntimeError("curl is required for the bounded IPv4 installer download")
     if shutil.which("getent"):
         try:
-            command("installer-dns", ["getent", "ahosts", "www.kamremake.com"],
+            command("installer-dns", ["getent", "ahosts", urlsplit(INSTALLER_URL).hostname],
                     evidence, 20, record)
         except RuntimeError as exc:
             record["dns_probe_warning"] = str(exc)
     # The first real GitHub run timed out before receiving response headers.
-    # Keep the official URL and TLS verification, choose IPv4 explicitly, and
+    # Use the authors' official alternate URL with TLS verification and IPv4, and
     # preserve DNS/HTTP diagnostics. The outer process deadline bounds retries.
     argv = [curl, "--ipv4", "--location", "--fail", "--show-error", "--silent",
             "--connect-timeout", "20", "--max-time", str(timeout),
@@ -92,7 +96,8 @@ def download(output, timeout, evidence, record):
             INSTALLER_URL]
     command("download-installer", argv, evidence, timeout + 30, record)
     require_file(output, INSTALLER_BYTES, INSTALLER_SHA256)
-    return {"url": INSTALLER_URL, "backend": "curl-ipv4", "retry_limit": 2,
+    return {"url": INSTALLER_URL, "source_page": "https://www.kamremake.com/download/",
+            "backend": "curl-ipv4", "retry_limit": 2,
             "http_metadata_log": "download-installer.stdout",
             "bytes": output.stat().st_size, "sha256": INSTALLER_SHA256}
 
