@@ -1,0 +1,89 @@
+name: KaM lifecycle patched APK retest (no rebuild)
+on:
+  push:
+    branches:
+      - codex/kam-lifecycle-qa
+    paths:
+      - qa/lifecycle/test-only-request.json
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kam-lifecycle-retest
+  cancel-in-progress: false
+jobs:
+  test-pinned-built-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONUNBUFFERED: "1"
+      KAM_APK_SHA: "f62bebf602c2e4652f4c9c90a372faa4f518d80d7c44becf930feae1631857a5"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.12"
+      - name: Download exact patched artifact from completed build 41432594079
+        timeout-minutes: 12
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          github-token: ${{ github.token }}
+          run-id: 41432594079
+          artifact-ids: 13134754041
+          path: ${{ runner.temp }}/kam-patched
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify signed patched APK identity
+        run: |
+          set -euo pipefail
+          test -f "$RUNNER_TEMP/kam-patched/KaM_lifecycle_fix_debug.apk"
+          echo "$KAM_APK_SHA  $RUNNER_TEMP/kam-patched/KaM_lifecycle_fix_debug.apk" | sha256sum -c -
+      - name: Configure KVM and pinned Airtest
+        timeout-minutes: 7
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -w /dev/kvm
+          python -m venv "$RUNNER_TEMP/kam-airtest"
+          "$RUNNER_TEMP/kam-airtest/bin/python" -m pip install -r qa/requirements-airtest-lock.txt
+          "$RUNNER_TEMP/kam-airtest/bin/python" -m pip check
+          echo "KAM_PYTHON=$RUNNER_TEMP/kam-airtest/bin/python" >> "$GITHUB_ENV"
+      - name: Check Android 15 engine and screenshot every UI save step
+        timeout-minutes: 38
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          disk-size: 6G
+          avd-name: kam-lifecycle-retest
+          emulator-boot-timeout: 480
+          disable-linux-hw-accel: false
+          disable-animations: true
+          emulator-options: >-
+            -no-window -no-snapshot -no-audio -no-boot-anim -accel on -gpu swiftshader
+            -camera-front none -camera-back none
+          script: >-
+            "$KAM_PYTHON" qa/android_cloud_qa.py
+            --apk "$RUNNER_TEMP/kam-patched/KaM_lifecycle_fix_debug.apk"
+            --expected-sha256 "$KAM_APK_SHA"
+            --output "$GITHUB_WORKSPACE/qa-lifecycle-retest/startup" --serial emulator-5554
+            && "$KAM_PYTHON" qa/lifecycle/android_probe.py --serial emulator-5554
+            --output "$GITHUB_WORKSPACE/qa-lifecycle-retest/background" --expected fixed
+            --apk-sha256 "$KAM_APK_SHA"
+      - name: Preserve screenshots, redacted logs and tick results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: kam-lifecycle-retest-41432594079-${{ github.run_id }}
+          path: qa-lifecycle-retest/
+          if-no-files-found: warn
+          retention-days: 7
