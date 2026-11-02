@@ -3,12 +3,11 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 15,
+  "step": 16,
   "action": {
-    "type": "tap",
-    "x": 99,
-    "y": 549
+    "type": "key",
+    "key": "KEYCODE_F4"
   },
-  "wait_seconds": 2,
-  "label": "save-qab-after-simulation-and-movement"
+  "wait_seconds": 1,
+  "label": "open-menu-before-load-qaa"
 }
