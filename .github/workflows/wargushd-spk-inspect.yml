@@ -1,0 +1,86 @@
+name: WargusHD SPK briefing format inspection
+
+on:
+  push:
+    branches:
+      - codex/wargushd-spk-briefing
+    paths:
+      - qa/wargushd-spk/inspect-request.json
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install safe data-transfer client
+        run: python3 -m pip install gdown==5.2.0
+      - name: Fetch the published SPK speech ZIP, WITHOUT executing its files
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          gdown --id 1-7JtFFIGtvPLkXch61VW7dQdVmqfdLyb --output "$RUNNER_TEMP/Speech_SPK.zip"
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          p = Path(__import__("os").environ["RUNNER_TEMP"]) / "Speech_SPK.zip"
+          print("SPEECH_ARCHIVE_BYTES", p.stat().st_size)
+          with ZipFile(p) as z:
+            bad = z.testzip()
+            print("SPEECH_ARCHIVE_CRC_CHECK", bad or "PASS")
+          PY
+      - name: Inspect archive names and WargusHD supported Lithuanian-language mod
+        timeout-minutes: 4
+        env:
+          CATALOG: https://pub-f80f262b299548a6b1683ee0562f6ab0.r2.dev/index.json
+        run: |
+          python3 - <<'PY'
+          import collections
+          import io
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+          from zipfile import ZipFile
+          p = Path(os.environ["RUNNER_TEMP"]) / "Speech_SPK.zip"
+          with ZipFile(p) as z:
+            files = [i for i in z.infolist() if not i.is_dir()]
+            print("SPEECH_COUNT", len(files))
+            print("SPEECH_EXTENSIONS", json.dumps(dict(collections.Counter(Path(i.filename).suffix.lower() for i in files))))
+            print("SPEECH_FOLDERS", json.dumps(dict(collections.Counter(str(Path(i.filename).parent) for i in files)),ensure_ascii=False)[:9000])
+            print("SPEECH_SAMPLE", json.dumps([{"name":i.filename,"size":i.file_size} for i in files[:130]],ensure_ascii=False))
+            print("SPEECH_END_SAMPLE",json.dumps([i.filename for i in files[-35:]],ensure_ascii=False))
+            print("SPEECH_UNCOMPRESSED",sum(i.file_size for i in files))
+          try:
+            req=urllib.request.Request(os.environ["CATALOG"],headers={"User-Agent":"WargusHD-mod-diagnostic/1.0"})
+            raw=urllib.request.urlopen(req,timeout=20).read(1_300_000)
+            catalog=json.loads(raw)
+            print("CATALOG_KEYS",list(catalog) if isinstance(catalog,dict) else "LIST")
+            print("CATALOG_PREVIEW",json.dumps(catalog,ensure_ascii=False)[:11000])
+            entries=catalog if isinstance(catalog,list) else next((v for v in catalog.values() if isinstance(v,list)),[])
+            print("CATALOG_COUNT",len(entries))
+            for mod in entries:
+              if not isinstance(mod,dict):continue
+              joined=json.dumps(mod,ensure_ascii=False)
+              if "Lietuv" in joined or "Lithuanian" in joined:
+                print("LITHUANIAN_MOD_ENTRY",joined[:6000])
+                url=mod.get("url") or mod.get("asset") or mod.get("download_url")
+                if not url:continue
+                url=urllib.parse.urljoin(os.environ["CATALOG"],url)
+                print("MOD_DOWNLOAD",url)
+                blob=urllib.request.urlopen(urllib.request.Request(url,headers={"User-Agent":"WargusHD-mod-diagnostic/1.0"}),timeout=40).read(65_000_000)
+                with ZipFile(io.BytesIO(blob)) as z:
+                  names=z.namelist()
+                  print("LITHUANIAN_NAMES",json.dumps(names[:110],ensure_ascii=False))
+                  for n in names:
+                    if n.endswith("mod.json") or n.endswith("defs/voices.json"):
+                      print("LITHUANIAN_MANIFEST",n,z.read(n).decode("utf-8",errors="replace")[:16000])
+          except Exception as exc:
+            print("CATALOG_DIAGNOSTIC_FAILED",type(exc).__name__,str(exc)[:500])
+          PY
