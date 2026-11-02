@@ -50,8 +50,25 @@ echo '== Build FPC cross compiler and 3rd party native dependencies' | tee -a "$
 bash "$DONOR/android/toolchain/setup_toolchain.sh" > "$LOG/toolchain.txt" 2>&1 ||
   { tail -80 "$LOG/toolchain.txt"; exit 1; }
 echo '== Build patched native APK with bundled game data' | tee -a "$LOG/progress.txt"
-bash "$DONOR/android/build_apk.sh" > "$LOG/gradle-and-native.txt" 2>&1 ||
-  { tail -80 "$LOG/gradle-and-native.txt"; tail -70 "$DONOR/android/build/last.log" || true; exit 1; }
+if ! bash "$DONOR/android/build_apk.sh" > "$LOG/gradle-and-native.txt" 2>&1; then
+  cat "$DONOR/android/build/last.log" > "$LOG/native-compiler-first.txt" || true
+  ASM="$DONOR/android/build/units_main/KM_GUIMapEdTerrainTiles.s"
+  if [ -f "$ASM" ]; then
+    sed -n '365,430p' "$ASM" > "$LOG/failed-asm-lines-365-430.txt"
+    cp "$ASM" "$LOG/KM_GUIMapEdTerrainTiles.s"
+  fi
+  echo '== Default -O2 native compile failed. Retry -O1 for diagnostic only.' | tee -a "$LOG/progress.txt"
+  export KAM_FPC_FLAGS="-O1"
+  if ! bash "$DONOR/android/build_apk.sh" > "$LOG/gradle-and-native-O1.txt" 2>&1; then
+    cp "$DONOR/android/build/last.log" "$LOG/native-compiler-O1.txt" || true
+    tail -80 "$LOG/gradle-and-native-O1.txt"
+    tail -70 "$LOG/native-compiler-O1.txt" || true
+    exit 1
+  fi
+  echo 'Patched APK compiled with diagnostic -O1 override' | tee "$LOG/compiler-optimization.txt"
+else
+  echo 'Patched APK compiled with donor default -O2' | tee "$LOG/compiler-optimization.txt"
+fi
 test -f "$DONOR/android/app/build/outputs/apk/debug/app-debug.apk"
 cp "$DONOR/android/app/build/outputs/apk/debug/app-debug.apk" "$RUNNER_TEMP/kam-output/KaM_lifecycle_fix_debug.apk"
 "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$RUNNER_TEMP/kam-output/KaM_lifecycle_fix_debug.apk"
