@@ -12,7 +12,7 @@ The workflow uses the standard GitHub-hosted Ubuntu 24.04 runner and KVM. It exp
 
 This is Android runtime with ARM64 translation, not a physical ARM64 compatibility or performance result.
 
-The game-check job is bounded to 75 minutes, including up to 14 minutes for preparation, 32 minutes for emulator setup/checks, and 3 minutes for uploading evidence. These are failure ceilings, not an estimate of normal duration. Every dependency action is pinned to a full commit SHA. Checkout credentials are not retained.
+The game-check job is bounded to 75 minutes, including up to 14 minutes for preparation, 38 minutes for emulator setup/checks (with an optional 20-minute UI session), and 3 minutes for uploading evidence. These are failure ceilings, not an estimate of normal duration. Every dependency action is pinned to a full commit SHA. Checkout credentials are not retained.
 
 ### Network recovery and independent device probe
 
@@ -90,6 +90,39 @@ partial attempts still fail the check; logs are never cleared during a retry.
 Before game installation, the disposable test device is configured and screenshot-
 verified at 1280x720 landscape, 160 dpi, with Android's fullscreen hint marked as
 acknowledged. This affects the emulator only. The APK and its data are unchanged.
+
+### Successful native content smoke
+
+Run [41400991651](https://github.com/constantinepetrov/android/actions/runs/41400991651)
+at code commit `7d79adf2934bcf27c966655e38e2eb5f7620755d` passed all existing
+runtime gates: exact APK install, fresh data, native engine initialization,
+1280x720 Airtest capture, and the one-item Battle Tutorial selftest with
+`passed=1 failed=0`. The main-menu screenshot was visually reviewed. Both
+temporary encrypted input artifacts were deleted by the verified cleanup job.
+The native ARM64 engine actually ran through the configured translation layer.
+
+The selftest's 200 update calls do not establish real simulation-time progression.
+Controls, actual save ticks, save/load and audible playback are separate results.
+The selftest deliberately exits the activity at completion; the final Android
+launcher screenshot is expected, whereas `engine-ready-screen.png` shows KaM.
+
+### Bounded UI session
+
+A full relay request may additionally set `ui_session: true`. After the baseline
+smoke passes, `qa/gameplay_session.py` starts a normal KaM activity on the same
+emulator and publishes an initial screenshot. The operator reviews screenshots
+and commits commands to the fixed `qa/gameplay-command.json` path. Such commits
+do not trigger another workflow. Each command is tied to the exact request,
+workflow run, attempt and next sequence number.
+
+Only bounded taps, swipes, named key events, short ASCII text, waits and finish
+are accepted. No arbitrary shell command is accepted. Each completed step has
+its own immediately available `kam-ui-RUN-ATTEMPT-SEQ` evidence artifact with a
+screen image, process state, logs and save-file metadata. Actual `TickCount`
+values come from the game's save header, not the selftest update counter. The
+whole session has a shared deadline and a step limit; finishing the session does
+not automatically label the game playable. UI observations and save/load
+evidence must be assessed separately. This emulator has no audible output.
 
 - Package: `org.kamremake.android`
 - Version: `1.0-r16397`

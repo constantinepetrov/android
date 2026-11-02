@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "run_id": 41400991651,
+  "run_url": "https://github.com/constantinepetrov/android/actions/runs/41400991651",
+  "tested_code_commit": "7d79adf2934bcf27c966655e38e2eb5f7620755d",
+  "review_date_utc": "2026-11-02",
+  "runtime_status": "AUTOMATED_CONTENT_SMOKE_PASS",
+  "apk_bytes": 856629249,
+  "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "menu_review": {
+    "status": "PASS",
+    "method": "Agent visual review of the actual Airtest PNG",
+    "file": "runtime/engine-ready-screen.png",
+    "sha256": "3242d2b2959d259732bab29e77e312e4a8f99ab45c8a79acf8db59f05a07c80f",
+    "dimensions": [1280, 720],
+    "observed": "KaM main menu with readable controls, full landscape game surface and no Android first-use overlay"
+  },
+  "native_content_smoke": {
+    "item": "Tutorials/Battle Tutorial",
+    "passed": 1,
+    "failed": 0,
+    "update_calls": 200,
+    "real_simulation_tick_delta": null
+  },
+  "runtime_translation_confirmed": true,
+  "temporary_transfer_cleanup": "PASS",
+  "playable_confirmed": false,
+  "not_yet_verified_by_this_run": [
+    "normal UI Battle Tutorial startup",
+    "touch controls and troop movement",
+    "actual simulation tick progression",
+    "manual save/load",
+    "audible sound",
+    "physical ARM64 device behavior"
+  ]
+}

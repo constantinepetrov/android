@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "request_id": "kam-game-logcat-retry-20261102T063431Z",
-  "purpose": "First accelerated Android runtime check of the existing pinned APK before user playtesting",
+  "request_id": "kam-live-gameplay-20261102T064927Z",
+  "purpose": "Observe actual Battle Tutorial controls, simulation tick advancement and save/load on the exact previously smoke-tested APK",
   "apk_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
   "apk_bytes": 856629249,
   "package": "org.kamremake.android",
@@ -9,9 +9,10 @@
   "mode": "full",
   "ui_review_required": true,
   "playable_preapproved": false,
-  "retry_of_run": 41399865980,
-  "reason": "The APK installed, restored data and initialized the native menu; retry incomplete ADB log captures within the original deadline and configure a verified 1280x720 landscape test display.",
+  "retry_of_run": 41400991651,
+  "reason": "Baseline native content smoke passed. Start a bounded normal UI session with screenshot review and real save-header tick evidence.",
   "input_route": "Encrypted local APK upload to one GitHub Actions artifact; decrypt and hash-verify in the same job; delete temporary transfer artifacts after use.",
   "independent_android_probe": false,
-  "input_source": "relay"
+  "input_source": "relay",
+  "ui_session": true
 }
