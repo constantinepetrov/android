@@ -6,5 +6,7 @@
   "build": "native-arm64-and-apk",
   "fix": "SDL_TEXTINPUT disabled; replace with JNI queued cheats",
   "original_app_untouched": true,
-  "device_testing_pending": true
+  "device_testing_pending": true,
+  "retry": "release-path-corrected",
+  "previous_run": 41520524946
 }
