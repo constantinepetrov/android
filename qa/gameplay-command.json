@@ -3,12 +3,15 @@
   "request_id": "kam-live-gameplay-20261102T064927Z",
   "github_run_id": "41402762513",
   "github_run_attempt": "1",
-  "step": 24,
+  "step": 25,
   "action": {
-    "type": "tap",
-    "x": 99,
-    "y": 549
+    "type": "swipe",
+    "x1": 1100,
+    "y1": 500,
+    "x2": 900,
+    "y2": 500,
+    "duration_ms": 300
   },
-  "wait_seconds": 2,
-  "label": "save-qac-after-restored-simulation"
+  "wait_seconds": 1,
+  "label": "pan-map-on-observed-open-grass"
 }
