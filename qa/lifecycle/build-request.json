@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "request_id": "kam-lifecycle-build-fixed-20261102",
+  "input_sha256": "c7df4b880984b9a475b57ee00b41fa5ba6140f4c21e5f688a9188ab1622169c4",
+  "donor_commit": "e81c3b765a13d730140c26159eab4506499d44e6",
+  "purpose": "build and cloud-verify lifecycle source patch in isolation"
+}
