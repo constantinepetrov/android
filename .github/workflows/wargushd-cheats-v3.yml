@@ -1,0 +1,283 @@
+name: WargusHD Android cheats v3 - local speed + extended commands
+
+on:
+  push:
+    branches:
+      - codex/wargushd-gameplay-options
+    paths:
+      - qa/wargushd-gameplay/build-request-v3.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wargushd-android-cheat-palette-v3
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout owner-private test scripts
+        uses: actions/checkout@v4
+      - name: Checkout official GPL WargusHD at exact 3.4.91 release
+        uses: actions/checkout@v4
+        with:
+          repository: nikoltu/WargusHD-android
+          ref: v3.4.91
+          submodules: recursive
+          path: upstream-wargushd
+          persist-credentials: false
+      - name: Java 17 and Gradle cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: upstream-wargushd/android/gradle/wrapper/gradle-wrapper.properties
+      - name: Restore bundled scripts from the official release APK for full compatibility
+        run: |
+          set -euo pipefail
+          curl --retry 3 -fsSL -o "$RUNNER_TEMP/WargusHD-official.apk" \
+            https://github.com/nikoltu/WargusHD-android/releases/download/v3.4.91/WargusHD-3.4.91.apk
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          import os
+          a=Path(os.environ['RUNNER_TEMP'])/'WargusHD-official.apk'
+          d=Path('upstream-wargushd/android/app/src/main')
+          with zipfile.ZipFile(a) as src:
+            lib='lib/arm64-v8a/libmain.so'
+            assert src.getinfo(lib).file_size>1000000
+            native=d/'jniLibs/arm64-v8a/libmain.so'
+            native.parent.mkdir(parents=True,exist_ok=True)
+            native.write_bytes(src.read(lib))
+            names=[x for x in src.namelist() if x.startswith('assets/wargushd/') and not x.endswith('/')]
+            assert len(names)>40 and 'assets/wargushd/scripts/cheats.lua' in names
+            for n in names:
+              target=d/'assets'/n[len('assets/'):]
+              target.parent.mkdir(parents=True,exist_ok=True)
+              target.write_bytes(src.read(n))
+            source=(d/'assets/wargushd/scripts/cheats.lua')
+            assert 'function HandleCheats(str)' in source.read_text(errors='replace')
+            print('OFFICIAL_NATIVE_BYTES',native.stat().st_size)
+            print('OFFICIAL_ASSETS_RESTORED',len(names))
+          PY
+      - name: Patch Java controls without altering the official installed app
+        run: |
+          set -euo pipefail
+          python3 qa/wargushd-gameplay/apply_cheat_palette.py upstream-wargushd
+          python3 qa/wargushd-gameplay/apply_native_cheat_bridge.py upstream-wargushd
+          python3 qa/wargushd-gameplay/apply_gameplay_v3.py upstream-wargushd
+      - name: Validate patched game source and touch panel commands
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("upstream-wargushd")
+          s=(root/"src/video/sdl.cpp").read_text()
+          u=(root/"android/app/src/main/java/net/wargushd/game/WargusHDActivity.java").read_text()
+          assert "constexpr int FAST = SPEEDUP_FACTOR * 20" in s
+          assert "p.SpeedBuild = FAST" in s and "p.SpeedTrain = FAST" in s
+          assert "p.SpeedBuild = speed.build" in s
+          assert '"fill mana"' in s and '"fow on"' in s
+          assert '"unite the clans"' in s and '"hatchet"' in s
+          assert "case 8: word" in s
+          assert "command == 8" in u and 'setTitle("Завершить миссию победой?")' in u
+          assert 'ownerCheatScroll' in u and 'ownerCheatButton' in u
+          assert u.count("ownerCheatButton(") == 9
+          print("V3_SOURCE_8_CHEATS_AND_SPEED_TOGGLE_CHECK_PASS")
+          PY
+      - name: Prepare Android NDK and vendored dependency fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream-wargushd
+          if [[ -n "${ANDROID_NDK_LATEST_HOME:-}" && -d "$ANDROID_NDK_LATEST_HOME" ]]; then
+            echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> "$GITHUB_ENV"
+            echo "NDK=$ANDROID_NDK_LATEST_HOME"
+          elif [[ -n "${ANDROID_NDK_HOME:-}" && -d "$ANDROID_NDK_HOME" ]]; then
+            echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
+            echo "NDK=$ANDROID_NDK_HOME"
+          else
+            echo "::error::Android NDK environment missing"
+            exit 1
+          fi
+          count=$(find third-party -type f -name zlib.map | wc -l)
+          while IFS= read -r map; do
+            printf 'ZLIB_1.2 {\n  global:\n    *;\n};\n' > "$map"
+          done < <(find third-party -name zlib.map)
+          echo "patched zlib.map count=$count"
+          while IFS= read -r f; do
+            sed -i -E 's/(option\(PNG_SHARED[^)]*) ON\)/\1 OFF)/' "$f"
+          done < <(find third-party -path '*/libpng/CMakeLists.txt')
+          while IFS= read -r f; do
+            sed -i 's/"-Werror=declaration-after-statement"/"-Wno-error=declaration-after-statement"/g' "$f"
+          done < <(find third-party -name CMakeLists.txt -path '*SDL*')
+          while IFS= read -r f; do
+            sed -i 's/ALooper_pollAll/ALooper_pollOnce/g' "$f"
+          done < <(find third-party -path '*SDL*' -name '*.c')
+      - name: Build host tolua++ code generator
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream-wargushd
+          cmake -B build-host -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_VENDORED_LUA=ON -DBUILD_VENDORED_MEDIA_LIBS=ON \
+            -DBUILD_VENDORED_SDL=ON -DDOWNLOAD_FREEPATS=OFF -DBUILD_TESTING=OFF
+          cmake --build build-host --target lua -j4
+          TOLUA="$(find build-host -type f -name 'toluapp' -perm /u+x | head -1)"
+          test -n "$TOLUA"
+          echo "STRATAGUS_HOST_TOLUAPP=$(realpath "$TOLUA")" >> "$GITHUB_ENV"
+          echo "Host tolua++ found: $TOLUA"
+      - name: Build new ARM64 game engine with direct cheat bridge
+        timeout-minutes: 27
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd upstream-wargushd
+          cmake -B build-android -G "Unix Makefiles" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/cmake/toolchains/android-arm64.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_VENDORED_LUA=ON -DBUILD_VENDORED_MEDIA_LIBS=ON \
+            -DBUILD_VENDORED_SDL=ON -DDOWNLOAD_FREEPATS=OFF \
+            -DBUILD_TESTING=OFF -DWITH_OPENMP=OFF \
+            -DWARGUSHD_DEBUG_COMMANDS=OFF \
+            -DSTRATAGUS_HOST_TOLUAPP="$STRATAGUS_HOST_TOLUAPP"
+          cmake --build build-android -j4 || {
+            echo "::error::ARM64 native build failed"
+            cmake --build build-android -j1 --verbose
+          }
+          test -s build-android/libmain.so
+          readelf -Ws build-android/libmain.so | grep -q 'Java_net_wargushd_game_WargusHDActivity_nativeCheatSend'
+          echo "NEW_NATIVE_JNI_BRIDGE_PRESENT"
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a
+          cp build-android/libmain.so android/app/src/main/jniLibs/arm64-v8a/libmain.so
+          LIB=android/app/src/main/jniLibs/arm64-v8a/libmain.so
+          STRIP="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          test -x "$STRIP"
+          BEFORE=$(stat -c%s "$LIB")
+          "$STRIP" --strip-unneeded "$LIB"
+          AFTER=$(stat -c%s "$LIB")
+          echo "NATIVE_DEBUG_SYMBOLS_STRIPPED bytes=$BEFORE to bytes=$AFTER"
+          test "$AFTER" -lt "$BEFORE"
+          readelf -Ws "$LIB" | grep -q 'Java_net_wargushd_game_WargusHDActivity_nativeCheatSend'
+          echo "STRIPPED_BRIDGE_REMAINS_EXPORTED"
+      - name: Compile side-by-side debug APK
+        run: |
+          set -euo pipefail
+          cd upstream-wargushd/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Verify self-contained app ID, SDL bridge and complete game scripts
+        run: |
+          set -euo pipefail
+          APK=upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          test "$(stat -c%s "$APK")" -gt 5000000
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile, json,hashlib
+          apk=Path('upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk')
+          with zipfile.ZipFile(apk) as z:
+            assert z.testzip() is None
+            items=z.namelist()
+            assert 'lib/arm64-v8a/libmain.so' in items
+            assert 'assets/wargushd/scripts/cheats.lua' in items
+            assert 'glittering prizes' in z.read('assets/wargushd/scripts/cheats.lua').decode('utf-8',errors='replace')
+            assert any(b'nativeCheatSend' in z.read(n) for n in items if n.startswith('classes') and n.endswith('.dex'))
+            assert b'Java_net_wargushd_game_WargusHDActivity_nativeCheatSend' in z.read('lib/arm64-v8a/libmain.so')
+            assert len(items)>130
+          report={'status':'APK_COMPILED_CRC_VERIFIED_NOT_DEVICE_TESTED',
+             'source':'nikoltu/WargusHD-android v3.4.91 official public APK + GPL source',
+             'native_engine_unchanged':False,
+             'native_direct_jni_bridge':True,
+             'cheat_execution_result_message':True,
+             'additional_permissions':False,
+             'side_by_side_app_id':'net.wargushd.game.cheats.v3',
+             'new_controls':['resources','local-only-speed-x20','reveal-map','god-mode-toggle','fill-mana','fast-wood','restore-fog','victory-with-confirmation'],
+             'local_speed_real_factor':20,
+             'cheat_panel_gameplay_only':True,
+             'unit_voice_mods_installed':False,
+             'requires_original_own_game_data':True,
+             'apk_bytes':apk.stat().st_size,
+             'sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),
+             'on_device_tested':False}
+          Path('qa/wargushd-gameplay/report.json').write_text(json.dumps(report,indent=2)+'\n')
+          print('QA_REPORT',json.dumps(report))
+          PY
+          SDK_TOOL="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$SDK_TOOL" dump badging "$APK" | grep -E '^package: name=|^application-label:' | head -3
+          "$SDK_TOOL" dump badging "$APK" | grep -q "name='net.wargushd.game.cheats.v3'"
+          echo APK_MANIFEST_SEPARATE_APP_ID_VERIFIED
+      - name: Preserve verified APK as fallback artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wargushd-cheats-v3-full-apk
+          path: upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Save owner-only draft test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=wargushd-cheats-palette-v3-owner-20261103
+          mkdir -p "$RUNNER_TEMP/out"
+          cp upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk \
+            "$RUNNER_TEMP/out/WargusHD-Cheats-Palette-v3.apk"
+          cat > "$RUNNER_TEMP/out/README.txt" <<'DOC'
+          WargusHD 3.4.91 - owner-only Android cheat toolbar v3, local speed ×20 and eight functions.
+          Side-by-side test application (app ID net.wargushd.game.cheats.v3).
+          Original WargusHD is NOT overwritten or uninstalled.
+
+          1. Install APK as a separate app "WargusHD Cheats v3".
+          2. Select the SAME Warcraft II: Remastered ROOT folder (the parent containing Data). Do NOT choose Data itself.
+          3. Re-import Russian SPK units and SPK briefings mods in THIS app.
+          4. Start a SOLO campaign mission or custom game.
+          5. On game screen, top right: "ЧИТЫ".
+          6. The panel contains eight functions. Tap to run; engine confirms result.
+          6b. Speed x20 affects YOUR player, not the AI; tap again to restore.
+          6c. The victory cheat asks for confirmation before completing the mission.
+          6a. This version uses a direct native engine-thread JNI queue, not text input.
+          7. Every cheat marks the game as cheated, score zero.
+          8. Multiplayer LAN is deliberately unsupported.
+          9. To revert, simply uninstall this TEST app; the original is untouched.
+
+          Source changes under:
+          https://github.com/constantinepetrov/android/tree/codex/wargushd-gameplay-options/qa/wargushd-gameplay
+
+          WARNING: Built/ZIP-tested, NOT yet verified running on a Fold.
+          DOC
+          gh release create "$TAG" "$RUNNER_TEMP/out/WargusHD-Cheats-Palette-v2.apk" \
+            "$RUNNER_TEMP/out/README.txt" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target codex/wargushd-gameplay-options --draft --prerelease \
+            --title "WargusHD cheats v3 (local speed and extra cheats)" \
+            --notes "V3 uses a local-player x20 production and economy speed toggle, plus built-in mana, lumber, fog, and victory options. Original app remains untouched. Build verified; on-device play to be confirmed."
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/out/releases.json"
+          python3 - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads((Path('qa/wargushd-gameplay/report.json')).read_text())
+          all=json.loads((Path(os.environ['RUNNER_TEMP'])/'out/releases.json').read_text())
+          one=next(x for x in all if x['tag_name']=='wargushd-cheats-palette-v3-owner-20261103')
+          assert one['draft'] and not one.get('published_at')
+          apk=next(x for x in one['assets'] if x['name']=='WargusHD-Cheats-Palette-v2.apk')
+          assert apk['size']==r['apk_bytes']
+          assert apk['digest']=='sha256:'+r['sha256']
+          print('PRIVATE_DRAFT_APK',one['html_url'])
+          print('PRIVATE_APK_DOWNLOAD',apk['browser_download_url'])
+          print('SHA256_VERIFIED',r['sha256'])
+          PY
+      - name: Upload QA only (no game assets) for diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wargushd-cheat-palette-v3-build-report
+          path: qa/wargushd-gameplay/report.json
+          if-no-files-found: ignore
+          retention-days: 7
