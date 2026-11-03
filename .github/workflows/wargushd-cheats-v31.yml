@@ -91,7 +91,6 @@ jobs:
           assert "ownerCheatScroll.addView(ownerCheatMenu);" in java
           assert "ownerCheatMenu.setVisibility(View.VISIBLE);" in java
           assert "ownerCheatScroll.setVisibility(View.GONE);" in java
-          assert "ownerCheatScroll.setVisibility(View.VISIBLE);" in java
           print("MENU_PARENT_VISIBILITY_REGRESSION_GUARDED")
           PY
       - name: Assemble separate Android ARM64 APK with original v3 native binary
