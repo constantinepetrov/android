@@ -1,0 +1,146 @@
+name: WargusHD cheats v3.1 - restore working cheat menu
+
+on:
+  push:
+    branches:
+      - codex/wargushd-gameplay-options
+    paths:
+      - qa/wargushd-gameplay/build-request-v31.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wargushd-cheats-menu-v31
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair source
+        uses: actions/checkout@v4
+      - name: Checkout exact upstream WargusHD 3.4.91
+        uses: actions/checkout@v4
+        with:
+          repository: nikoltu/WargusHD-android
+          ref: v3.4.91
+          submodules: recursive
+          path: upstream-wargushd
+          persist-credentials: false
+      - name: Java 17 and Gradle cache
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: upstream-wargushd/android/gradle/wrapper/gradle-wrapper.properties
+      - name: Reuse verified v3 native engine and bundled scripts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release download wargushd-cheats-palette-v3-owner-20261103 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'WargusHD-Cheats-Palette-v3.apk' \
+            --dir "$RUNNER_TEMP"
+          python3 - <<'PY'
+          import hashlib,os,zipfile
+          from pathlib import Path
+          apk=Path(os.environ["RUNNER_TEMP"])/"WargusHD-Cheats-Palette-v3.apk"
+          assert hashlib.sha256(apk.read_bytes()).hexdigest() == "023c20070314eb60ece42b341045c206d95095b383457e06afb4fc088c439971"
+          d=Path("upstream-wargushd/android/app/src/main")
+          with zipfile.ZipFile(apk) as z:
+              assert z.testzip() is None
+              native=d/"jniLibs/arm64-v8a/libmain.so"
+              native.parent.mkdir(parents=True,exist_ok=True)
+              native.write_bytes(z.read("lib/arm64-v8a/libmain.so"))
+              assets=[n for n in z.namelist() if n.startswith("assets/wargushd/") and not n.endswith("/")]
+              assert len(assets)>40
+              for n in assets:
+                  sub=Path(n[len("assets/"):])
+                  assert ".." not in sub.parts
+                  p=d/"assets"/sub
+                  p.parent.mkdir(parents=True,exist_ok=True)
+                  p.write_bytes(z.read(n))
+          print("V3_VERIFIED_NATIVE_REUSED",native.stat().st_size)
+          print("V3_ASSETS_RESTORED",len(assets))
+          PY
+      - name: Restore original v3 patches and fix menu visibility only
+        run: |
+          set -euo pipefail
+          python3 qa/wargushd-gameplay/apply_cheat_palette.py upstream-wargushd
+          python3 qa/wargushd-gameplay/apply_native_cheat_bridge.py upstream-wargushd
+          python3 qa/wargushd-gameplay/apply_gameplay_v3.py upstream-wargushd
+          python3 qa/wargushd-gameplay/apply_ui_hotfix_v31.py upstream-wargushd
+      - name: Assert click handler toggles visible parent instead of hidden child
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("upstream-wargushd")
+          java=(root/"android/app/src/main/java/net/wargushd/game/WargusHDActivity.java").read_text()
+          begin=java.index("ownerCheatTab.setOnClickListener(")
+          end=java.index("\n    private void createOverlayHost()",begin)
+          listener=java[begin:end]
+          assert "ownerCheatScroll.setVisibility(" in listener,listener
+          assert "ownerCheatScroll.getVisibility()==View.VISIBLE" in listener,listener
+          assert "ownerCheatMenu.setVisibility(" not in listener,listener
+          assert java.count("ownerCheatButton(")==9
+          assert "ownerCheatScroll.addView(ownerCheatMenu);" in java
+          assert "ownerCheatMenu.setVisibility(View.VISIBLE);" in java
+          assert "ownerCheatScroll.setVisibility(View.GONE);" in java
+          assert "ownerCheatScroll.setVisibility(View.VISIBLE);" in java
+          print("MENU_PARENT_VISIBILITY_REGRESSION_GUARDED")
+          PY
+      - name: Assemble separate Android ARM64 APK with original v3 native binary
+        run: |
+          set -euo pipefail
+          cd upstream-wargushd/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Validate APK architecture package name and ZIP
+        run: |
+          set -euo pipefail
+          APK=upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          python3 - <<'PY'
+          import hashlib,zipfile
+          from pathlib import Path
+          apk=Path("upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk")
+          with zipfile.ZipFile(apk) as z:
+              assert z.testzip() is None
+              assert "lib/arm64-v8a/libmain.so" in z.namelist()
+              assert "assets/wargushd/scripts/cheats.lua" in z.namelist()
+              assert any(n.startswith("classes") and n.endswith(".dex") for n in z.namelist())
+              assert b'Java_net_wargushd_game_WargusHDActivity_nativeCheatSend' in z.read("lib/arm64-v8a/libmain.so")
+          print("V31_APK_BYTES",apk.stat().st_size)
+          print("V31_SHA256",hashlib.sha256(apk.read_bytes()).hexdigest())
+          PY
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | grep -E "^package:|^application-label:" | head -2
+          "$AAPT" dump badging "$APK" | grep -q "name='net.wargushd.game.cheats.v31'"
+          echo "V31_SIDE_BY_SIDE_PACKAGE_VALIDATED"
+      - name: Keep verified APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wargushd-cheats-v31-apk
+          path: upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish separate owner-only draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/WargusHD-Cheats-Palette-v3.1.apk"
+          cp upstream-wargushd/android/app/build/outputs/apk/debug/app-debug.apk "$OUT"
+          TAG=wargushd-cheats-palette-v31-owner-20261103
+          gh release create "$TAG" "$OUT" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --draft --prerelease \
+            --title "WargusHD Cheats v3.1 - cheat panel visibility hotfix" \
+            --notes "Fixes v3 invisible cheats menu: the tab now toggles the outer ScrollView, not the inner list. All eight v3 cheats and the SHA-verified v3 ARM64 game engine are unchanged. Separate app net.wargushd.game.cheats.v31: v2/v3/original are preserved. ZIP/Java checks pass; Fold touch test still required."
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" \
+            --jq '.assets[] | select(.name=="WargusHD-Cheats-Palette-v3.1.apk") | {name, size, digest, browser_download_url}'
