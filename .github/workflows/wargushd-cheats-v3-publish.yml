@@ -1,0 +1,95 @@
+name: Publish verified WargusHD Cheats v3 APK owner draft
+
+on:
+  push:
+    branches:
+      - codex/wargushd-gameplay-options
+    paths:
+      - qa/wargushd-gameplay/publish-v3.json
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  promote-verified-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download already compiled v3 APK from build run
+        uses: actions/download-artifact@v4
+        with:
+          name: wargushd-cheats-v3-full-apk
+          run-id: 41601302984
+          github-token: ${{ github.token }}
+          path: downloaded
+      - name: Verify original build hash and APK structure
+        run: |
+          set -euo pipefail
+          test -s downloaded/app-debug.apk
+          test "$(stat -c%s downloaded/app-debug.apk)" = 5464199
+          EXPECTED=023c20070314eb60ece42b341045c206d95095b383457e06afb4fc088c439971
+          ACTUAL="$(sha256sum downloaded/app-debug.apk | awk '{print $1}')"
+          test "$ACTUAL" = "$EXPECTED"
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+          apk=Path('downloaded/app-debug.apk')
+          with zipfile.ZipFile(apk) as z:
+            assert z.testzip() is None
+            names=z.namelist()
+            assert "lib/arm64-v8a/libmain.so" in names
+            assert "assets/wargushd/scripts/cheats.lua" in names
+            assert b"Java_net_wargushd_game_WargusHDActivity_nativeCheatSend" in z.read("lib/arm64-v8a/libmain.so")
+            assert any(b"nativeCheatSend" in z.read(n) for n in names if n.startswith("classes") and n.endswith(".dex"))
+          print("VERIFIED_v3: 5464199 bytes, SHA256, native JNI, scripts and CRC")
+          PY
+      - name: Create private owner-only draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p upload
+          cp downloaded/app-debug.apk upload/WargusHD-Cheats-Palette-v3.apk
+          cat > upload/README.txt <<'EOF'
+          WargusHD Cheats v3 — native Android ARM64 testing build.
+          Android package: net.wargushd.game.cheats.v3.
+          Compatible with Warcraft II: Remastered original Data folder.
+          Installs alongside the original WargusHD and v2; does not overwrite either.
+
+          1. Install the v3 APK, choose the folder containing Data (NOT Data itself).
+          2. Start a solo campaign or custom mission and open ЧИТЫ.
+          3. Resources: +12000 gold, +5000 wood and oil.
+          4. Speed x20: only your production, research and harvesting, reversible.
+          5. Reveal map; toggle god mode.
+          6. Fill mana (the upstream cheat affects all mages).
+          7. Fast wood chopping (the upstream cheat affects ALL players).
+          8. Restore fog of war; instant victory (confirmation required).
+          9. Cheats set score to zero. LAN commands are disabled.
+          10. Russian unit voices and SPK briefing packs can be imported into v3.
+
+          Verified: APK CRC, arm64 JNI, full scripts, SHA-256, Gradle/NDK builds.
+          Not yet tested on a physical Fold; first check Speed x20 in a new solo mission.
+          EOF
+          TAG="wargushd-cheats-palette-v3-owner-20261103"
+          gh release create "$TAG" upload/WargusHD-Cheats-Palette-v3.apk upload/README.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target codex/wargushd-gameplay-options \
+            --draft --prerelease \
+            --title "WargusHD Cheats v3 — x20 local speed and extra cheats" \
+            --notes "Owner-only, unpublished test build, 5.46 MB. Direct JNI controls; reversible x20 production and harvesting only for your side; mana, lumber, fog, victory. Fold gameplay validation still pending."
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > releases.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          releases=json.loads(Path('releases.json').read_text())
+          x=next(y for y in releases if y["tag_name"]=="wargushd-cheats-palette-v3-owner-20261103")
+          assert x["draft"] is True and x.get("published_at") is None
+          a=next(y for y in x["assets"] if y["name"]=="WargusHD-Cheats-Palette-v3.apk")
+          assert a["size"] == 5464199
+          assert a["digest"]=="sha256:023c20070314eb60ece42b341045c206d95095b383457e06afb4fc088c439971"
+          print("VERIFIED_V3_RELEASE",x["html_url"])
+          print("VERIFIED_V3_DOWNLOAD",a["browser_download_url"])
+          print("VERIFIED_V3_BYTES",a["size"])
+          PY
