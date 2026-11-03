@@ -1,0 +1,14 @@
+{
+  "task": "build-wargushd-cheats-v3",
+  "game": "WargusHD 3.4.91",
+  "fix": "native reversible local player's 20x speed not all players",
+  "extras": [
+    "fill mana",
+    "fast lumber all players",
+    "fog restoration",
+    "instant victory with confirmation"
+  ],
+  "remove_debug_symbols": true,
+  "parallel_app_id": "net.wargushd.game.cheats.v3",
+  "preserve_v2_and_original": true
+}
