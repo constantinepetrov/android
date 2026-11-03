@@ -1,0 +1,9 @@
+{
+  "task": "promote-verified-wargushd-v3",
+  "original_workflow_run": 41601302984,
+  "artifact_id": 13215390420,
+  "expected_sha256": "023c20070314eb60ece42b341045c206d95095b383457e06afb4fc088c439971",
+  "expected_bytes": 5464199,
+  "destination": "unpublished owner draft",
+  "preserve_original_apk": true
+}
