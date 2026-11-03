@@ -1,0 +1,13 @@
+{
+  "task": "build-wargushd-cheats-v3.1-menu-fix",
+  "bug": "Cheat tab onClick toggles ownerCheatMenu but outer ownerCheatScroll stays GONE",
+  "fix": "Toggle ownerCheatScroll visibility; assert it in regression tests",
+  "v3_native_sha256": "023c20070314eb60ece42b341045c206d95095b383457e06afb4fc088c439971",
+  "output_applicationId": "net.wargushd.game.cheats.v31",
+  "preserve": [
+    "original",
+    "v2",
+    "v3"
+  ],
+  "on_device_test": "pending Fold validation"
+}
