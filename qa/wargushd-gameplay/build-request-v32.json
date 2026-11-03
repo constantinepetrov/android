@@ -1,0 +1,19 @@
+{
+  "version": "3.2",
+  "engine": "WargusHD v3.4.91",
+  "status": "experimental",
+  "features": [
+    "native per-player x20 applied inside order tick logic",
+    "reversible hatchet-like lumber harvesting all players",
+    "9th diagnostic reports actual action hooks that consume boost",
+    "separate side-by-side app"
+  ],
+  "preserve": [
+    "official",
+    "v2",
+    "v3",
+    "v3.1"
+  ],
+  "build": "ARM64 cross compile; APK zip sha checksum",
+  "device_test": "pending"
+}
